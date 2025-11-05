@@ -21,7 +21,9 @@ function Base.show(io::IO, chem::Chemostat)
     compact = get(io, :compact, true)
     t = chem.saved[end].t
     N = chem.saved[end].N
-    N_est = est_N(chem)
+    N_est = round(est_N(chem); sigdigits=3)
+    N_est = round(Int, N_est)
+
     if compact 
         print(io, "Chemostat(t=$t, N=$N/$N_est)")
     else 

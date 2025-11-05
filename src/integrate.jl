@@ -85,7 +85,6 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
     int.t_next <= t0 && return int
 
     δ = get_δ(int.alg)
-    int.log_f += δ * (int.t - t0)
 
     while !isempty(queue)
         if length(queue) > Nmax  
@@ -100,6 +99,8 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
         pop!(queue)
         process_cell!(int, cell, int.t_next; δ, kwargs...)
     end
+
+    int.log_f += δ * (int.t_next - t0)
 
     int.t = if int.retcode == ReturnCode.MaxIters 
         first(queue).t
@@ -124,9 +125,9 @@ function process_cell!(int::PopIntegrator, cell, tmax;
     # Cells are culled with rate δ
     if δ > 0 
         t_kill = tb + rand(Exponential(1 / δ))
-        @show tb t_kill
 
         if t_kill < cell.t
+            @info "Killed cell"
             kill_cell!(cell, t_kill)
             save_leaves && push!(chem.leaves, cell.sol)
             return
