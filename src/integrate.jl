@@ -25,12 +25,12 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm; tstops = Float64
                   SciMLBase.ReturnCode.Default)
 end 
 
-function add_tstop!(int::PopIntegrator, t)
-    @argcheck t >= int.t_next 
+Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
 
-    if t in int.tstops 
-        return 
-    end 
+function add_tstop!(int::PopIntegrator, t)
+    @argcheck t >= int.t_next "Cannot add tstop before current t"
+
+    t in int.tstops && return 
 
     push!(int.tstops, t)
     sort!(int.tstops)
@@ -49,7 +49,7 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm; saveat=[ tmax 
 end
 
 function solve!(int::PopIntegrator, tmax; kwargs...)
-    !isnothing(int.chem.env) && simulate_env!(int.chem.env, tmax)
+    isnothing(int.chem.env) || simulate_env!(int.chem.env, tmax)
 
     while int.t < tmax && int.retcode == ReturnCode.Default
         update_algorithm!(int.alg, int)
@@ -60,7 +60,7 @@ function solve!(int::PopIntegrator, tmax; kwargs...)
     empty!(int.chem.pop)
     while !isempty(int.queue)
         cell = pop!(int.queue)
-        @check cell.sol.alive
+        @check cell.sol.status == CellState.Alive
         push!(int.chem.pop, cell.sol)
     end
 
@@ -73,10 +73,8 @@ function find_next_t(int::PopIntegrator, tmax)
     idx = findfirst(t -> t > int.t, int.tstops)
     idx == nothing && return tmax 
     min(int.tstops[idx], tmax)
-
 end 
 
-Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
 function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
     @unpack chem, queue = int 
     
@@ -97,7 +95,13 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
         cell.t >= int.t_next && break
 
         pop!(queue)
-        process_cell!(int, cell, int.t_next; δ, kwargs...)
+        if cell.sol.status == CellState.Alive 
+            process_cell!(int, cell, int.t_next; δ, kwargs...)
+        elseif cell.sol.status == CellState.Divided 
+            process_division!(int, cell; kwargs...)
+        else 
+            process_death!(int, cell; kwargs...)
+        end
     end
 
     int.log_f += δ * (int.t_next - t0)
@@ -108,15 +112,14 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
         int.t_next 
     end 
 
-    if save 
-        push!(int.chem.saved, Snapshot(int))
-    end
+    save && push!(int.chem.saved, Snapshot(int))
 
     int
 end
 
-function process_cell!(int::PopIntegrator, cell, tmax; 
-                       δ=0., save_leaves=false, save_lineages=false)
+function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false, kwargs...)
+    @argcheck cell.sol.status == CellState.Alive 
+
     tb = cell.t 
     step!(cell, tmax - tb, int.chem.model, int.chem.env)
 
@@ -127,21 +130,21 @@ function process_cell!(int::PopIntegrator, cell, tmax;
         t_kill = tb + rand(Exponential(1 / δ))
 
         if t_kill < cell.t
-            @info "Killed cell"
             kill_cell!(cell, t_kill)
             save_leaves && push!(chem.leaves, cell.sol)
             return
         end
     end
 
-    # Cell survives past tmax; add to snapshot
-    if cell.t >= tmax
-        push!(int.queue, cell)
-        return 
-    end
+    push!(int.queue, cell)
+end 
+
+function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
+    @argcheck cell.sol.status == CellState.Divided 
 
     # Cell dies or divides
     offspr = get_offspring(cell, int.chem.model, int.chem.env)
+
     anc = if save_lineages 
         cell.sol 
     else 
@@ -151,5 +154,13 @@ function process_cell!(int::PopIntegrator, cell, tmax;
     offspr = [ CellIntegrator(Cell(anc, cell.t, u, p)) for (u, p) in offspr ]
     N_expected = length(int.queue) + length(offspr) 
     int.nsim += add_offspring!(int.queue, offspr, int.alg)
+    int.log_f += log(N_expected) - log(length(int.queue))
+end
+
+function process_death!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
+    @argcheck cell.sol.status == CellState.Dead || cell.sol.status == CellState.Killed
+    
+    N_expected = length(int.queue)
+    add_offspring!(int.queue, [], int.alg)
     int.log_f += log(N_expected) - log(length(int.queue))
 end

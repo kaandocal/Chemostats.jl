@@ -1,13 +1,23 @@
+@enumx CellState Alive Dead Divided Killed
+
 mutable struct Cell{C,P}
     anc::Union{Missing,Cell{C,P}}
     t::Vector{Float64}
     u::Vector{C}
     p::P
-    alive::Bool      # Move to integrator?
+    status::CellState.T      # Move to integrator?
 end
 
-Cell(t::Real, u, p=nothing) = Cell(missing, [t], [u], p, true)
-Cell(anc::Union{Missing,Cell{C,P}}, t::Real, u::C, p::P = nothing) where {C,P} = Cell(anc, [t], [u], p, true)
+Cell(t::Real, u, p=nothing) = Cell(missing, t, u, p)
+function Cell(::Missing, t::Real, u, p = nothing)
+    Cell(missing, [t], [u], p, CellState.Alive)
+end
+
+function Cell(anc::Cell{C,P}, t::Real, u::C, p::P = nothing) where {C,P} 
+    @assert anc.status == CellState.Divided
+
+    Cell(anc, [t], [u], p, CellState.Alive)
+end
 
 function simulate_cell! end 
 function get_offspring end 
@@ -23,21 +33,26 @@ end
 
 CellIntegrator(cell::Cell) = CellIntegrator(cell.t[end], cell.u[end], cell.p, cell)
 
-function kill_cell!(int::CellIntegrator, t=int.t)
+function set_status!(int::CellIntegrator, status::CellState.T)
     savevalues!(int)
-    int.sol.alive = false
+    int.sol.status = status
 end 
+
+function kill_cell!(int::CellIntegrator, t=int.t) 
+    if t < int.t || int.sol.status == CellState.Alive 
+        int.sol.status = CellState.Killed
+    end 
+end 
+
+die!(int::CellIntegrator) = set_status!(int, CellState.Dead)
+divide!(int::CellIntegrator) = set_status!(int, CellState.Divided)
 
 function savevalues!(int::CellIntegrator)
     if int.t in int.sol.t
         return (true, true)
     end 
 
-    if !int.sol.alive
-        @show int 
-    end 
-
-    @argcheck int.sol.alive
+    @argcheck int.sol.status == CellState.Alive
 
     push!(int.sol.t, int.t)
     push!(int.sol.u, int.u)
@@ -45,14 +60,8 @@ function savevalues!(int::CellIntegrator)
     return (true, true)
 end
 
-# function cell_alive(cell::Cell, t)
-#     t >= cell.t[1] || return false
-#     cell.alive && @check t <= cell.t[end]
-#     return t <= cell.t[end]
-# end
-
 function step!(int::CellIntegrator, dt, model, env)
-    int.sol.alive || return
+    int.sol.status == CellState.Alive || return
     simulate_cell!(int, int.t + dt, model, env)
     savevalues!(int)
 end
@@ -64,25 +73,23 @@ end
 #     cell.u[i]
 # end
 
-
 function interpolate(cell::Cell, t)
-    @check cell.t[1] <= t <= cell.t[end]
+    @argcheck cell.t[1] <= t <= cell.t[end]
     i = findlast(s -> s <= t, cell.t)
-
     cell.u[i]
 end
 
 function copy_until(cell::Cell, t)
-    @check cell.t[1] <= t <= cell.t[end]
+    @argcheck cell.t[1] <= t <= cell.t[end]
+    @check cell.status == CellState.Alive
 
     idcs = findlast(s -> s <= t, cell.t)
     tt = [ cell.t[idcs]; t ]
     uu = [ cell.u[idcs]; interpolate(cell, t) ]
 
-    Cell(cell.anc, deepcopy(tt), deepcopy(uu), deepcopy(cell.p), cell.alive)
+    Cell(cell.anc, copy(tt), deepcopy(uu), deepcopy(cell.p), CellState.Alive)
 end
 
 function duplicate_cell(int::CellIntegrator, t::Float64)
-    #@check cell_alive(cell, t)
     CellIntegrator(copy_until(int.sol, t))
 end

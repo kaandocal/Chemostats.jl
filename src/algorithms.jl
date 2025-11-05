@@ -18,6 +18,7 @@ function _popat!(queue::BinaryHeap, idx::Integer)
     pop!(queue)
 end 
 
+### 
 
 abstract type AbstractAlgorithm end 
 
@@ -25,7 +26,7 @@ struct Forward <: AbstractAlgorithm
 end 
 
 get_δ(::Forward) = 0.
-init!(alg::Forward, int) = nothing
+init!(::Forward, int) = nothing
 update_algorithm!(::Forward, int) = nothing
 
 function add_offspring!(queue, cells, ::Forward)
@@ -34,12 +35,14 @@ function add_offspring!(queue, cells, ::Forward)
     return 1
 end
 
+### 
+
 struct Thin <: AbstractAlgorithm
     δ::Float64 
 end 
 
 get_δ(alg::Thin) = alg.δ
-init!(alg::Thin, int) = nothing
+init!(::Thin, int) = nothing
 update_algorithm!(::Thin, int) = nothing
 
 function add_offspring!(queue, cells, ::Thin)
@@ -50,11 +53,12 @@ function add_offspring!(queue, cells, ::Thin)
     return length(cells)
 end
 
+### 
+
 struct Strict <: AbstractAlgorithm
     L::Int
 end 
 
-Strict(cells::AbstractVector) = Strict(length(cells))
 get_δ(::Strict) = 0.
 init!(alg::Strict, int) = update_algorithm!(alg, int)
 
@@ -108,3 +112,37 @@ function add_offspring!(queue, cells, alg::Strict)
 end
 
 # struct Lax?
+
+# struct Lax <: AbstractAlgorithm
+#     Lmin::Int
+#     Lmax::Int
+#     #    t_adapt::Float64
+# end 
+
+# get_δ(::Strict) = 0.
+# init!(alg::Lax, int) = nothing
+
+# function update_algorithm!(alg::Lax, int) 
+# end 
+
+# function add_offspring!(queue, cells, alg::Strict)
+#     @check length(queue) == alg.L - 1
+
+#     nsim = 0
+
+#     for cell in cells
+#         push!(queue, cell)
+#         nsim += 1
+#     end 
+
+#     while length(queue) > alg.L
+#         j = sample(1:length(queue))
+#         if _getindex(queue, j) in cells
+#             nsim -= 1
+#         end 
+
+#         _popat!(queue, j)
+#     end 
+
+#     return nsim
+# end

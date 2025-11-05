@@ -5,6 +5,7 @@ using Distributions
 using DataStructures
 using ArgCheck
 using UnPack
+using EnumX
 
 using SciMLBase
 using SciMLBase: ReturnCode
