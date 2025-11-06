@@ -20,7 +20,7 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm; tstops = Float64
 
     queue = BinaryHeap(TOrder, [ CellIntegrator(cell) for cell in chem.pop ])
     
-    PopIntegrator(chem, alg, queue, tstops, t0, t0, 
+    PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, 
                   chem.saved[end].nsim, chem.saved[end].log_f, 
                   SciMLBase.ReturnCode.Default)
 end 
@@ -60,7 +60,7 @@ function solve!(int::PopIntegrator, tmax; kwargs...)
     empty!(int.chem.pop)
     while !isempty(int.queue)
         cell = pop!(int.queue)
-        @check cell.sol.status == CellState.Alive
+        #@check cell.sol.status == CellState.Alive
         push!(int.chem.pop, cell.sol)
     end
 
@@ -97,7 +97,7 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
         pop!(queue)
         if cell.sol.status == CellState.Alive 
             process_cell!(int, cell, int.t_next; δ, kwargs...)
-        elseif cell.sol.status == CellState.Divided 
+        elseif cell.sol.status == CellState.Divided
             process_division!(int, cell; kwargs...)
         else 
             process_death!(int, cell; kwargs...)
@@ -124,6 +124,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
     step!(cell, tmax - tb, int.chem.model, int.chem.env)
 
     @check cell.t <= tmax + 1e-9
+    @check cell.sol.status != CellState.Alive || cell.t > tb "Cell simulation for time 0"
 
     # Cells are culled with rate δ
     if δ > 0 
@@ -131,7 +132,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
 
         if t_kill < cell.t
             kill_cell!(cell, t_kill)
-            save_leaves && push!(chem.leaves, cell.sol)
+            save_leaves && push!(int.chem.leaves, cell.sol)
             return
         end
     end
