@@ -25,7 +25,7 @@ abstract type AbstractAlgorithm end
 struct Forward <: AbstractAlgorithm
 end 
 
-get_δ(::Forward) = 0.
+get_δ(int, ::Forward) = 0.
 init!(::Forward, int) = nothing
 update_algorithm!(::Forward, int) = nothing
 
@@ -41,7 +41,7 @@ struct Thin <: AbstractAlgorithm
     δ::Float64 
 end 
 
-get_δ(alg::Thin) = alg.δ
+get_δ(int, alg::Thin) = alg.δ
 init!(::Thin, int) = nothing
 update_algorithm!(::Thin, int) = nothing
 
@@ -59,8 +59,15 @@ struct Strict <: AbstractAlgorithm
     L::Int
 end 
 
-get_δ(::Strict) = 0.
+get_δ(int, ::Strict) = 0.
 init!(alg::Strict, int) = update_algorithm!(alg, int)
+
+function truncate_queue!(queue, N)
+    while length(queue) > N
+        j = sample(1:length(queue))
+        _popat!(queue, j)
+    end 
+end 
 
 function update_algorithm!(alg::Strict, int) 
     if isempty(int.queue)
@@ -76,10 +83,7 @@ function update_algorithm!(alg::Strict, int)
         duplicate_random!(int.queue, int.t)
     end
 
-    while length(int.queue) > alg.L
-        j = sample(1:length(int.queue))
-        _popat!(int.queue, j)
-    end 
+    truncate_queue!(queue, alg.L)
 
     int.log_f += log(N_start) - log(alg.L)
 end 
@@ -111,38 +115,71 @@ function add_offspring!(queue, cells, alg::Strict)
     return nsim
 end
 
-# struct Lax?
+###
 
-# struct Lax <: AbstractAlgorithm
-#     Lmin::Int
-#     Lmax::Int
-#     #    t_adapt::Float64
-# end 
+struct Lax <: AbstractAlgorithm
+    L::Int
+    t_adapt::Float64
+    tol::Float64
 
-# get_δ(::Strict) = 0.
-# init!(alg::Lax, int) = nothing
+    function Lax(L::Int, t_adapt, tol=0.5)
+        @argcheck 0 < tol < 1
+        @argcheck t_adapt > 0
 
-# function update_algorithm!(alg::Lax, int) 
-# end 
+        new(L,t_adapt, tol)
+    end 
+end 
 
-# function add_offspring!(queue, cells, alg::Strict)
-#     @check length(queue) == alg.L - 1
+function est_Λ_curr(chem::Chemostat, t, alg::Lax)
+    snap1 = get_snapshot(chem, t)
 
-#     nsim = 0
+    i = findlast(snap -> snap.t + alg.t_adapt < snap1.t, chem.saved)
+    isnothing(i) && return NaN
+    snap0 = chem.saved[i]
 
-#     for cell in cells
-#         push!(queue, cell)
-#         nsim += 1
-#     end 
+    est_Λ(snap0, snap1)
+end 
 
-#     while length(queue) > alg.L
-#         j = sample(1:length(queue))
-#         if _getindex(queue, j) in cells
-#             nsim -= 1
-#         end 
+function register_tstop!(int, alg::Lax) 
+    int.t_next < int.t + alg.t_adapt && add_tstop!(int, int.t + alg.t_adapt)
+end 
 
-#         _popat!(queue, j)
-#     end 
+init!(alg::Lax, int) = register_tstop!(int, alg)
 
-#     return nsim
-# end
+function get_δ(int, alg::Lax)
+    register_tstop!(int, alg)
+
+    get_δ(int.chem, int.t, alg)
+end
+
+function get_δ(chem::Chemostat, t, alg::Lax)
+    snap = get_snapshot(chem, t)
+
+    # Small population 
+    snap.N < 10 && return 0.
+
+    # Estimate current growth rate
+    Λ̂ = est_Λ_curr(chem, t, alg)
+    isfinite(Λ̂) || return 0.
+
+    # Expected population size after time t_adapt is 
+    #   `length(queue) * exp((Λ - δ) * t_adapt)` 
+    # This should == L
+    ΔlogN = log(alg.L) - log(snap.N)
+    ret = Λ̂ - ΔlogN / alg.t_adapt
+    max(0, ret)
+end 
+
+update_algorithm!(alg::Lax, int) = nothing  
+
+function add_offspring!(queue, cells, alg::Lax)
+    for cell in cells
+        push!(queue, cell)
+    end
+
+    if length(queue) > alg.L * (1 + alg.tol)
+        truncate_queue!(queue, alg.L)
+    end
+
+    return length(cells)
+end

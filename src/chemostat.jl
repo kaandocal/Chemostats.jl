@@ -8,6 +8,11 @@ end
 est_logN(snap::Snapshot) = log(snap.N) + snap.log_f
 est_N = exp ∘ est_logN
 
+function est_Λ(before::Snapshot, after::Snapshot) 
+    before.t >= after.t && return NaN
+    (est_logN(after) - est_logN(before)) / (after.t - before.t)
+end
+
 struct Chemostat{C,M,E}
     pop::Vector{C}
     model::M
@@ -41,20 +46,15 @@ get_t(chem::Chemostat) = chem.saved[end].t
 
 """ estimate the real population size by extrapolation """
 
-function est_logN(chem::Chemostat, t = get_t(chem))
+function get_snapshot(chem::Chemostat, t = get_t(chem))
     i = findfirst(snap -> snap.t == t, chem.saved)
-    if isnothing(i) 
-        throw(ArgumentError("No snapshot saved at time t=$t"))
-    end
+    isnothing(i) && throw(ArgumentError("No snapshot saved at time t=$t"))
+    chem.saved[i]
+end 
 
-    est_logN(chem.saved[i])
-end
+est_logN(chem::Chemostat, t = get_t(chem)) = est_logN(get_snapshot(chem, t))
 
-function est_Λ(chem::Chemostat, t0, t) 
-    t0 >= t && return NaN
-    (est_logN(chem, t) - est_logN(chem, t0)) / (t - t0)
-end
-
+est_Λ(chem::Chemostat, t0, t) = est_Λ(get_snapshot(chem, t0), get_snapshot(chem, t))
 est_Λ(chem::Chemostat, t = get_t(chem)) = est_Λ(chem, zero(t), t)
 
 # Population history stuff 

@@ -1,10 +1,11 @@
 const TOrder = Base.By(int -> int.t)
 
-mutable struct PopIntegrator{CT <: Chemostat, CI <: CellIntegrator, A <: AbstractAlgorithm}
+mutable struct PopIntegrator{CT <: Chemostat, CI <: CellIntegrator, A <: AbstractAlgorithm, QT <: BinaryHeap{CI}}
     chem::CT
     alg::A
-    queue::BinaryHeap{CI}
+    queue::QT
     tstops::Vector{Float64}
+    t0::Float64
     t::Float64
     t_next::Float64
     nsim::Int
@@ -20,10 +21,12 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm; tstops = Float64
 
     queue = BinaryHeap(TOrder, [ CellIntegrator(cell) for cell in chem.pop ])
     
-    PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, 
+    PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
                   chem.saved[end].nsim, chem.saved[end].log_f, 
                   SciMLBase.ReturnCode.Default)
 end 
+
+simulate_env!(::Nothing, tmax) = nothing 
 
 Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
 
@@ -49,7 +52,7 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm; saveat=[ tmax 
 end
 
 function solve!(int::PopIntegrator, tmax; kwargs...)
-    isnothing(int.chem.env) || simulate_env!(int.chem.env, tmax)
+    simulate_env!(int.chem.env, tmax)
 
     while int.t < tmax && int.retcode == ReturnCode.Default
         update_algorithm!(int.alg, int)
@@ -82,7 +85,7 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
     t0 = int.t 
     int.t_next <= t0 && return int
 
-    δ = get_δ(int.alg)
+    δ = get_δ(int, int.alg)
 
     while !isempty(queue)
         if length(queue) > Nmax  
