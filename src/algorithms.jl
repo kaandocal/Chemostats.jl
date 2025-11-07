@@ -18,15 +18,36 @@ function _popat!(queue::BinaryHeap, idx::Integer)
     pop!(queue)
 end 
 
+function duplicate_random!(queue::BinaryHeap, t)
+    i = sample(1:length(queue))
+    push!(queue, duplicate_cell(queue.valtree[i], t))
+end 
+
+function truncate_queue!(queue, N)
+    while length(queue) > N
+        j = sample(1:length(queue))
+        _popat!(queue, j)
+    end 
+end 
+
+function ensure_size!(queue, L::Int, t)
+    while length(queue) < L
+        duplicate_random!(queue, t)
+    end
+
+    truncate_queue!(queue, L)
+end 
+
 ### 
 
 abstract type AbstractAlgorithm end 
 
 struct Forward <: AbstractAlgorithm
+    L::Int
 end 
 
 get_δ(int, ::Forward) = 0.
-init!(::Forward, int) = nothing
+init!(alg::Forward, int) = ensure_size!(int.queue, alg.L, int.t)
 update_algorithm!(::Forward, int) = nothing
 
 function add_offspring!(queue, cells, ::Forward)
@@ -60,16 +81,10 @@ struct Strict <: AbstractAlgorithm
 end 
 
 get_δ(int, ::Strict) = 0.
-init!(alg::Strict, int) = update_algorithm!(alg, int)
+init!(alg::Strict, int) = resize_queue!(int, alg)
+update_algorithm!(alg::Strict, int) = resize_queue!(int, alg)
 
-function truncate_queue!(queue, N)
-    while length(queue) > N
-        j = sample(1:length(queue))
-        _popat!(queue, j)
-    end 
-end 
-
-function update_algorithm!(alg::Strict, int) 
+function resize_queue!(int, alg::Strict) 
     if isempty(int.queue)
         @warn "No cells left in strict chemostat"
         int.retcode = ReturnCode.Unstable
@@ -78,19 +93,8 @@ function update_algorithm!(alg::Strict, int)
 
     # Ensure we have exactly L clones 
     N_start = length(int.queue)
-
-    while length(int.queue) < alg.L
-        duplicate_random!(int.queue, int.t)
-    end
-
-    truncate_queue!(queue, alg.L)
-
+    ensure_size!(int.queue, alg.L, int.t)
     int.log_f += log(N_start) - log(alg.L)
-end 
-
-function duplicate_random!(queue::BinaryHeap, t)
-    i = sample(1:length(queue))
-    push!(queue, duplicate_cell(queue.valtree[i], t))
 end 
 
 function add_offspring!(queue, cells, alg::Strict)
@@ -133,8 +137,9 @@ end
 function est_Λ_curr(chem::Chemostat, t, alg::Lax)
     snap1 = get_snapshot(chem, t)
 
-    i = findlast(snap -> snap.t + alg.t_adapt < snap1.t, chem.saved)
-    isnothing(i) && return NaN
+    @assert issorted(chem.saved; by = snap -> snap.t)
+    i = searchsortedlast(map(snap -> snap.t, chem.saved), t - alg.t_adapt)
+    isempty(i) && return NaN
     snap0 = chem.saved[i]
 
     est_Λ(snap0, snap1)

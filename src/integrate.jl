@@ -28,10 +28,12 @@ end
 
 simulate_env!(::Nothing, tmax) = nothing 
 
+savevalues!(int::PopIntegrator) = push!(int.chem.saved, Snapshot(int))
+
 Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
 
 function add_tstop!(int::PopIntegrator, t)
-    @argcheck t >= int.t_next "Cannot add tstop before current t"
+    @argcheck t >= int.t_next "Cannot add tstop at time $t: middle of simulation"
 
     t in int.tstops && return 
 
@@ -41,7 +43,7 @@ end
 
 function init!(int::PopIntegrator)
     init!(int.alg, int)
-    push!(int.chem.saved, Snapshot(int))
+    savevalues!(int)
 end 
 
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm; saveat=[ tmax ], kwargs...)
@@ -115,7 +117,7 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
         int.t_next 
     end 
 
-    save && push!(int.chem.saved, Snapshot(int))
+    save && savevalues!(int)
 
     int
 end

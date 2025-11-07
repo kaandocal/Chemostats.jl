@@ -47,9 +47,10 @@ get_t(chem::Chemostat) = chem.saved[end].t
 """ estimate the real population size by extrapolation """
 
 function get_snapshot(chem::Chemostat, t = get_t(chem))
-    i = findfirst(snap -> snap.t == t, chem.saved)
-    isnothing(i) && throw(ArgumentError("No snapshot saved at time t=$t"))
-    chem.saved[i]
+    @assert issorted(chem.saved; by = snap -> snap.t)
+    i = searchsorted(map(snap -> snap.t, chem.saved), t)
+    isempty(i) && throw(ArgumentError("No snapshot saved at time t=$t"))
+    chem.saved[last(i)]
 end 
 
 est_logN(chem::Chemostat, t = get_t(chem)) = est_logN(get_snapshot(chem, t))
