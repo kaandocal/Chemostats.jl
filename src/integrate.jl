@@ -46,20 +46,21 @@ function init!(int::PopIntegrator)
     savevalues!(int)
 end 
 
-function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm; saveat=[ tmax ], kwargs...)
+function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm, 
+                   ensalg::EnsembleAlgorithm = EnsembleSerial(); saveat=[ tmax ], kwargs...)
     int = PopIntegrator(chem, alg; tstops=saveat)
     init!(int)
-    solve!(int, tmax)
+    solve!(int, tmax, ensalg)
     chem
 end
 
-function solve!(int::PopIntegrator, tmax; kwargs...)
+function solve!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     simulate_env!(int.chem.env, tmax)
 
     while int.t < tmax && int.retcode == ReturnCode.Default
         update_algorithm!(int.alg, int)
         int.retcode == ReturnCode.Default || break
-        step!(int, tmax; save=true, kwargs...)
+        step!(int, tmax, ensalg; save=true, kwargs...)
     end
 
     empty!(int.chem.pop)
@@ -80,7 +81,11 @@ function find_next_t(int::PopIntegrator, tmax)
     min(int.tstops[idx], tmax)
 end 
 
-function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
+function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
+    error("Ensemble algorithm $ensalg not supported")
+end 
+
+function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=false, kwargs...)
     @unpack chem, queue = int 
     
     int.t_next = find_next_t(int, tmax)
@@ -162,7 +167,7 @@ function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs
         missing 
     end 
 
-    offspr = [ CellIntegrator(Cell(anc, cell.t, u, p)) for (u, p) in offspr ]
+    offspr = map(((u, p),) -> CellIntegrator(Cell(anc, cell.t, u, p)), offspr)
     N_expected = length(int.queue) + length(offspr) 
     add_offspring!(int.queue, offspr, int.alg)
     int.log_f += log(N_expected) - log(length(int.queue))

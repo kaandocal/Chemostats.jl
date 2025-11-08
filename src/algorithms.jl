@@ -115,7 +115,7 @@ struct Lax <: AbstractAlgorithm
         @argcheck 0 < tol < 1
         @argcheck t_adapt > 0
 
-        new(L,t_adapt, tol)
+        new(L, t_adapt, tol)
     end 
 end 
 

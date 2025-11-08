@@ -9,6 +9,7 @@ using EnumX
 
 using SciMLBase
 using SciMLBase: ReturnCode
+using SciMLBase: EnsembleAlgorithm, EnsembleSerial, EnsembleThreads
 import SciMLBase: savevalues!, step!, add_tstop!
 
 include("cell.jl")
