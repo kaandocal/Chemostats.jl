@@ -1,6 +1,55 @@
+### Queue management
+
+struct ThreadedBinaryHeap{HT <: BinaryHeap}
+    heap::HT 
+    lock::ReentrantLock
+end
+
+ThreadedBinaryHeap(heap::BinaryHeap) = ThreadedBinaryHeap(heap, ReentrantLock())
+
+lockqueue(f::Function, ::BinaryHeap) = f()
+lockqueue(f::Function, queue::ThreadedBinaryHeap) = lock(f, queue.lock)
+
+const QueueType = Union{BinaryHeap,ThreadedBinaryHeap}
+
+function Base.push!(queue::ThreadedBinaryHeap, v)
+    lockqueue(queue) do 
+        push!(queue.heap, v)
+    end 
+end 
+
+function Base.append!(queue::QueueType, vals)
+    lockqueue(queue) do 
+        for v in vals 
+            push!(queue, v)
+        end 
+    end
+end
+
+function resize_int!(int, L::Int)
+    lockqueue(int.queue) do 
+        if isempty(int.queue)
+            @warn "No cells left in chemostat, terminating..."
+            int.retcode = ReturnCode.Unstable
+            return
+        end  
+
+        N_start = length(int.queue)
+        
+        while length(int.queue) < L
+            _duplicate_random!(int.queue, int.t)
+        end
+
+        _truncate_queue!(int.queue, L)
+
+        int.log_f += log(N_start) - log(L)
+    end
+end
+
 # Adapted from DataStructures.jl 
 _getindex(queue::BinaryHeap, i::Integer) = queue.valtree[i]
 
+# THESE FUNCTIONS ARE NOT THREAD SAFE 
 function _force_up!(queue::BinaryHeap, i::Integer)
     x = queue.valtree[i]
 
@@ -18,24 +67,16 @@ function _popat!(queue::BinaryHeap, idx::Integer)
     pop!(queue)
 end 
 
-function duplicate_random!(queue::BinaryHeap, t)
+function _duplicate_random!(queue::BinaryHeap, t)
     i = sample(1:length(queue))
     push!(queue, duplicate_cell(queue.valtree[i], t))
 end 
 
-function truncate_queue!(queue, N)
+function _truncate_queue!(queue, N)
     while length(queue) > N
         j = sample(1:length(queue))
         _popat!(queue, j)
     end 
-end 
-
-function ensure_size!(queue, L::Int, t)
-    while length(queue) < L
-        duplicate_random!(queue, t)
-    end
-
-    truncate_queue!(queue, L)
 end 
 
 ### 
@@ -47,13 +88,12 @@ struct Forward <: AbstractAlgorithm
 end 
 
 get_δ(int, ::Forward) = 0.
-init!(alg::Forward, int) = ensure_size!(int.queue, alg.L, int.t)
+init!(alg::Forward, int) = resize_int!(int, alg.L)
+is_parallel(::Forward) = true
 update_algorithm!(::Forward, int) = nothing
-
-function add_offspring!(queue, cells, ::Forward)
-    isempty(cells) && return
-    push!(queue, first(cells))
-end
+filter_offspring(cells, ::Forward) = Iterators.take(cells, 1)
+should_sync(queue, ::Forward) = false
+sync!(queue, ::Forward) = nothing
 
 ### 
 
@@ -63,13 +103,11 @@ end
 
 get_δ(int, alg::Thin) = alg.δ
 init!(::Thin, int) = nothing
+is_parallel(::Thin) = true
 update_algorithm!(::Thin, int) = nothing
-
-function add_offspring!(queue, cells, ::Thin)
-    for cell in cells
-        push!(queue, cell)
-    end
-end
+filter_offspring(cells, ::Thin) = cells 
+should_sync(queue, alg::Thin) = false
+sync!(int, ::Thin) = nothing
 
 ### 
 
@@ -78,31 +116,12 @@ struct Strict <: AbstractAlgorithm
 end 
 
 get_δ(int, ::Strict) = 0.
-init!(alg::Strict, int) = resize_queue!(int, alg)
-update_algorithm!(alg::Strict, int) = resize_queue!(int, alg)
-
-function resize_queue!(int, alg::Strict) 
-    if isempty(int.queue)
-        @warn "No cells left in strict chemostat"
-        int.retcode = ReturnCode.Unstable
-        return
-    end 
-
-    # Ensure we have exactly L clones 
-    N_start = length(int.queue)
-    ensure_size!(int.queue, alg.L, int.t)
-    int.log_f += log(N_start) - log(alg.L)
-end 
-
-function add_offspring!(queue, cells, alg::Strict)
-    @check length(queue) == alg.L - 1    # Single-threaded only
-
-    for cell in cells
-        push!(queue, cell)
-    end 
-
-    truncate_queue!(queue, alg.L)
-end
+init!(alg::Strict, int) = resize_int!(int, alg.L)
+is_parallel(alg::Strict) = false
+update_algorithm!(::Strict, int) = nothing
+filter_offspring(cells, ::Strict) = cells 
+should_sync(queue, ::Strict) = true
+sync!(int, alg::Strict) = resize_int!(int, alg.L)
 
 ###
 
@@ -160,14 +179,8 @@ function get_δ(chem::Chemostat, t, alg::Lax)
     max(0, ret)
 end 
 
-update_algorithm!(alg::Lax, int) = nothing  
-
-function add_offspring!(queue, cells, alg::Lax)
-    for cell in cells
-        push!(queue, cell)
-    end
-
-    if length(queue) > alg.L * (1 + alg.tol)
-        truncate_queue!(queue, alg.L)
-    end
-end
+update_algorithm!(::Lax, int) = nothing  
+is_parallel(::Lax) = true
+filter_offspring(cells, ::Lax) = cells
+should_sync(queue, alg::Lax) = length(queue) > alg.L * (1 + alg.tol)
+sync!(int, alg::Lax) = resize_int!(int, alg.L)

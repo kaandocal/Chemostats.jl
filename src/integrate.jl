@@ -1,6 +1,6 @@
 const TOrder = Base.By(int -> int.t)
 
-mutable struct PopIntegrator{CT <: Chemostat, CI <: CellIntegrator, A <: AbstractAlgorithm, QT <: BinaryHeap{CI}}
+mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: QueueType}
     chem::CT
     alg::A
     queue::QT
@@ -13,13 +13,29 @@ mutable struct PopIntegrator{CT <: Chemostat, CI <: CellIntegrator, A <: Abstrac
     retcode::ReturnCode.T
 end
 
-function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm; tstops = Float64[])
+create_queue(cells, ::EnsembleSerial) = BinaryHeap(TOrder, [ CellIntegrator(cell) for cell in cells ])
+create_queue(cells, ::EnsembleThreads) = ThreadedBinaryHeap(create_queue(cells, EnsembleSerial()))
+
+function extract_queue!(pop, queue::BinaryHeap)
+    while !isempty(queue)
+        cell = pop!(queue)
+        push!(pop, cell.sol)
+    end
+end 
+
+function extract_queue!(pop, queue::ThreadedBinaryHeap)
+    lockqueue!(queue)
+    extract_queue!(pop, queue.heap)
+    unlockqueue!(queue)
+end 
+
+function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm; tstops = Float64[])
     t0 = get_t(chem)
 
     tstops = filter(t -> t0 < t, tstops)
     tstops = unique(sort(tstops))
 
-    queue = BinaryHeap(TOrder, [ CellIntegrator(cell) for cell in chem.pop ])
+    queue = create_queue(chem.pop, ensalg) 
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
                   chem.saved[end].nsim, chem.saved[end].log_f, 
@@ -48,7 +64,7 @@ end
 
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm, 
                    ensalg::EnsembleAlgorithm = EnsembleSerial(); saveat=[ tmax ], kwargs...)
-    int = PopIntegrator(chem, alg; tstops=saveat)
+    int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
     init!(int)
     solve!(int, tmax, ensalg)
     chem
@@ -64,11 +80,7 @@ function solve!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     end
 
     empty!(int.chem.pop)
-    while !isempty(int.queue)
-        cell = pop!(int.queue)
-        #@check cell.sol.status == CellState.Alive
-        push!(int.chem.pop, cell.sol)
-    end
+    extract_queue!(int.chem.pop, int.queue)
 
     if int.retcode == ReturnCode.Default 
         int.retcode = ReturnCode.Success
@@ -94,8 +106,13 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
 
     δ = get_δ(int, int.alg)
 
-    while !isempty(queue)
-        if length(queue) > Nmax  
+    # THREAD SAFE
+    while true
+        should_sync(queue, int.alg) && sync!(int, int.alg)
+
+        if isempty(queue) || int.retcode != ReturnCode.Default 
+            break
+        elseif length(queue) > Nmax  
             @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
             int.retcode = ReturnCode.MaxIters
             break 
@@ -114,10 +131,9 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
             process_cell!(int, cell, int.t_next; δ, kwargs...)
         elseif cell.sol.status == CellState.Divided
             process_division!(int, cell; kwargs...)
-        else 
-            process_death!(int, cell; kwargs...)
         end
     end
+    # END THREAD
 
     int.log_f += δ * (int.t_next - t0)
 
@@ -152,6 +168,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
         end
     end
 
+    # This is threadsafe
     push!(int.queue, cell)
 end 
 
@@ -168,15 +185,13 @@ function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs
     end 
 
     offspr = map(((u, p),) -> CellIntegrator(Cell(anc, cell.t, u, p)), offspr)
-    N_expected = length(int.queue) + length(offspr) 
-    add_offspring!(int.queue, offspr, int.alg)
-    int.log_f += log(N_expected) - log(length(int.queue))
-end
 
-function process_death!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
-    @argcheck cell.sol.status == CellState.Dead || cell.sol.status == CellState.Killed
-    
-    N_expected = length(int.queue)
-    add_offspring!(int.queue, [], int.alg)
-    int.log_f += log(N_expected) - log(length(int.queue))
+    N_full = length(int.queue) + length(offspr)
+    offspr_filtered = filter_offspring(offspr, int.alg)
+    N_obs = length(int.queue) + length(offspr_filtered)
+
+    lockqueue(int.queue) do 
+        append!(int.queue, offspr_filtered)
+        int.log_f += log(N_full) - log(N_obs)
+    end
 end
