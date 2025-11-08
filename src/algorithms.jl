@@ -51,9 +51,8 @@ init!(alg::Forward, int) = ensure_size!(int.queue, alg.L, int.t)
 update_algorithm!(::Forward, int) = nothing
 
 function add_offspring!(queue, cells, ::Forward)
-    isempty(cells) && return 0
+    isempty(cells) && return
     push!(queue, first(cells))
-    return 1
 end
 
 ### 
@@ -70,8 +69,6 @@ function add_offspring!(queue, cells, ::Thin)
     for cell in cells
         push!(queue, cell)
     end
-
-    return length(cells)
 end
 
 ### 
@@ -98,25 +95,13 @@ function resize_queue!(int, alg::Strict)
 end 
 
 function add_offspring!(queue, cells, alg::Strict)
-    @check length(queue) == alg.L - 1
-
-    nsim = 0
+    @check length(queue) == alg.L - 1    # Single-threaded only
 
     for cell in cells
         push!(queue, cell)
-        nsim += 1
     end 
 
-    while length(queue) > alg.L
-        j = sample(1:length(queue))
-        if _getindex(queue, j) in cells
-            nsim -= 1
-        end 
-
-        _popat!(queue, j)
-    end 
-
-    return nsim
+    truncate_queue!(queue, alg.L)
 end
 
 ###
@@ -185,6 +170,4 @@ function add_offspring!(queue, cells, alg::Lax)
     if length(queue) > alg.L * (1 + alg.tol)
         truncate_queue!(queue, alg.L)
     end
-
-    return length(cells)
 end

@@ -100,6 +100,11 @@ function step!(int::PopIntegrator, tmax; Nmax=Int(1e7), save=false, kwargs...)
         cell.t >= int.t_next && break
 
         pop!(queue)
+        if cell.sol.status == CellState.Newborn 
+            init_cell!(cell)
+            int.nsim += 1
+        end 
+
         if cell.sol.status == CellState.Alive 
             process_cell!(int, cell, int.t_next; δ, kwargs...)
         elseif cell.sol.status == CellState.Divided
@@ -159,7 +164,7 @@ function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs
 
     offspr = [ CellIntegrator(Cell(anc, cell.t, u, p)) for (u, p) in offspr ]
     N_expected = length(int.queue) + length(offspr) 
-    int.nsim += add_offspring!(int.queue, offspr, int.alg)
+    add_offspring!(int.queue, offspr, int.alg)
     int.log_f += log(N_expected) - log(length(int.queue))
 end
 
