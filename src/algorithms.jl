@@ -6,11 +6,24 @@ struct ThreadedBinaryHeap{HT <: BinaryHeap}
 end
 
 ThreadedBinaryHeap(heap::BinaryHeap) = ThreadedBinaryHeap(heap, ReentrantLock())
+Base.eltype(heap::ThreadedBinaryHeap) = eltype(heap.heap)
 
 lockqueue(f::Function, ::BinaryHeap) = f()
 lockqueue(f::Function, queue::ThreadedBinaryHeap) = lock(f, queue.lock)
 
 const QueueType = Union{BinaryHeap,ThreadedBinaryHeap}
+
+function Base.first(queue::ThreadedBinaryHeap) 
+    lockqueue(queue) do 
+        first(queue.heap)
+    end 
+end
+
+function Base.popfirst!(queue::ThreadedBinaryHeap) 
+    lockqueue(queue) do 
+        popfirst!(queue.heap)
+    end 
+end
 
 function Base.push!(queue::ThreadedBinaryHeap, v)
     lockqueue(queue) do 
