@@ -148,6 +148,66 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
     int
 end
 
+
+# function step!(int::PopIntegrator, tmax, ::EnsembleThreads; Nmax=Int(1e7), save=false, kwargs...)
+#     @unpack chem, queue = int 
+    
+#     int.t_next = find_next_t(int, tmax)
+#     t0 = int.t 
+#     int.t_next <= t0 && return int
+
+#     δ = get_δ(int, int.alg)
+
+#     nth = Threads.nthreads()
+#     jobs = Channel{eltype(queue)}(nth)
+
+#     while true
+#         if int.retcode != ReturnCode.Default 
+#             break
+#         elseif length(queue) > Nmax  
+#             @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
+#             int.retcode = ReturnCode.MaxIters
+#             break 
+#         end 
+
+#         if should_sync(queue, int.alg)
+#             while isactive(pool)
+#             end 
+
+#             sync!(int, int.alg)
+#         end 
+
+#         if !isempty(queue)
+#             cell = first(queue)
+#             if cell.t < int.t_next
+#                 pop!(queue)
+#                 # In a new task
+#                 handle_cell!(cell) 
+#                 continue
+#             end 
+            
+#             # break if all threads free 
+#         end 
+
+#         # break if all threads free
+
+#     end
+#     # END THREAD
+
+#     int.log_f += δ * (int.t_next - t0)
+
+#     int.t = if int.retcode == ReturnCode.MaxIters 
+#         first(queue).t
+#     else 
+#         int.t_next 
+#     end 
+
+#     save && savevalues!(int)
+
+#     int
+# end
+
+
 function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false, kwargs...)
     @argcheck cell.sol.status == CellState.Alive 
 
