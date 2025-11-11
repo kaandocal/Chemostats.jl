@@ -44,8 +44,6 @@ end
 
 get_t(chem::Chemostat) = chem.saved[end].t 
 
-""" estimate the real population size by extrapolation """
-
 function get_snapshot(chem::Chemostat, t = get_t(chem))
     @assert issorted(chem.saved; by = snap -> snap.t)
     i = searchsorted(map(snap -> snap.t, chem.saved), t)
@@ -53,28 +51,30 @@ function get_snapshot(chem::Chemostat, t = get_t(chem))
     chem.saved[last(i)]
 end 
 
+""" estimate the real population size by extrapolation """
 est_logN(chem::Chemostat, t = get_t(chem)) = est_logN(get_snapshot(chem, t))
 
+""" estimate the growth rat between time t0 and t """
 est_Λ(chem::Chemostat, t0, t) = est_Λ(get_snapshot(chem, t0), get_snapshot(chem, t))
 est_Λ(chem::Chemostat, t = get_t(chem)) = est_Λ(chem, zero(t), t)
 
-# Population history stuff 
+# # Population history stuff 
 
-add_lineage!(set, ::Missing) = set
-function add_lineage!(set, cell::Cell)
-    add_lineage!(set, cell.anc)
-    union!(set, [cell])
-end 
+# add_lineage!(set, ::Missing) = set
+# function add_lineage!(set, cell::Cell)
+#     add_lineage!(set, cell.anc)
+#     union!(set, [cell])
+# end 
 
-function collect_cells!(chem::Chemostat)
-    for cell in chem.pop
-        add_lineage!(chem.all_cells, cell)
-    end 
+# function collect_cells!(chem::Chemostat)
+#     for cell in chem.pop
+#         add_lineage!(chem.all_cells, cell)
+#     end 
 
-    for cell in chem.leaves 
-        add_lineage!(chem.all_cells, cell)
-    end
-end
+#     for cell in chem.leaves 
+#         add_lineage!(chem.all_cells, cell)
+#     end
+# end
 
 # filter_cells(cells, t) = filter(cell -> cell.t[1] <= t < cell.t[end], cells)
 

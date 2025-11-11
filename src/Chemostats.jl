@@ -12,6 +12,7 @@ using SciMLBase: ReturnCode
 using SciMLBase: EnsembleAlgorithm, EnsembleSerial, EnsembleThreads
 import SciMLBase: savevalues!, step!, add_tstop!
 
+include("queue.jl")
 include("cell.jl")
 include("chemostat.jl")
 include("algorithms.jl")

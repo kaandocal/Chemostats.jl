@@ -1,5 +1,3 @@
-const TOrder = Base.By(int -> int.t)
-
 mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: QueueType}
     chem::CT
     alg::A
@@ -13,29 +11,14 @@ mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: Queu
     retcode::ReturnCode.T
 end
 
-create_queue(cells, ::EnsembleSerial) = BinaryHeap(TOrder, [ CellIntegrator(cell) for cell in cells ])
-create_queue(cells, ::EnsembleThreads) = ThreadedBinaryHeap(create_queue(cells, EnsembleSerial()))
-
-function extract_queue!(pop, queue::BinaryHeap)
-    while !isempty(queue)
-        cell = pop!(queue)
-        push!(pop, cell.sol)
-    end
-end 
-
-function extract_queue!(pop, queue::ThreadedBinaryHeap)
-    lockqueue!(queue)
-    extract_queue!(pop, queue.heap)
-    unlockqueue!(queue)
-end 
-
 function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm; tstops = Float64[])
     t0 = get_t(chem)
 
     tstops = filter(t -> t0 < t, tstops)
     tstops = unique(sort(tstops))
 
-    queue = create_queue(chem.pop, ensalg) 
+    cells = map(init_cell, chem.pop)
+    queue = create_queue(cells, ensalg) 
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
                   chem.saved[end].nsim, chem.saved[end].log_f, 
@@ -43,10 +26,8 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
 end 
 
 simulate_env!(::Nothing, tmax) = nothing 
-
-savevalues!(int::PopIntegrator) = push!(int.chem.saved, Snapshot(int))
-
 Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
+savevalues!(int::PopIntegrator) = push!(int.chem.saved, Snapshot(int))
 
 function add_tstop!(int::PopIntegrator, t)
     @argcheck t >= int.t_next "Cannot add tstop at time $t: middle of simulation"
@@ -57,15 +38,11 @@ function add_tstop!(int::PopIntegrator, t)
     sort!(int.tstops)
 end 
 
-function init!(int::PopIntegrator)
-    init!(int.alg, int)
-    savevalues!(int)
-end 
-
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm, 
                    ensalg::EnsembleAlgorithm = EnsembleSerial(); saveat=[ tmax ], kwargs...)
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
-    init!(int)
+    init!(int.alg, int)
+    savevalues!(int)
     solve!(int, tmax, ensalg)
     chem
 end
@@ -80,13 +57,16 @@ function solve!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     end
 
     empty!(int.chem.pop)
-    extract_queue!(int.chem.pop, int.queue)
+    extract_queue!(cell -> cell.sol, int.chem.pop, int.queue)
 
     if int.retcode == ReturnCode.Default 
         int.retcode = ReturnCode.Success
     end 
+
+    int
 end 
 
+### TODO: sorted search
 function find_next_t(int::PopIntegrator, tmax)
     idx = findfirst(t -> t > int.t, int.tstops)
     idx == nothing && return tmax 
@@ -119,17 +99,17 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
         end 
 
         cell = first(queue)
-        cell.t >= int.t_next && break
+        get_t(cell) >= int.t_next && break
 
         pop!(queue)
-        if cell.sol.status == CellState.Newborn 
+        if get_status(cell) == CellState.Newborn 
             init_cell!(cell)
             int.nsim += 1
         end 
 
-        if cell.sol.status == CellState.Alive 
+        if get_status(cell) == CellState.Alive 
             process_cell!(int, cell, int.t_next; δ, kwargs...)
-        elseif cell.sol.status == CellState.Divided
+        elseif get_status(cell) == CellState.Divided
             process_division!(int, cell; kwargs...)
         end
     end
@@ -149,102 +129,36 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
 end
 
 
-# function step!(int::PopIntegrator, tmax, ::EnsembleThreads; Nmax=Int(1e7), save=false, kwargs...)
-#     @unpack chem, queue = int 
-    
-#     int.t_next = find_next_t(int, tmax)
-#     t0 = int.t 
-#     int.t_next <= t0 && return int
-
-#     δ = get_δ(int, int.alg)
-
-#     nth = Threads.nthreads()
-#     jobs = Channel{eltype(queue)}(nth)
-
-#     while true
-#         if int.retcode != ReturnCode.Default 
-#             break
-#         elseif length(queue) > Nmax  
-#             @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
-#             int.retcode = ReturnCode.MaxIters
-#             break 
-#         end 
-
-#         if should_sync(queue, int.alg)
-#             while isactive(pool)
-#             end 
-
-#             sync!(int, int.alg)
-#         end 
-
-#         if !isempty(queue)
-#             cell = first(queue)
-#             if cell.t < int.t_next
-#                 pop!(queue)
-#                 # In a new task
-#                 handle_cell!(cell) 
-#                 continue
-#             end 
-            
-#             # break if all threads free 
-#         end 
-
-#         # break if all threads free
-
-#     end
-#     # END THREAD
-
-#     int.log_f += δ * (int.t_next - t0)
-
-#     int.t = if int.retcode == ReturnCode.MaxIters 
-#         first(queue).t
-#     else 
-#         int.t_next 
-#     end 
-
-#     save && savevalues!(int)
-
-#     int
-# end
-
-
 function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false, kwargs...)
-    @argcheck cell.sol.status == CellState.Alive 
+    @argcheck get_status(cell) == CellState.Alive 
 
-    tb = cell.t 
+    tb = get_t(cell)
     step!(cell, tmax - tb, int.chem.model, int.chem.env)
+    t = get_t(cell)
 
-    @check cell.t <= tmax + 1e-9
-    @check cell.sol.status != CellState.Alive || cell.t > tb "Cell simulation for time 0"
+    @check t <= tmax + 1e-6
+    @check get_status(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
 
     # Cells are culled with rate δ
     if δ > 0 
         t_kill = tb + rand(Exponential(1 / δ))
 
-        if t_kill < cell.t
+        if t_kill < t
             kill_cell!(cell, t_kill)
             save_leaves && push!(int.chem.leaves, cell.sol)
             return
         end
     end
 
-    # This is threadsafe
+    # This uses a threadsafe call
     push!(int.queue, cell)
 end 
 
 function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
-    @argcheck cell.sol.status == CellState.Divided 
+    @argcheck get_status(cell) == CellState.Divided 
 
     # Cell dies or divides
-    offspr = get_offspring(cell, int.chem.model, int.chem.env)
-
-    anc = if save_lineages 
-        cell.sol 
-    else 
-        missing 
-    end 
-
-    offspr = map(((u, p),) -> CellIntegrator(Cell(anc, cell.t, u, p)), offspr)
+    offspr = init_offspring(int, cell; save_lineages)
 
     N_full = length(int.queue) + length(offspr)
     offspr_filtered = filter_offspring(offspr, int.alg)
@@ -253,5 +167,25 @@ function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs
     lockqueue(int.queue) do 
         append!(int.queue, offspr_filtered)
         int.log_f += log(N_full) - log(N_obs)
+    end
+end
+
+function resize_pop!(int, L::Int)
+    lockqueue(int.queue) do 
+        if isempty(int.queue)
+            @warn "No cells left in chemostat, terminating..."
+            int.retcode = ReturnCode.Unstable
+            return
+        end
+
+        N_start = length(int.queue)
+        
+        while length(int.queue) < L
+            _duplicate_random!(int.queue, int.t)
+        end
+
+        _truncate_queue!(int.queue, L)
+
+        int.log_f += log(N_start) - log(L)
     end
 end
