@@ -31,8 +31,8 @@ end
 
 const QueueType = Union{BinaryHeap,ThreadedBinaryHeap}
 
-function get_t end;
-const TimeOrder = Base.By(get_t)
+function get_curr_t end;
+const TimeOrder = Base.By(get_curr_t)
 
 create_queue(vals, ::EnsembleSerial) = BinaryHeap(TimeOrder, vals)
 create_queue(vals, ::EnsembleThreads) = ThreadedBinaryHeap(BinaryHeap(TOrder, vals))
@@ -45,10 +45,10 @@ function Base.append!(queue::QueueType, vals)
     end
 end
 
-function extract_queue!(f::Function, pop, queue::QueueType)
+function extract_queue!(pop, queue::QueueType)
     lockqueue(queue) do 
         while !isempty(queue)
-            push!(pop, f(pop!(queue)))
+            push!(pop, pop!(queue))
         end
     end
 end 

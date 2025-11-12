@@ -12,16 +12,12 @@ mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: Queu
 end
 
 function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm; tstops = Float64[])
-    t0 = get_t(chem)
+    t0 = get_curr_t(chem)
 
     tstops = filter(t -> t0 < t, tstops)
     tstops = unique(sort(tstops))
 
-    cells = map(chem.pop) do cell 
-        init_cell(cell, chem.model, chem.env)
-    end 
-
-    queue = create_queue(cells, ensalg) 
+    queue = create_queue(chem.pop, ensalg) 
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
                   chem.saved[end].nsim, chem.saved[end].log_f, 
@@ -60,7 +56,7 @@ function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs..
     end
 
     empty!(int.chem.pop)
-    extract_queue!(cell -> cell.sol, int.chem.pop, int.queue)
+    extract_queue!(int.chem.pop, int.queue)
 
     if int.retcode == ReturnCode.Default 
         int.retcode = ReturnCode.Success
@@ -102,17 +98,17 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
         end 
 
         cell = first(queue)
-        get_t(cell) >= int.t_next && break
+        get_curr_t(cell) >= int.t_next && break
 
         pop!(queue)
-        if get_status(cell) == CellState.Newborn 
+        if get_state(cell) == CellState.Newborn 
             init_cell!(cell)
             int.nsim += 1
         end 
 
-        if get_status(cell) == CellState.Alive 
+        if get_state(cell) == CellState.Alive 
             process_cell!(int, cell, int.t_next; δ, kwargs...)
-        elseif get_status(cell) == CellState.Divided
+        elseif get_state(cell) == CellState.Divided
             process_division!(int, cell; kwargs...)
         end
     end
@@ -133,14 +129,14 @@ end
 
 
 function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false, kwargs...)
-    @argcheck get_status(cell) == CellState.Alive 
+    @argcheck get_state(cell) == CellState.Alive 
 
-    tb = get_t(cell)
+    tb = get_curr_t(cell)
     step!(cell, tmax - tb, int.chem.model, int.chem.env)
-    t = get_t(cell)
+    t = get_curr_t(cell)
 
     @check t <= tmax + 1e-6
-    @check get_status(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
+    @check get_state(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
 
     # Cells are culled with rate δ
     if δ > 0 
@@ -148,7 +144,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
 
         if t_kill < t
             kill_cell!(cell, t_kill)
-            save_leaves && push!(int.chem.leaves, cell.sol)
+            save_leaves && push!(int.chem.leaves, cell)
             return
         end
     end
@@ -158,10 +154,10 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
 end 
 
 function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
-    @argcheck get_status(cell) == CellState.Divided 
+    @argcheck get_state(cell) == CellState.Divided 
 
     # Cell dies or divides
-    offspr = init_offspring(int, cell; save_lineages)
+    offspr = get_offspring(int, cell; save_lineages)
 
     N_full = length(int.queue) + length(offspr)
     offspr_filtered = filter_offspring(offspr, int.alg)

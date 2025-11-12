@@ -26,6 +26,8 @@ filter_offspring(cells, ::Thin) = cells
 should_sync(queue, alg::Thin) = false
 sync!(int, ::Thin) = nothing
 
+Direct() = Thin(0)
+
 ### 
 
 struct Strict <: AbstractAlgorithm

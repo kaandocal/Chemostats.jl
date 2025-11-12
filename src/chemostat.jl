@@ -42,9 +42,9 @@ function Chemostat(cells, model, env)
     Chemostat(deepcopy(cells), model, env, saved, empty(cells), empty(cells))
 end
 
-get_t(chem::Chemostat) = chem.saved[end].t 
+get_curr_t(chem::Chemostat) = chem.saved[end].t 
 
-function get_snapshot(chem::Chemostat, t = get_t(chem))
+function get_snapshot(chem::Chemostat, t = get_curr_t(chem))
     @assert issorted(chem.saved; by = snap -> snap.t)
     i = searchsorted(map(snap -> snap.t, chem.saved), t)
     isempty(i) && throw(ArgumentError("No snapshot saved at time t=$t"))
@@ -52,11 +52,11 @@ function get_snapshot(chem::Chemostat, t = get_t(chem))
 end 
 
 """ estimate the real population size by extrapolation """
-est_logN(chem::Chemostat, t = get_t(chem)) = est_logN(get_snapshot(chem, t))
+est_logN(chem::Chemostat, t = get_curr_t(chem)) = est_logN(get_snapshot(chem, t))
 
 """ estimate the growth rat between time t0 and t """
 est_Λ(chem::Chemostat, t0, t) = est_Λ(get_snapshot(chem, t0), get_snapshot(chem, t))
-est_Λ(chem::Chemostat, t = get_t(chem)) = est_Λ(chem, zero(t), t)
+est_Λ(chem::Chemostat, t = get_curr_t(chem)) = est_Λ(chem, zero(t), t)
 
 # # Population history stuff 
 
