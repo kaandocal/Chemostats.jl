@@ -17,7 +17,10 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
     tstops = filter(t -> t0 < t, tstops)
     tstops = unique(sort(tstops))
 
-    cells = map(init_cell, chem.pop)
+    cells = map(chem.pop) do cell 
+        init_cell(cell, chem.model, chem.env)
+    end 
+
     queue = create_queue(cells, ensalg) 
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
@@ -42,12 +45,12 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
                    ensalg::EnsembleAlgorithm = EnsembleSerial(); saveat=[ tmax ], kwargs...)
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
     init!(int.alg, int)
-    savevalues!(int)
-    solve!(int, tmax, ensalg)
+    simulate!(int, tmax, ensalg)
     chem
 end
 
-function solve!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
+
+function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     simulate_env!(int.chem.env, tmax)
 
     while int.t < tmax && int.retcode == ReturnCode.Default
