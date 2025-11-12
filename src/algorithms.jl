@@ -7,10 +7,9 @@ end
 get_δ(int, ::Forward) = 0.
 init!(alg::Forward, int) = resize_pop!(int, alg.L)
 is_parallel(::Forward) = true
-update_algorithm!(::Forward, int) = nothing
 filter_offspring(cells, ::Forward) = Iterators.take(cells, 1)
-should_sync(queue, ::Forward) = false
-sync!(queue, ::Forward) = nothing
+update_algorithm!(::Forward, int) = nothing
+update_queue!(queue, ::Forward) = nothing
 
 ### 
 
@@ -21,10 +20,9 @@ end
 get_δ(int, alg::Thin) = alg.δ
 init!(::Thin, int) = nothing
 is_parallel(::Thin) = true
-update_algorithm!(::Thin, int) = nothing
 filter_offspring(cells, ::Thin) = cells 
-should_sync(queue, alg::Thin) = false
-sync!(int, ::Thin) = nothing
+update_algorithm!(::Thin, int) = nothing
+update_queue!(int, ::Thin) = nothing
 
 Direct() = Thin(0)
 
@@ -37,10 +35,9 @@ end
 get_δ(int, ::Strict) = 0.
 init!(alg::Strict, int) = resize_pop!(int, alg.L)
 is_parallel(alg::Strict) = false
-update_algorithm!(::Strict, int) = nothing
 filter_offspring(cells, ::Strict) = cells 
-should_sync(queue, ::Strict) = true
-sync!(int, alg::Strict) = resize_pop!(int, alg.L)
+update_algorithm!(::Strict, int) = nothing
+update_queue!(int, alg::Strict) = resize_pop!(int, alg.L)
 
 ###
 
@@ -98,8 +95,12 @@ function get_δ(chem::Chemostat, t, alg::Lax)
     max(0, ret)
 end 
 
-update_algorithm!(::Lax, int) = nothing  
+function update_algorithm!(alg::Lax, int)
+    if length(int.queue) > alg.L * (1 + alg.tol)
+        resize_pop!(int, alg.L)
+    end 
+end 
+
 is_parallel(::Lax) = true
 filter_offspring(cells, ::Lax) = cells
-should_sync(queue, alg::Lax) = length(queue) > alg.L * (1 + alg.tol)
-sync!(int, alg::Lax) = resize_pop!(int, alg.L)
+update_queue!(int, ::Lax) = nothing

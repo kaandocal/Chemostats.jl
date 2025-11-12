@@ -87,7 +87,7 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
 
     # THREAD SAFE
     while true
-        should_sync(queue, int.alg) && sync!(int, int.alg)
+        update_queue!(int, int.alg)
 
         if isempty(queue) || int.retcode != ReturnCode.Default 
             break
