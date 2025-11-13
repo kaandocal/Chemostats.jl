@@ -164,7 +164,7 @@ function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs
     N_obs = length(int.queue) + length(offspr_filtered)
 
     lockqueue(int.queue) do 
-        append!(int.queue, offspr_filtered)
+        _append!(int.queue, offspr_filtered)
         int.log_f += log(N_full) - log(N_obs)
     end
 end

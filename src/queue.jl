@@ -37,7 +37,7 @@ const TimeOrder = Base.By(get_curr_t)
 create_queue(vals, ::EnsembleSerial) = BinaryHeap(TimeOrder, vals)
 create_queue(vals, ::EnsembleThreads) = ThreadedBinaryHeap(BinaryHeap(TOrder, vals))
 
-function Base.append!(queue::QueueType, vals)
+function _append!(queue::QueueType, vals)
     lockqueue(queue) do 
         for v in vals 
             push!(queue, v)

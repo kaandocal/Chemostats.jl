@@ -81,7 +81,7 @@ function get_δ(chem::Chemostat, t, alg::Lax)
     snap = get_snapshot(chem, t)
 
     # Small population 
-    snap.N < 10 && return 0.
+    snap.N < 50 && return 0.
 
     # Estimate current growth rate
     Λ̂ = est_Λ_curr(chem, t, alg)
