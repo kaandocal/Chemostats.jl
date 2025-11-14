@@ -27,7 +27,7 @@ function plot(chem::Chemostat; tspan=(0, get_curr_t(chem)), Λ_gt=nothing, alg=n
 
     isnothing(Λ_gt) || hlines!(ax_Λ, Λ_gt; linestyle=:dash, color=:black)
 
-    if !isnothing(alg)
+    if alg isa Chemostats.Lax
         δδ = [ get_δ(chem, t, alg) for t in tt ]
         lines!(ax_δ, tt, δδ)
         isnothing(Λ_gt) || hlines!(ax_δ, Λ_gt; linestyle=:dash, color=:black)

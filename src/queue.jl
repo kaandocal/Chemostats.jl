@@ -1,41 +1,76 @@
 lockqueue(f::Function, ::BinaryHeap) = f()
 
-###
-
-struct ThreadedBinaryHeap{HT <: BinaryHeap}
-    heap::HT 
-    lock::ReentrantLock
-end
-
-ThreadedBinaryHeap(heap::BinaryHeap) = ThreadedBinaryHeap(heap, ReentrantLock())
-Base.eltype(heap::ThreadedBinaryHeap) = eltype(heap.heap)
-lockqueue(f::Function, queue::ThreadedBinaryHeap) = lock(f, queue.lock)
-
-function Base.first(queue::ThreadedBinaryHeap) 
-    lockqueue(queue) do 
-        first(queue.heap)
-    end 
-end
-
-function Base.popfirst!(queue::ThreadedBinaryHeap) 
-    lockqueue(queue) do 
-        popfirst!(queue.heap)
-    end 
-end
-
-function Base.push!(queue::ThreadedBinaryHeap, v)
-    lockqueue(queue) do 
-        push!(queue.heap, v)
-    end 
-end 
-
-const QueueType = Union{BinaryHeap,ThreadedBinaryHeap}
-
 function get_curr_t end;
 const TimeOrder = Base.By(get_curr_t)
 
 create_queue(vals, ::EnsembleSerial) = BinaryHeap(TimeOrder, vals)
-create_queue(vals, ::EnsembleThreads) = ThreadedBinaryHeap(BinaryHeap(TOrder, vals))
+
+###
+
+mutable struct ThreadedQueue{H <: BinaryHeap}
+    heap::H
+    lock::ReentrantLock
+    cond_wait::Threads.Condition
+    nwork::Threads.Atomic{Int}
+
+    function ThreadedQueue(heap::BinaryHeap) 
+        lock = ReentrantLock()
+        new{typeof(heap)}(heap, lock, Threads.Condition(lock), Threads.Atomic{Int}(0))
+    end
+end 
+
+lockqueue(f::Function, queue::ThreadedQueue) = lock(f, queue.lock)
+function Base.length(queue::ThreadedQueue) 
+    lockqueue(queue) do 
+        length(queue.heap) 
+    end 
+end 
+
+Base.isempty(queue::ThreadedQueue) = length(queue) == 0
+
+create_queue(vals, ::EnsembleThreads) = ThreadedQueue(BinaryHeap(TimeOrder, vals))
+
+function register_listener!(queue::ThreadedQueue)
+    Threads.atomic_add!(queue.nwork, 1)
+    @info "Thread $(Threads.threadid()): register (# $(queue.nwork[]))..."
+end
+
+function Base.push!(queue::ThreadedQueue, v)
+    lock(queue.lock) do 
+        @info "Thread $(Threads.threadid()): put..."
+        push!(queue.heap, v)
+        notify(queue.cond_wait; all=false)
+    end
+end 
+
+function fetch!(queue::ThreadedQueue)
+    @info "Thread $(Threads.threadid()): fetching..."
+    lock(queue.cond_wait) do 
+        Threads.atomic_sub!(queue.nwork, 1)
+        while isempty(queue.heap)
+            if queue.nwork[] == 0
+                @info "Thread $(Threads.threadid()): detecting done..."
+                notify(queue.cond_wait; all=true)
+                return nothing
+            end 
+
+            @info "Thread $(Threads.threadid()): wait..."
+            wait(queue.cond_wait)
+            @info "Thread $(Threads.threadid()): wake..."
+        end
+
+        # Two different locks here
+        @info "Thread $(Threads.threadid()): take ($(queue.nwork[]) waiting)..."
+        Threads.atomic_add!(queue.nwork, 1)
+        ret = pop!(queue.heap)
+        notify(queue.cond_wait; all=false)
+        ret
+    end
+end 
+
+###
+
+const QueueType = Union{BinaryHeap, ThreadedQueue}
 
 function _append!(queue::QueueType, vals)
     lockqueue(queue) do 
@@ -48,10 +83,11 @@ end
 function extract_queue!(pop, queue::QueueType)
     lockqueue(queue) do 
         while !isempty(queue)
-            push!(pop, pop!(queue))
+            push!(pop, pop!(queue.heap))
         end
     end
 end 
+
 
 # Adapted from DataStructures.jl 
 _getindex(queue::BinaryHeap, i::Integer) = queue.valtree[i]
@@ -85,3 +121,6 @@ function _truncate_queue!(queue::BinaryHeap, N)
         _popat!(queue, j)
     end 
 end 
+
+_truncate_queue!(queue::ThreadedQueue, N) = _truncate_queue!(queue.heap, N)
+_duplicate_random!(queue::ThreadedQueue, t) = _duplicate_random!(queue.heap, t)
