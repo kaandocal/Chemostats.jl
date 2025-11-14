@@ -32,35 +32,35 @@ create_queue(vals, ::EnsembleThreads) = ThreadedQueue(BinaryHeap(TimeOrder, vals
 
 function register_listener!(queue::ThreadedQueue)
     Threads.atomic_add!(queue.nwork, 1)
-    @info "Thread $(Threads.threadid()): register (# $(queue.nwork[]))..."
+    @debug "Thread $(Threads.threadid()): register (# $(queue.nwork[]))..."
 end
 
 function Base.push!(queue::ThreadedQueue, v)
     lock(queue.lock) do 
-        @info "Thread $(Threads.threadid()): put..."
+        @debug "Thread $(Threads.threadid()): put..."
         push!(queue.heap, v)
         notify(queue.cond_wait; all=false)
     end
 end 
 
 function fetch!(queue::ThreadedQueue)
-    @info "Thread $(Threads.threadid()): fetching..."
+    @debug "Thread $(Threads.threadid()): fetching..."
     lock(queue.cond_wait) do 
         Threads.atomic_sub!(queue.nwork, 1)
         while isempty(queue.heap)
             if queue.nwork[] == 0
-                @info "Thread $(Threads.threadid()): detecting done..."
+                @debug "Thread $(Threads.threadid()): detecting done..."
                 notify(queue.cond_wait; all=true)
                 return nothing
             end 
 
-            @info "Thread $(Threads.threadid()): wait..."
+            @debug "Thread $(Threads.threadid()): wait..."
             wait(queue.cond_wait)
-            @info "Thread $(Threads.threadid()): wake..."
+            @debug "Thread $(Threads.threadid()): wake..."
         end
 
         # Two different locks here
-        @info "Thread $(Threads.threadid()): take ($(queue.nwork[]) waiting)..."
+        @debug "Thread $(Threads.threadid()): take ($(queue.nwork[]) waiting)..."
         Threads.atomic_add!(queue.nwork, 1)
         ret = pop!(queue.heap)
         notify(queue.cond_wait; all=false)
@@ -80,14 +80,19 @@ function _append!(queue::QueueType, vals)
     end
 end
 
-function extract_queue!(pop, queue::QueueType)
+function extract_queue!(pop, queue::BinaryHeap)
+    while !isempty(queue)
+        push!(pop, pop!(queue))
+    end
+end 
+
+function extract_queue!(pop, queue::ThreadedQueue)
     lockqueue(queue) do 
         while !isempty(queue)
             push!(pop, pop!(queue.heap))
         end
     end
 end 
-
 
 # Adapted from DataStructures.jl 
 _getindex(queue::BinaryHeap, i::Integer) = queue.valtree[i]

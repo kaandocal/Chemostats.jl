@@ -76,56 +76,56 @@ function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     error("Ensemble algorithm $ensalg not supported")
 end 
 
-# function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=false, kwargs...)
-#     @unpack chem, queue = int 
+function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=false, kwargs...)
+    @unpack chem, queue = int 
     
-#     int.t_next = find_next_t(int, tmax)
-#     t0 = int.t 
-#     int.t_next <= t0 && return int
+    int.t_next = find_next_t(int, tmax)
+    t0 = int.t 
+    int.t_next <= t0 && return int
 
-#     δ = get_δ(int, int.alg)
+    δ = get_δ(int, int.alg)
 
-#     # THREAD SAFE
-#     while true
-#         update_queue!(int, int.alg)
+    # THREAD SAFE
+    while true
+        update_queue!(int, int.alg)
 
-#         if isempty(queue) || int.retcode != ReturnCode.Default 
-#             break
-#         elseif length(queue) > Nmax  
-#             @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
-#             int.retcode = ReturnCode.MaxIters
-#             break 
-#         end 
+        if isempty(queue) || int.retcode != ReturnCode.Default 
+            break
+        elseif length(queue) > Nmax  
+            @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
+            int.retcode = ReturnCode.MaxIters
+            break 
+        end 
 
-#         cell = first(queue)
-#         get_curr_t(cell) >= int.t_next && break
+        cell = first(queue)
+        get_curr_t(cell) >= int.t_next && break
 
-#         pop!(queue)
-#         if get_state(cell) == CellState.Newborn 
-#             init_cell!(cell)
-#             int.nsim += 1
-#         end 
+        pop!(queue)
+        if get_state(cell) == CellState.Newborn 
+            init_cell!(cell)
+            int.nsim += 1
+        end 
 
-#         if get_state(cell) == CellState.Alive 
-#             process_cell!(int, cell, int.t_next; δ, kwargs...)
-#         elseif get_state(cell) == CellState.Divided
-#             process_division!(int, cell; kwargs...)
-#         end
-#     end
-#     # END THREAD
+        if get_state(cell) == CellState.Alive 
+            process_cell!(int, cell, int.t_next; δ, kwargs...)
+        elseif get_state(cell) == CellState.Divided
+            process_division!(int, cell; kwargs...)
+        end
+    end
+    # END THREAD
 
-#     int.log_f += δ * (int.t_next - t0)
+    int.log_f += δ * (int.t_next - t0)
 
-#     int.t = if int.retcode == ReturnCode.MaxIters 
-#         first(queue).t
-#     else 
-#         int.t_next 
-#     end 
+    int.t = if int.retcode == ReturnCode.MaxIters 
+        first(queue).t
+    else 
+        int.t_next 
+    end 
 
-#     save && savevalues!(int)
+    save && savevalues!(int)
 
-#     int
-# end
+    int
+end
 
 
 
@@ -157,20 +157,26 @@ function step!(int::PopIntegrator, tmax, ::EnsembleThreads; Nmax=Int(1e7), save=
                 if isnothing(cell) || int.retcode != ReturnCode.Default 
                     break
                 elseif get_curr_t(cell) >= int.t_next
+                    #@info "Pushing cell at time $(get_curr_t(cell)) out..."
                     push!(out, cell)
                     continue
                 end 
 
                 if get_state(cell) == CellState.Newborn 
+                    #@info "At time $(get_curr_t(cell)): Newborn cell"
                     init_cell!(cell)
                     int.nsim += 1
                 end 
 
                 if get_state(cell) == CellState.Alive 
+                    #@info "At time $(get_curr_t(cell)): Alive cell"
                     process_cell!(int, cell, int.t_next; δ, kwargs...)
                 elseif get_state(cell) == CellState.Divided
+                    #@info "At time $(get_curr_t(cell)): Dividing cell"
                     process_division!(int, cell; kwargs...)
                 end
+
+                #@info "End at time $(get_curr_t(cell))"
             end
         end
     end
@@ -217,6 +223,7 @@ end
 
 function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
     @argcheck get_state(cell) == CellState.Divided 
+    #@info "Dividing cell..."
 
     # Cell dies or divides
     offspr = get_offspring(int, cell; save_lineages)
@@ -226,6 +233,7 @@ function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs
         N_full = length(int.queue) + length(offspr)
         N_obs = length(int.queue) + length(offspr_filtered)
 
+        N_full / N_obs
         _append!(int.queue, offspr_filtered)
         int.log_f += log(N_full) - log(N_obs)
     end
