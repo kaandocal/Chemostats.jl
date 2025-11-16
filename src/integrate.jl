@@ -24,7 +24,6 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
                   SciMLBase.ReturnCode.Default)
 end 
 
-simulate_env!(::Nothing, tmax) = nothing 
 Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
 savevalues!(int::PopIntegrator) = push!(int.chem.saved, Snapshot(int))
 

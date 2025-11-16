@@ -1,0 +1,27 @@
+name = "Chemostats"
+uuid = "0c42c343-380a-49b2-a381-bd06de99d09a"
+version = "0.1.0"
+authors = ["kaandocal <26488673+kaandocal@users.noreply.github.com>"]
+
+[deps]
+ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+EnumX = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+
+[weakdeps]
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+
+[extensions]
+MakieExt = "Makie"
+
+[compat]
+ArgCheck = "2.5.0"
+DataStructures = "0.19.3"
+EnumX = "1.0.5"
+Makie = "0.24.6"
+Random = "1.11.0"
+SciMLBase = "2.127.0"
+UnPack = "1.0.2"

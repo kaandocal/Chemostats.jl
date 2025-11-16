@@ -1,7 +1,6 @@
 module Chemostats
 
 using Random
-using Distributions
 using DataStructures
 using ArgCheck
 using UnPack
@@ -17,8 +16,12 @@ include("decell.jl")
 include("chemostat.jl")
 include("algorithms.jl")
 include("integrate.jl")
-include("viz.jl")
 
-export Chemostat, Cell, simulate
+export Chemostat
+public CellState, Snapshot, DECell
+public Forward, Thin, Direct, Strict, Lax
+
+public simulate!
+public get_curr_t, get_state, est_logN, est_N, est_Λ
 
 end 

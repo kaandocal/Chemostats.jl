@@ -13,6 +13,20 @@ function est_Λ(before::Snapshot, after::Snapshot)
     (est_logN(after) - est_logN(before)) / (after.t - before.t)
 end
 
+function snapshot_str(snap::Snapshot)
+    @unpack t, N, nsim = snap
+    N_est = round(est_N(snap); sigdigits=3)
+
+    return "t=$t, N=$N/$N_est, nsim=$nsim"
+end 
+
+function Base.show(io::IO, snap::Snapshot)
+    stats = snapshot_str(snap)
+    print(io, "Snapshot($stats)")
+end
+
+### 
+
 struct Chemostat{C,M,E}
     pop::Vector{C}
     model::M
@@ -22,24 +36,14 @@ struct Chemostat{C,M,E}
     all_cells::Vector{C}               # all cells 
 end
 
-function Base.show(io::IO, chem::Chemostat)
-    compact = get(io, :compact, true)
-    t = chem.saved[end].t
-    N = chem.saved[end].N
-    N_est = round(est_N(chem); sigdigits=3)
-
-    if compact 
-        print(io, "Chemostat(t=$t, N=$N/$N_est)")
-    else 
-        println(io, "Chemostat:")
-        println(io, " t = $t")
-        print(io, " Cells = $N (out of ≈ $N_est)")
-    end 
-end
-
 function Chemostat(cells, model, env)
     saved = [ Snapshot(0., length(cells), length(cells), 0.) ]
     Chemostat(deepcopy(cells), model, env, saved, empty(cells), empty(cells))
+end
+
+function Base.show(io::IO, chem::Chemostat)
+    stats = snapshot_str(chem.saved[end])
+    print(io, "Chemostat($stats)")
 end
 
 get_curr_t(chem::Chemostat) = chem.saved[end].t 
