@@ -116,13 +116,13 @@ function _popat!(queue::BinaryHeap, idx::Integer)
 end 
 
 function _duplicate_random!(queue::BinaryHeap, t)
-    i = sample(1:length(queue))
+    i = rand(1:length(queue))
     push!(queue, duplicate_cell(queue.valtree[i], t))
 end 
 
 function _truncate_queue!(queue::BinaryHeap, N)
     while length(queue) > N
-        j = sample(1:length(queue))
+        j = rand(1:length(queue))
         _popat!(queue, j)
     end 
 end 

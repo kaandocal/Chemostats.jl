@@ -46,8 +46,6 @@ end
 
 
 function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
-    simulate_env!(int.chem.env, tmax)
-
     while int.t < tmax && int.retcode == ReturnCode.Default
         update_algorithm!(int.alg, int)
         int.retcode == ReturnCode.Default || break
@@ -207,7 +205,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
 
     # Cells are culled with rate δ
     if δ > 0 
-        t_kill = tb + rand(Exponential(1 / δ))
+        t_kill = tb + randexp() / δ
 
         if t_kill < t
             kill_cell!(cell, t_kill)
@@ -249,6 +247,7 @@ function resize_pop!(int, L::Int)
         N_start = length(int.queue)
         
         while length(int.queue) < L
+            @error "Duplicating requires time"
             _duplicate_random!(int.queue, int.t)
         end
 

@@ -17,7 +17,7 @@ DECell(prob; t0=0.) = DECell(missing, prob; t0)
 get_curr_t(cell::DECell) = cell.int.t
 get_state(cell::DECell) = cell.state
 
-function should_divide end 
+should_divide(cell::DECell) = SciMLBase.check_error(cell.int) == SciMLBase.ReturnCode.Terminated
 function get_offspring end
 
 function set_state!(cell::DECell, state::CellState.T)
@@ -74,12 +74,16 @@ function step!(cell::DECell, dt, model, env)
     step!(cell.int, dt, true)
     savevalues!(cell)
 
-    if should_divide(cell, model, env)
+    if should_divide(cell)
         divide!(cell)
     end
 end
 
-# function duplicate_cell end
+function DivideCallback(condition; kwargs...)
+    SciMLBase.ContinuousCallback(condition, terminate!; kwargs...)
+end
+
+function duplicate_cell end
 
 # function interpolate(cell::DECell, t)
 #     @argcheck cell.t[1] <= t <= cell.t[end]

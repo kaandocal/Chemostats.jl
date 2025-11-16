@@ -18,7 +18,8 @@ include("algorithms.jl")
 include("integrate.jl")
 
 export Chemostat
-public CellState, Snapshot, DECell
+public CellState, Snapshot
+public DECell, DivideCallback
 public Forward, Thin, Direct, Strict, Lax
 
 public simulate!
