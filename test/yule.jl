@@ -103,7 +103,7 @@ end
 
 @testset "System size (forward, L=$L)" for L in [ 1, 10 ]
     chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:L ], model, env)
-    Chemostats.simulate!(chem, tmax, Chemostats.Forward(); saveat=tt)
+    Chemostats.simulate!(chem, tmax, Chemostats.Forward(L); saveat=tt)
 
     Ns = [ snap.N for snap in chem.saved ]
     @test all(Ns .== L)
@@ -172,7 +172,7 @@ end
 @testset "Reaction counts (forward, L=$L)" for L in [ 1, 10, 100 ]
     nn = map(1:niter) do i
         chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:L ], model, env)
-        Chemostats.simulate!(chem, tmax, Chemostats.Forward()) 
+        Chemostats.simulate!(chem, tmax, Chemostats.Forward(L)) 
         chem.saved[end].log_f / log(1+1/L)
     end
 

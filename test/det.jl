@@ -4,23 +4,7 @@ using Unzip
 using Distributions
 using SpecialFunctions
 
-using Revise
 include("../src/Chemostats.jl")
-Cell = Chemostats.Cell
-kill_cell! = Chemostats.kill_cell!
-function Chemostats.simulate_cell!(args...; kwargs...) 
-    simulate_cell!(args...; kwargs...)
-end 
-
-divide! = Chemostats.divide!
-CellState = Chemostats.CellState 
-
-function Chemostats.get_offspring(args...; kwargs...) 
-    get_offspring(args...; kwargs...)
-end 
-
-###
-
 include("../models/vol.jl")
 
 model = model_det
@@ -31,7 +15,7 @@ env = nothing
 ###
 
 niter = 1000
-@testset "Extinction probability (thin, δ = $δ)" for δ in [ 0.5, 0.9, 0.99 ]#[ 0., 0.5, 0.9 ]#, 0.99 ]
+@testset "Extinction probability (thin, δ = $δ)"  for δ in [ 0.5, 0.9, 0.99 ]#[ 0., 0.5, 0.9 ]#, 0.99 ]
     tmax = 120. * δ^2 
     NN = map(1:niter) do i
         chem = Chemostats.Chemostat([ draw_cell(model, env) ], model, env)
@@ -69,7 +53,7 @@ end
 
 @testset "System size (forward, L=$L)" for L in [ 1, 10 ]
     chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:L ], model, env)
-    Chemostats.simulate!(chem, tmax, Chemostats.Forward(); saveat=tt)
+    Chemostats.simulate!(chem, tmax, Chemostats.Forward(L); saveat=tt)
 
     Ns = [ snap.N for snap in chem.saved ]
     @test all(Ns .== L)
@@ -126,7 +110,7 @@ tmax = 100.5
 
 @testset "Reaction counts (forward, L=$L)" for L in [ 1, 10, 100 ]
     chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:L ], model, env)
-    Chemostats.simulate!(chem, tmax, Chemostats.Forward()) 
+    Chemostats.simulate!(chem, tmax, Chemostats.Forward(L)) 
     
     n = chem.saved[end].log_f / log(1+1/L)
 

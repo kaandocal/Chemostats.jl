@@ -3,14 +3,15 @@ using CairoMakie
 function plot(chem::Chemostat; tspan=(0, get_curr_t(chem)), Λ_gt=nothing, alg=nothing)
     fig = Figure()
 
-    ax_N = Axis(fig[1,1], xlabel="Time", ylabel="N", yscale=log10)
+    tt = [ snap.t for snap in snaps ]
+    NN = [ snap.N for snap in snaps ]
+
+    ax_N = Axis(fig[1,1], xlabel="Time", ylabel="N", yscale=maximum(NN) > 10 ? log10 : identity)
     ax_Λ = Axis(fig[2,1], xlabel="Time", ylabel="Λ")
     ax_δ = Axis(fig[3,1], xlabel="Time", ylabel="δ")
 
     linkxaxes!([ax_N, ax_Λ, ax_δ])
     snaps = filter(snap -> tspan[1] <= snap.t <= tspan[2], chem.saved)
-    tt = [ snap.t for snap in snaps ]
-    NN = [ snap.N for snap in snaps ]
 
     lines!(ax_N, tt, NN)
 
