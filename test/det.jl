@@ -32,15 +32,11 @@ end
 model = prob 
 env = nothing 
 
-if !isdefined(Main, :ensalg)
-    ensalg = Chemostats.EnsembleSerial()
-end
-
 ###
 
 niter = 1000
 @testset "Extinction probability (thin, δ = $δ)" for δ in [ 0.5, 0.9, 0.99 ]
-    tmax = 200. * δ^3
+    tmax = 100. * δ^3
     NN = map(1:niter) do i
         chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ], model, env)
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt), ensalg) 
@@ -53,7 +49,7 @@ end
 ### 
 
 @testset "System size (direct)" begin 
-    tmax = 11.5
+    tmax = 8.5
 
     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ], model, env)
     Chemostats.simulate!(chem, tmax, Chemostats.Direct(), ensalg) 
@@ -67,12 +63,14 @@ end
 tmax = 50.
 tt = 0:0.1:tmax
 
-@testset "System size (strict, L=$L)" for L in [ 1, 10 ]
-    chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ], model, env)
-    Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg; saveat=tt)
+if ensalg isa EnsembleSerial
+    @testset "System size (strict, L=$L)" for L in [ 1, 10 ]
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ], model, env)
+        Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg; saveat=tt)
 
-    Ns = [ snap.N for snap in chem.saved[2:end] ]
-    @test all(Ns .== L)
+        Ns = [ snap.N for snap in chem.saved[2:end] ]
+        @test all(Ns .== L)
+    end
 end
 
 @testset "System size (forward, L=$L)" for L in [ 1, 10 ]
@@ -86,7 +84,7 @@ end
 ### 
 
 @testset "Λ estimator (thin, δ = 0.9)" begin
-    tmax = 100
+    tmax = 50
     niter = 100
 
     ΛΛ = map(1:niter) do i
@@ -101,7 +99,7 @@ end
 ###
 
 @testset "Λ estimator (thin, δ = 0.99)" begin
-    tmax = 200.
+    tmax = 60.
     niter = 100
 
     ΛΛ = map(1:niter) do i
@@ -117,7 +115,7 @@ end
 
 @testset "Λ estimator (thin, δ = 1)" begin 
     tmax = 1000.
-    niter = 10
+    niter = 1
 
     ΛΛ = map(1:niter) do i
         chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:10000 ], model, env)

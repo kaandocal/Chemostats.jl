@@ -50,7 +50,6 @@ function die!(cell::DECell)
     end 
 
     set_state!(cell, CellState.Dead)
-    terminate!(cell.int)
 end 
 
 function divide!(cell::DECell)
@@ -60,7 +59,6 @@ function divide!(cell::DECell)
     end 
 
     set_state!(cell, CellState.Divided)
-    terminate!(cell.int)
 end
 
 savevalues!(cell::DECell) = savevalues!(cell.int)

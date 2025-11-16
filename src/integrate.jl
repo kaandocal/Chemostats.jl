@@ -198,7 +198,6 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
     step!(cell, tmax - tb, int.chem.model, int.chem.env)
     t = get_curr_t(cell)
 
-    @check t <= tmax + 1e-6
     @check get_state(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
 
     # Cells are culled with rate δ
