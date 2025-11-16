@@ -27,18 +27,17 @@ end
 
 ### 
 
-struct Chemostat{C,M,E}
+struct Chemostat{C,P}
     pop::Vector{C}
-    model::M
-    env::E
+    p::P
     saved::Vector{Snapshot}
     leaves::Vector{C}
     all_cells::Vector{C}               # all cells 
 end
 
-function Chemostat(cells, model, env)
+function Chemostat(cells, p=nothing)
     saved = [ Snapshot(0., length(cells), length(cells), 0.) ]
-    Chemostat(deepcopy(cells), model, env, saved, empty(cells), empty(cells))
+    Chemostat(deepcopy(cells), p, saved, empty(cells), empty(cells))
 end
 
 function Base.show(io::IO, chem::Chemostat)

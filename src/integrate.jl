@@ -102,8 +102,8 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
 
         if get_state(cell) == CellState.Alive 
             process_cell!(int, cell, int.t_next; δ, kwargs...)
-        elseif get_state(cell) == CellState.Divided
-            process_division!(int, cell; kwargs...)
+        elseif get_state(cell) == CellState.EndOfLife
+            process_eol!(int, cell; kwargs...)
         end
 
         update_queue!(int, int.alg, get_curr_t(cell))
@@ -195,7 +195,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
     @argcheck get_state(cell) == CellState.Alive 
 
     tb = get_curr_t(cell)
-    step!(cell, tmax - tb, int.chem.model, int.chem.env)
+    step!(cell, tmax - tb, int.chem.p)
     t = get_curr_t(cell)
 
     @check get_state(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
@@ -215,13 +215,20 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
     push!(int.queue, cell)
 end 
 
-function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
-    @argcheck get_state(cell) == CellState.Divided 
+function process_eol!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
+    @argcheck get_state(cell) == CellState.EndOfLife
     #@info "Dividing cell..."
 
     # Cell dies or divides
     offspr = get_offspring(int, cell; save_lineages)
     offspr_filtered = filter_offspring(offspr, int.alg)
+
+    if isempty(offspr)
+        die!(cell)
+        return 
+    end 
+
+    divide!(cell)
 
     lockqueue(int.queue) do 
         N_full = length(int.queue) + length(offspr)
