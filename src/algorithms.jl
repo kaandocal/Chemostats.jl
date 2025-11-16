@@ -5,11 +5,11 @@ struct Forward <: AbstractAlgorithm
 end 
 
 get_δ(int, ::Forward) = 0.
-init!(alg::Forward, int) = resize_pop!(int, alg.L)
+init!(alg::Forward, int) = resize_pop!(int, alg.L, int.t)
 is_parallel(::Forward) = true
 filter_offspring(cells, ::Forward) = Iterators.take(cells, 1)
 update_algorithm!(::Forward, int) = nothing
-update_queue!(queue, ::Forward) = nothing
+update_queue!(queue, ::Forward, t) = nothing
 
 ### 
 
@@ -22,7 +22,7 @@ init!(::Thin, int) = nothing
 is_parallel(::Thin) = true
 filter_offspring(cells, ::Thin) = cells 
 update_algorithm!(::Thin, int) = nothing
-update_queue!(int, ::Thin) = nothing
+update_queue!(int, ::Thin, t) = nothing
 
 Direct() = Thin(0)
 
@@ -33,11 +33,11 @@ struct Strict <: AbstractAlgorithm
 end 
 
 get_δ(int, ::Strict) = 0.
-init!(alg::Strict, int) = resize_pop!(int, alg.L)
+init!(alg::Strict, int) = resize_pop!(int, alg.L, int.t)
 is_parallel(alg::Strict) = false
 filter_offspring(cells, ::Strict) = cells 
 update_algorithm!(::Strict, int) = nothing
-update_queue!(int, alg::Strict) = resize_pop!(int, alg.L)
+update_queue!(int, alg::Strict, t) = resize_pop!(int, alg.L, t)
 
 ###
 
@@ -97,10 +97,10 @@ end
 
 function update_algorithm!(alg::Lax, int)
     if length(int.queue) > alg.L * (1 + alg.tol)
-        resize_pop!(int, alg.L)
+        resize_pop!(int, alg.L, int.t)
     end 
 end 
 
 is_parallel(::Lax) = true
 filter_offspring(cells, ::Lax) = cells
-update_queue!(int, ::Lax) = nothing
+update_queue!(int, ::Lax, t) = nothing

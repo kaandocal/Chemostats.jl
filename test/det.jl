@@ -40,11 +40,10 @@ end
 
 niter = 1000
 @testset "Extinction probability (thin, δ = $δ)" for δ in [ 0.5, 0.9, 0.99 ]
-    tmax = 120. * δ^2 
+    tmax = 200. * δ^3
     NN = map(1:niter) do i
         chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ], model, env)
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt), ensalg) 
-        @show chem
         chem.saved[end].N
     end
 
@@ -68,13 +67,13 @@ end
 tmax = 50.
 tt = 0:0.1:tmax
 
-# @testset "System size (strict, L=$L)" for L in [ 1, 10 ]
-#     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ], model, env)
-#     Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg; saveat=tt)
+@testset "System size (strict, L=$L)" for L in [ 1, 10 ]
+    chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ], model, env)
+    Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg; saveat=tt)
 
-#     Ns = [ snap.N for snap in chem.saved[2:end] ]
-#     @test all(Ns .== L)
-# end
+    Ns = [ snap.N for snap in chem.saved[2:end] ]
+    @test all(Ns .== L)
+end
 
 @testset "System size (forward, L=$L)" for L in [ 1, 10 ]
     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ], model, env)

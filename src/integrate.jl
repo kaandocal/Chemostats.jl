@@ -82,10 +82,7 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
 
     δ = get_δ(int, int.alg)
 
-    # THREAD SAFE
     while true
-        update_queue!(int, int.alg)
-
         if isempty(queue) || int.retcode != ReturnCode.Default 
             break
         elseif length(queue) > Nmax  
@@ -108,8 +105,9 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
         elseif get_state(cell) == CellState.Divided
             process_division!(int, cell; kwargs...)
         end
+
+        update_queue!(int, int.alg, get_curr_t(cell))
     end
-    # END THREAD
 
     int.log_f += δ * (int.t_next - t0)
 
@@ -236,7 +234,7 @@ function process_division!(int::PopIntegrator, cell; save_lineages=false, kwargs
     end
 end
 
-function resize_pop!(int, L::Int)
+function resize_pop!(int, L::Int, t)
     lockqueue(int.queue) do 
         if isempty(int.queue)
             @warn "No cells left in chemostat, terminating..."
@@ -247,8 +245,7 @@ function resize_pop!(int, L::Int)
         N_start = length(int.queue)
         
         while length(int.queue) < L
-            @error "Duplicating requires time"
-            _duplicate_random!(int.queue, int.t)
+            _duplicate_random!(int.queue, t)
         end
 
         _truncate_queue!(int.queue, L)

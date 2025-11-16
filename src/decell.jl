@@ -83,21 +83,9 @@ function DivideCallback(condition; kwargs...)
     SciMLBase.ContinuousCallback(condition, terminate!; kwargs...)
 end
 
-function duplicate_cell end
-
-# function interpolate(cell::DECell, t)
-#     @argcheck cell.t[1] <= t <= cell.t[end]
-#     i = findlast(s -> s <= t, cell.t)
-#     cell.u[i]
-# end
-
-# function copy_until(cell::DECell, t)
-#     @argcheck cell.t[1] <= t <= cell.t[end]
-#     #@check cell.status == CellState.Alive || cell.status == CellState.Newborn
-
-#     idcs = findlast(s -> s <= t, cell.t)
-#     tt = [ cell.t[idcs]; t ]
-#     uu = [ cell.u[idcs]; interpolate(cell, t) ]
-
-#     Cell(cell.anc, copy(tt), deepcopy(uu), deepcopy(cell.p), CellState.Alive)
-# end
+function duplicate_cell(cell::DECell, t)
+    @check cell.int.sol.t[1] <= t <= get_curr_t(cell)
+    ret = deepcopy(cell)
+    SciMLBase.change_t_via_interpolation!(ret.int, t, Val{true})
+    ret
+end 
