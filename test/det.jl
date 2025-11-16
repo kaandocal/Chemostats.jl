@@ -102,9 +102,7 @@ end
 
 ### 
 
-@testset "Λ estimator (thin, δ = 1)" 
-
-begin 
+@testset "Λ estimator (thin, δ = 1)" begin 
     tmax = 1000.
     niter = 1
 

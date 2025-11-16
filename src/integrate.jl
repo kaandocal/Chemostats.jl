@@ -164,12 +164,11 @@ function step!(int::PopIntegrator, tmax, ::EnsembleThreads; Nmax=Int(1e7), save=
                 end 
 
                 if get_state(cell) == CellState.Alive 
-                    #@info "At time $(get_curr_t(cell)): Alive cell"
                     process_cell!(int, cell, int.t_next; δ, kwargs...)
-                elseif get_state(cell) == CellState.Divided
-                    #@info "At time $(get_curr_t(cell)): Dividing cell"
-                    process_division!(int, cell; kwargs...)
+                elseif get_state(cell) == CellState.EndOfLife
+                    process_eol!(int, cell; kwargs...)
                 end
+
 
                 #@info "End at time $(get_curr_t(cell))"
             end
