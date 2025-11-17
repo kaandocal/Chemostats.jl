@@ -3,25 +3,8 @@ using Distributions
 using Chemostats 
 using OrdinaryDiffEq
 
-f(u, p, t) = u * p.λ
-get_Λ(p) = p.λ
-
-p = (; Vd = 2., λ = log(2))
-u0 = p.Vd / 2
-
-function divide(int)
-    map(1:2) do _
-        u0 = int.u / 2
-        (; u0, p=int.p)
-    end
-end 
-
-cb = ContinuousCallback((u, t, int) -> u - int.p.Vd, terminate!)
-
-prob = ODEProblem(f, u0, (0., 0.), p; callback=cb, divide)
-Λ_gt = get_Λ(p)
-
-###
+prob = Chemostats.Models.Deterministic()
+Λ_gt = Chemostats.Models.get_Λ(prob)
 
 niter = 1000
 @testset "Extinction probability (thin, δ = $δ)" for δ in [ 0.5, 0.9, 0.99 ]

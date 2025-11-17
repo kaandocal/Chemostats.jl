@@ -1,5 +1,6 @@
 abstract type AbstractAlgorithm end 
 
+### Do not get proper growth rate estimates!!!
 struct Forward <: AbstractAlgorithm
     L::Int
 end 

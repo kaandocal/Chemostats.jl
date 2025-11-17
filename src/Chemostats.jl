@@ -19,10 +19,12 @@ include("integrate.jl")
 
 export Chemostat
 public CellState, Snapshot
-public DECell, DivideCallback
+public DECell
 public Forward, Thin, Direct, Strict, Lax
 
 public simulate!
 public get_curr_t, get_state, est_logN, est_N, est_Λ
+
+include("models/models.jl")
 
 end 
