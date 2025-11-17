@@ -100,7 +100,7 @@ end
     @test count(abs.(ΛΛ .- Λ_gt) .< 0.005) / niter >= 0.75
 end
 
-### 
+# ### 
 
 @testset "Λ estimator (thin, δ = 1)" begin 
     tmax = 1000.
@@ -115,10 +115,11 @@ end
     @test mean(ΛΛ) ≈ Λ_gt atol=0.001
 end
 
-###
+# ###
 
 tmax = 100.5
 
+# Does not work to estimate population size!
 @testset "Reaction counts (forward, L=$L)" for L in [ 1, 10, 100 ]
     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ])
     Chemostats.simulate!(chem, tmax, Chemostats.Forward(L), ensalg) 
@@ -127,4 +128,3 @@ tmax = 100.5
 
     @test n ≈ floor(Int, tmax) * L
 end
-

@@ -1,11 +1,5 @@
-lockqueue(f::Function, ::BinaryHeap) = f()
-
 function get_curr_t end;
 const TimeOrder = Base.By(get_curr_t)
-
-create_queue(vals, ::EnsembleSerial) = BinaryHeap(TimeOrder, vals)
-
-###
 
 mutable struct ThreadedQueue{H <: BinaryHeap}
     heap::H
@@ -19,16 +13,16 @@ mutable struct ThreadedQueue{H <: BinaryHeap}
     end
 end 
 
-lockqueue(f::Function, queue::ThreadedQueue) = lock(f, queue.lock)
+Base.lock(f::Function, queue::ThreadedQueue) = lock(f, queue.lock)
 function Base.length(queue::ThreadedQueue) 
-    lockqueue(queue) do 
+    lock(queue) do 
         length(queue.heap) 
     end 
-end 
+end
 
 Base.isempty(queue::ThreadedQueue) = length(queue) == 0
 
-create_queue(vals, ::EnsembleThreads) = ThreadedQueue(BinaryHeap(TimeOrder, vals))
+create_queue(vals, ::Union{EnsembleSerial,EnsembleThreads}) = ThreadedQueue(BinaryHeap(TimeOrder, vals))
 
 function register_listener!(queue::ThreadedQueue)
     Threads.atomic_add!(queue.nwork, 1)
@@ -73,7 +67,7 @@ end
 const QueueType = Union{BinaryHeap, ThreadedQueue}
 
 function _append!(queue::QueueType, vals)
-    lockqueue(queue) do 
+    lock(queue) do 
         for v in vals 
             push!(queue, v)
         end 
@@ -87,7 +81,7 @@ function extract_queue!(pop, queue::BinaryHeap)
 end 
 
 function extract_queue!(pop, queue::ThreadedQueue)
-    lockqueue(queue) do 
+    lock(queue) do 
         while !isempty(queue)
             push!(pop, pop!(queue.heap))
         end

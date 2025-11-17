@@ -63,38 +63,36 @@ function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs..
 end 
 
 ### TODO: sorted search
-function find_next_t(int::PopIntegrator, tmax)
+function find_next_t(int::PopIntegrator)
     idx = findfirst(t -> t > int.t, int.tstops)
-    idx == nothing && return tmax 
-    min(int.tstops[idx], tmax)
+    idx == nothing && return Inf
+    int.tstops[idx]
 end 
 
 function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     error("Ensemble algorithm $ensalg not supported")
 end 
 
-function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=false, kwargs...)
-    @unpack chem, queue = int 
-    
-    int.t_next = find_next_t(int, tmax)
-    t0 = int.t 
-    int.t_next <= t0 && return int
+function worker_task(int::PopIntegrator, out::QueueType; Nmax=Int(1e7), δ=0., kwargs...)
+    register_listener!(int.queue)
 
-    δ = get_δ(int, int.alg)
-
-    while true
-        if isempty(queue) || int.retcode != ReturnCode.Default 
-            break
-        elseif length(queue) > Nmax  
+    while true 
+        if length(int.queue) > Nmax  
             @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
-            int.retcode = ReturnCode.MaxIters
+            lock(int.queue) do 
+                int.retcode = ReturnCode.MaxIters
+            end
             break 
         end 
 
-        cell = first(queue)
-        get_curr_t(cell) >= int.t_next && break
+        cell = fetch!(int.queue)
+        if isnothing(cell) || int.retcode != ReturnCode.Default 
+            break
+        elseif get_curr_t(cell) >= int.t_next
+            push!(out, cell)
+            continue
+        end 
 
-        pop!(queue)
         if get_state(cell) == CellState.Newborn 
             init_cell!(cell)
             int.nsim += 1
@@ -106,72 +104,25 @@ function step!(int::PopIntegrator, tmax, ::EnsembleSerial; Nmax=Int(1e7), save=f
             process_eol!(int, cell; kwargs...)
         end
 
+        # We assume this is threadsafe (`Strict` does not support multithreading)
         update_queue!(int, int.alg, get_curr_t(cell))
     end
+end 
 
-    int.log_f += δ * (int.t_next - t0)
-
-    int.t = if int.retcode == ReturnCode.MaxIters 
-        first(queue).t
-    else 
-        int.t_next 
-    end 
-
-    save && savevalues!(int)
-
-    int
-end
-
-
-
-function step!(int::PopIntegrator, tmax, ::EnsembleThreads; Nmax=Int(1e7), save=false, kwargs...)
+function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleThreads}; save=false, kwargs...)
     @unpack chem, queue = int 
-    out = create_queue(empty(chem.pop), EnsembleThreads())
+    out = create_queue(empty(chem.pop), ensalg)
     
-    int.t_next = find_next_t(int, tmax)
+    int.t_next = min(find_next_t(int), tmax)
     t0 = int.t 
     int.t_next <= t0 && return int
 
     δ = get_δ(int, int.alg)
-    @sync for i in 1:Threads.nthreads()
-        Threads.@spawn begin
-            register_listener!(queue)
-            # skip this 
-            # update_queue!(int, int.alg)
-
-            while true 
-                if length(queue) > Nmax  
-                    @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
-                    lock(int.queue) do 
-                        int.retcode = ReturnCode.MaxIters
-                    end
-                    break 
-                end 
-
-                cell = fetch!(queue)
-                if isnothing(cell) || int.retcode != ReturnCode.Default 
-                    break
-                elseif get_curr_t(cell) >= int.t_next
-                    #@info "Pushing cell at time $(get_curr_t(cell)) out..."
-                    push!(out, cell)
-                    continue
-                end 
-
-                if get_state(cell) == CellState.Newborn 
-                    #@info "At time $(get_curr_t(cell)): Newborn cell"
-                    init_cell!(cell)
-                    int.nsim += 1
-                end 
-
-                if get_state(cell) == CellState.Alive 
-                    process_cell!(int, cell, int.t_next; δ, kwargs...)
-                elseif get_state(cell) == CellState.EndOfLife
-                    process_eol!(int, cell; kwargs...)
-                end
-
-
-                #@info "End at time $(get_curr_t(cell))"
-            end
+    if ensalg isa EnsembleSerial
+        worker_task(int, out; δ, kwargs...)
+    elseif ensalg isa EnsembleThreads
+        @sync for i in 1:Threads.nthreads()
+            Threads.@spawn worker_task(int, out; δ, kwargs...)
         end
     end
 
@@ -188,7 +139,6 @@ function step!(int::PopIntegrator, tmax, ::EnsembleThreads; Nmax=Int(1e7), save=
 
     int
 end
-
 
 function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false, kwargs...)
     @argcheck get_state(cell) == CellState.Alive 
@@ -216,45 +166,40 @@ end
 
 function process_eol!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
     @argcheck get_state(cell) == CellState.EndOfLife
-    #@info "Dividing cell..."
+    @debug "Dividing cell..."
 
     # Cell dies or divides
     offspr = get_offspring(int, cell; save_lineages)
-    offspr_filtered = filter_offspring(offspr, int.alg)
 
     if isempty(offspr)
         die!(cell)
         return 
     end 
 
+    offspr_filtered, Δlog_f = filter_offspring(offspr, int.alg)
     divide!(cell)
 
-    lockqueue(int.queue) do 
-        N_full = length(int.queue) + length(offspr)
-        N_obs = length(int.queue) + length(offspr_filtered)
-
-        N_full / N_obs
+    lock(int.queue) do 
+        @debug "Appending $(length(offspr_filtered))/$(length(offspr)) cells..."
         _append!(int.queue, offspr_filtered)
-        int.log_f += log(N_full) - log(N_obs)
+        int.log_f += Δlog_f
     end
 end
 
-function resize_pop!(int, L::Int, t)
-    lockqueue(int.queue) do 
-        if isempty(int.queue)
-            @warn "No cells left in chemostat, terminating..."
-            int.retcode = ReturnCode.Unstable
-            return
-        end
-
-        N_start = length(int.queue)
-        
-        while length(int.queue) < L
-            _duplicate_random!(int.queue, t)
-        end
-
-        _truncate_queue!(int.queue, L)
-
-        int.log_f += log(N_start) - log(L)
+function _resize_pop!(int, L::Int, t)
+    if isempty(int.queue)
+        @warn "No cells left in chemostat, terminating..."
+        int.retcode = ReturnCode.Unstable
+        return
     end
+
+    N_start = length(int.queue)
+    
+    while length(int.queue) < L
+        _duplicate_random!(int.queue, t)
+    end
+
+    _truncate_queue!(int.queue, L)
+
+    int.log_f += log(N_start) - log(L)
 end
