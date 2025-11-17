@@ -1,23 +1,8 @@
 using Test
-using Random
-using Unzip
 using Distributions
-using SpecialFunctions
-
-using Revise
-include("../src/Chemostats.jl")
-Cell = Chemostats.Cell
-kill_cell! = Chemostats.kill_cell!
-function Chemostats.simulate_cell!(args...; kwargs...) 
-    simulate_cell!(args...; kwargs...)
-end 
-
-divide! = Chemostats.divide!
-CellState = Chemostats.CellState 
-
-function Chemostats.get_offspring(args...; kwargs...) 
-    get_offspring(args...; kwargs...)
-end 
+using Chemostats 
+using OrdinaryDiffEq
+#using SpecialFunctions
 
 ###
 
@@ -47,12 +32,8 @@ end
 
 ###
 
-include("../models/matrix.jl")
-
-model = model_yule
-env = nothing 
-
-Λ_gt = get_Λ(model)
+prob = Chemostats.Models.Yule()
+Λ_gt = Chemostats.Models.get_Λ(prob)
 
 ###
 
@@ -60,7 +41,7 @@ niter = 1000
 @testset "Extinction probability (thin, δ = $δ)" for δ in [ 0., 0.5, 0.9, 0.99 ]
     tmax = 4 / (1 - δ)
     NN = map(1:niter) do i
-        chem = Chemostats.Chemostat([ draw_cell(model, env) ], model, env)
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt)) 
         chem.saved[end].N
     end
@@ -74,7 +55,7 @@ end
     tmax = 5 / (1 - δ)
     niter = 1000 / (1 - δ)
     NN = map(1:niter) do i
-        chem = Chemostats.Chemostat([ draw_cell(model, env) ], model, env)
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt)) 
         chem.saved[end].N
     end
@@ -94,7 +75,7 @@ tmax = 50.
 tt = 0:0.1:tmax
 
 @testset "System size (strict, L=$L)" for L in [ 1, 10 ]
-    chem = Chemostats.Chemostat([ draw_cell(model, env) ], model, env)
+    chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ])
     Chemostats.simulate!(chem, tmax, Chemostats.Strict(L); saveat=tt)
 
     Ns = [ snap.N for snap in chem.saved[2:end] ]
@@ -102,7 +83,7 @@ tt = 0:0.1:tmax
 end
 
 @testset "System size (forward, L=$L)" for L in [ 1, 10 ]
-    chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:L ], model, env)
+    chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ])
     Chemostats.simulate!(chem, tmax, Chemostats.Forward(L); saveat=tt)
 
     Ns = [ snap.N for snap in chem.saved ]
@@ -116,7 +97,7 @@ end
     niter = 100
 
     ΛΛ = map(1:niter) do i
-        chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:100 ], model, env)
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:100 ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(0.9 * Λ_gt)) 
         Chemostats.est_Λ(chem)
     end
@@ -131,7 +112,7 @@ end
     niter = 100
 
     ΛΛ = map(1:niter) do i
-        chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:1000 ], model, env)
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:1000 ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(0.99 * Λ_gt)) 
         Chemostats.est_Λ(chem)
     end
@@ -146,7 +127,7 @@ end
     niter = 10
 
     ΛΛ = map(1:niter) do i
-        chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:50000 ], model, env)
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:50000 ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(Λ_gt)) 
         Chemostats.est_Λ(chem)
     end
@@ -159,9 +140,11 @@ end
 tmax = 100.
 niter = 1000
 
-@testset "Reaction counts (strict, L=$L)" for L in [ 1, 10, 100 ]
+@testset "Reaction counts (strict, L=$L)" 
+
+for L in [ 1, 10, 100 ]
     nn = map(1:niter) do i
-        chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:L ], model, env)
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ])
         Chemostats.simulate!(chem, tmax, Chemostats.Strict(L)) 
         chem.saved[end].log_f / log(1+1/L)
     end
@@ -171,7 +154,7 @@ end
 
 @testset "Reaction counts (forward, L=$L)" for L in [ 1, 10, 100 ]
     nn = map(1:niter) do i
-        chem = Chemostats.Chemostat([ draw_cell(model, env) for i in 1:L ], model, env)
+        chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ])
         Chemostats.simulate!(chem, tmax, Chemostats.Forward(L)) 
         chem.saved[end].log_f / log(1+1/L)
     end

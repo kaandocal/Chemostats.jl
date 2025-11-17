@@ -1,0 +1,41 @@
+using Random
+using StatsBase
+using OrdinaryDiffEq
+using LinearAlgebra
+using ArgCheck
+using UnPack
+
+f_mtm(u, p, t) = -1.
+cb_mtm = ContinuousCallback((u, t, int) -> u, terminate!)
+
+function divide_mtm(int)
+    @unpack s, model = int.p
+    @unpack λ, T = model 
+
+    w = ProbabilityWeights(T[:,s])
+
+    map(1:2) do _
+        u0_new = randexp() / λ[s]
+        s_new = sample(w)
+        (; u0=u0_new, p=(; s=s_new, model))
+    end
+end 
+
+function MultitypeMarkov(λ::AbstractVector, T::AbstractMatrix)
+    @argcheck size(T) == (length(λ), length(λ))
+    @argcheck all(sum(T; dims=1) .== 1)
+
+    s = sample(1:length(λ))
+    u0 = randexp() / λ[s]
+    p = (; s, model = (; λ, T))
+
+    ODEProblem(f_mtm, u0, (0., 0.), p; callback=cb_mtm, divide=divide_mtm)
+end 
+
+Yule(λ = 1.) = MultitypeMarkov([ λ ], [ 1;; ])
+
+function get_Λ_mtm(model::NamedTuple) 
+    Q = 2 .* model.T .* model.λ - diagm(model.λ)
+    last(eigvals(Q))
+end
+

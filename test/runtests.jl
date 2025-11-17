@@ -5,7 +5,10 @@ using Chemostats
 	Aqua.test_all(Chemostats)
 end
 
-#@testset "Deterministic (Serial)" begin global ensalg=Chemostats.EnsembleSerial(); include("det.jl") end
-#@testset "Deterministic (Threaded)" begin global ensalg=Chemostats.EnsembleThreads(); include("det.jl") end
-#@testset "Yule" begin include("yule.jl") end
+#@testset "Deterministic (Serial)" begin global ensalg=Chemostats.EnsembleSerial(); include("deterministic.jl") end
+#@testset "Deterministic (Threads)" begin global ensalg=Chemostats.EnsembleThreads(); include("deterministic.jl") end
+
+@testset "Yule (Serial)" begin global ensalg=Chemostats.EnsembleSerial(); include("yule.jl") end
+#@testset "Yule (Threads)" begin global ensalg=Chemostats.EnsembleThreads(); include("yule.jl") end
+
 #@testset "Volume" begin include("vol.jl") end
