@@ -102,12 +102,11 @@ end
 
 tmax = 100.5
 
-# Does not work to estimate population size!
 @testset "Reaction counts (forward, L=$L)" for L in [ 1, 10, 100 ]
     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ])
     Chemostats.simulate!(chem, tmax, Chemostats.Forward(L), ensalg) 
     
-    n = chem.saved[end].log_f / log(1+1/L)
+    n = chem.saved[end].nsim - L
 
     @test n ≈ floor(Int, tmax) * L
 end

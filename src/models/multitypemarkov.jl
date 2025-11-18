@@ -4,6 +4,7 @@ using OrdinaryDiffEq
 using LinearAlgebra
 using ArgCheck
 using UnPack
+using Chemostats
 
 f_mtm(u, p, t) = -1.
 cb_mtm = ContinuousCallback((u, t, int) -> u, terminate!)
@@ -15,8 +16,8 @@ function divide_mtm(int)
     w = ProbabilityWeights(T[:,s])
 
     map(1:2) do _
-        u0_new = randexp() / λ[s]
         s_new = sample(w)
+        u0_new = randexp() / λ[s_new]
         (; u0=u0_new, p=(; s=s_new, model))
     end
 end 
@@ -33,6 +34,17 @@ function MultitypeMarkov(λ::AbstractVector, T::AbstractMatrix)
 end 
 
 Yule(λ = 1.) = MultitypeMarkov([ λ ], [ 1;; ])
+
+function sample_cell_mtm(prob)
+    @unpack model = prob.p
+    @unpack λ, T = model 
+
+    s = sample(1:length(λ))
+    u0 = randexp() / λ[s]
+
+    prob_ = remake(prob; u0=u0, p=(; s, model))
+    Chemostats.DECell(prob_)
+end 
 
 function get_Λ_mtm(model::NamedTuple) 
     Q = 2 .* model.T .* model.λ - diagm(model.λ)

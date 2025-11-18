@@ -113,6 +113,10 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
     @unpack chem, queue = int 
     out = create_queue(empty(chem.pop), ensalg)
     
+    if ensalg isa EnsembleThreads && !is_parallel(int.alg)
+        error("Algorithm $(typeof(int.alg)) does not support parallelisation")
+    end 
+    
     int.t_next = min(find_next_t(int), tmax)
     t0 = int.t 
     int.t_next <= t0 && return int

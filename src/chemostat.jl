@@ -36,7 +36,7 @@ struct Chemostat{C,P}
 end
 
 function Chemostat(cells, p=nothing)
-    saved = [ Snapshot(0., length(cells), length(cells), 0.) ]
+    saved = [ Snapshot(0., length(cells), 0, 0.) ]
     Chemostat(deepcopy(cells), p, saved, empty(cells), empty(cells))
 end
 

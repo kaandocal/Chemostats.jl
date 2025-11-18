@@ -15,5 +15,5 @@ end
 function Deterministic(; Vd = 2., λ = log(2))
     p = (; Vd, λ)
     u0 = p.Vd / 2
-    ODEProblem(f, u0, (0., 0.), p; callback=cb, divide=divide_det)
+    ODEProblem(f_det, u0, (0., 0.), p; callback=cb_det, divide=divide_det)
 end 
