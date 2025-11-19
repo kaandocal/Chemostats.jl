@@ -67,14 +67,13 @@ function est_Λ_curr(chem::Chemostat, t, alg::Lax)
 end 
 
 function register_tstop!(int, alg::Lax) 
-    int.t_next < int.t + alg.t_adapt && add_tstop!(int, int.t + alg.t_adapt)
+    find_next_t(int) > int.t + alg.t_adapt && add_tstop!(int, int.t + alg.t_adapt)
 end 
 
 init!(alg::Lax, int) = register_tstop!(int, alg)
 
 function get_δ(int, alg::Lax)
     register_tstop!(int, alg)
-
     get_δ(int.chem, int.t, alg)
 end
 

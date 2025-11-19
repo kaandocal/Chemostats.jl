@@ -3,7 +3,7 @@ module MakieExt
 using Chemostats, Makie
 
 # Use structarrays
-function plot(chem::Chemostat; tspan=(0, Chemostats.get_curr_t(chem)), Λ_gt=nothing, alg=nothing)
+function Makie.plot(chem::Chemostat; tspan=(0, Chemostats.get_curr_t(chem)), Λ_gt=nothing, alg=nothing)
     fig = Figure()
 
     tt = [ snap.t for snap in chem.saved ]

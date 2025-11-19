@@ -63,8 +63,9 @@ function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs..
 end 
 
 ### TODO: sorted search
-function find_next_t(int::PopIntegrator)
-    idx = findfirst(t -> t > int.t, int.tstops)
+### This must be strict (>) for Lax to work
+function find_next_t(int::PopIntegrator, t=int.t)
+    idx = findfirst(s -> s > t, int.tstops)
     idx == nothing && return Inf
     int.tstops[idx]
 end 
@@ -116,12 +117,12 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
     if ensalg isa EnsembleThreads && !is_parallel(int.alg)
         error("Algorithm $(typeof(int.alg)) does not support parallelisation")
     end 
-    
+
+    δ = get_δ(int, int.alg)
     int.t_next = min(find_next_t(int), tmax)
     t0 = int.t 
     int.t_next <= t0 && return int
 
-    δ = get_δ(int, int.alg)
     if ensalg isa EnsembleSerial
         worker_task(int, out; δ, kwargs...)
     elseif ensalg isa EnsembleThreads
