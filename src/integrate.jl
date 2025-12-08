@@ -11,6 +11,14 @@ mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: Queu
     retcode::ReturnCode.T
 end
 
+function default_alg(alg::AbstractAlgorithm) 
+    if is_parallel(alg) && Threads.nthreads() > 1
+        EnsembleThreads()
+    else 
+        EnsembleSerial()
+    end 
+end
+
 function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm; tstops = Float64[])
     t0 = get_curr_t(chem)
 
@@ -37,7 +45,7 @@ function add_tstop!(int::PopIntegrator, t)
 end 
 
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm, 
-                   ensalg::EnsembleAlgorithm = EnsembleSerial(); saveat=[ tmax ], kwargs...)
+                   ensalg::EnsembleAlgorithm = default_alg(alg); saveat=[ tmax ], kwargs...)
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
     init!(int.alg, int)
     simulate!(int, tmax, ensalg)
@@ -45,7 +53,7 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
 end
 
 
-function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
+function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default_alg(alg); kwargs...)
     while int.t < tmax && int.retcode == ReturnCode.Default
         update_algorithm!(int.alg, int)
         int.retcode == ReturnCode.Default || break
