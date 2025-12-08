@@ -37,7 +37,7 @@ function get_offspring(int_, cell; save_lineages=false)
     map(offspring) do off
         @unpack u0, p = off
         prob = remake(cell.int.sol.prob; u0, p)
-        Chemostats.DECell(anc, prob; t0=Chemostats.get_curr_t(cell))
+        DECell(anc, prob; t0=get_curr_t(cell))
     end
 end
 

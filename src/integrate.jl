@@ -48,7 +48,7 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
                    ensalg::EnsembleAlgorithm = default_alg(alg); saveat=[ tmax ], kwargs...)
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
     init!(int.alg, int)
-    simulate!(int, tmax, ensalg)
+    simulate!(int, tmax, ensalg; kwargs...)
     chem
 end
 
