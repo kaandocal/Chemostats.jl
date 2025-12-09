@@ -30,14 +30,15 @@ end
 function get_offspring(int_, cell; save_lineages=false)
     anc = save_lineages ? cell : missing
 
-    divide = get_divide_func(cell.int.sol.prob)
+    prob = cell.int.sol.prob
+    divide = get_divide_func(prob)
     offspring = divide(cell.int)
     isnothing(offspring) && return typeof(cell)[]
 
     map(offspring) do off
-        @unpack u0, p = off
-        prob = remake(cell.int.sol.prob; u0, p)
-        DECell(anc, prob; t0=get_curr_t(cell))
+        prob_ = remake(prob; p=off.p)
+        prob__ = remake(prob_; u0=off.u0)
+        DECell(anc, prob__; t0=get_curr_t(cell))
     end
 end
 
