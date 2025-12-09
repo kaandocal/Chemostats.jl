@@ -1,7 +1,7 @@
 @enumx CellState Newborn Alive EndOfLife Dead Divided Killed
 
 mutable struct DECell{I}
-    anc::Union{Missing,DECell{I}}
+    anc::Union{Missing,DECell}
     int::I
     state::CellState.T      # Move to integrator?
 end
