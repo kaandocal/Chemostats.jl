@@ -45,7 +45,7 @@ function Base.show(io::IO, chem::Chemostat)
     print(io, "Chemostat($stats)")
 end
 
-const SnapshotVec = Union{Snapshot,Chemostat}
+const SnapshotVec = Union{AbstractVector{Snapshot},Chemostat}
 
 get_curr_t(chem::Chemostat) = get_curr_t(chem.saved)
 get_curr_t(snaps::AbstractVector{Snapshot}) = snaps[end].t 
