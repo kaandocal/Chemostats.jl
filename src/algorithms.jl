@@ -55,13 +55,13 @@ struct Lax <: AbstractAlgorithm
     end 
 end 
 
-function est_Λ_curr(chem::Chemostat, t, alg::Lax)
-    snap1 = get_snapshot(chem, t)
+function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
+    snap1 = get_snapshot(snaps, t)
 
-    @assert issorted(chem.saved; by = snap -> snap.t)
-    i = searchsortedlast(map(snap -> snap.t, chem.saved), t - alg.t_adapt)
+    @assert issorted(snaps; by = snap -> snap.t)
+    i = searchsortedlast(map(snap -> snap.t, snaps), t - alg.t_adapt)
     isempty(i) && return NaN
-    snap0 = chem.saved[i]
+    snap0 = snaps[i]
 
     est_Λ(snap0, snap1)
 end 
@@ -77,14 +77,16 @@ function get_δ(int, alg::Lax)
     get_δ(int.chem, int.t, alg)
 end
 
-function get_δ(chem::Chemostat, t, alg::Lax)
-    snap = get_snapshot(chem, t)
+get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.saved, t, alg)
+
+function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
+    snap = get_snapshot(snaps, t)
 
     # Small population 
     snap.N < 50 && return 0.
 
     # Estimate current growth rate
-    Λ̂ = est_Λ_curr(chem, t, alg)
+    Λ̂ = est_Λ_curr(snaps, t, alg)
     isfinite(Λ̂) || return 0.
 
     # Expected population size after time t_adapt is 

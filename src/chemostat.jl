@@ -47,11 +47,13 @@ end
 
 get_curr_t(chem::Chemostat) = chem.saved[end].t 
 
-function get_snapshot(chem::Chemostat, t = get_curr_t(chem))
-    @assert issorted(chem.saved; by = snap -> snap.t)
-    i = searchsorted(map(snap -> snap.t, chem.saved), t)
+get_snapshot(chem::Chemostat, t = get_curr_t(chem)) = get_snapshot(chem.saved, t)
+
+function get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t)
+    @assert issorted(snaps; by = snap -> snap.t)
+    i = searchsorted(map(snap -> snap.t, snaps), t)
     isempty(i) && throw(ArgumentError("No snapshot saved at time t=$t"))
-    chem.saved[last(i)]
+    snaps[last(i)]
 end 
 
 """ estimate the real population size by extrapolation """
