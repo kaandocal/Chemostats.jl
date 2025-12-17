@@ -4,7 +4,8 @@ using Chemostats, Makie
 
 Makie.plot(chem::Chemostat; kwargs...) = Makie.plot(chem.saved; kwargs...)
 
-function Makie.plot(snaps::AbstractVector{Snapshot}; tspan=(0, snaps[end].t), Λ_gt=nothing, alg=nothing)
+function Makie.plot(snaps::AbstractVector{Chemostats.Snapshot};
+                    tspan=(0, snaps[end].t), Λ_gt=nothing, alg=nothing)
     fig = Figure()
 
     tt = [ snap.t for snap in snaps ]

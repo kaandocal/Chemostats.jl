@@ -45,9 +45,12 @@ function Base.show(io::IO, chem::Chemostat)
     print(io, "Chemostat($stats)")
 end
 
-get_curr_t(chem::Chemostat) = chem.saved[end].t 
+const SnapshotVec = Union{Snapshot,Chemostat}
 
-get_snapshot(chem::Chemostat, t = get_curr_t(chem)) = get_snapshot(chem.saved, t)
+get_curr_t(chem::Chemostat) = get_curr_t(chem.saved)
+get_curr_t(snaps::AbstractVector{Snapshot}) = snaps[end].t 
+
+get_snapshot(chem::Chemostat, args...) = get_snapshot(chem.saved, args...)
 
 function get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t)
     @assert issorted(snaps; by = snap -> snap.t)
@@ -57,11 +60,11 @@ function get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t)
 end 
 
 """ estimate the real population size by extrapolation """
-est_logN(chem::Chemostat, t = get_curr_t(chem)) = est_logN(get_snapshot(chem, t))
+est_logN(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_logN(get_snapshot(snaps, t))
 
 """ estimate the growth rat between time t0 and t """
-est_Λ(chem::Chemostat, t0, t) = est_Λ(get_snapshot(chem, t0), get_snapshot(chem, t))
-est_Λ(chem::Chemostat, t = get_curr_t(chem)) = est_Λ(chem, zero(t), t)
+est_Λ(snaps::SnapshotVec, t0, t) = est_Λ(get_snapshot(snaps, t0), get_snapshot(snaps, t))
+est_Λ(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_Λ(snaps, zero(t), t)
 
 # # Population history stuff 
 
