@@ -27,8 +27,10 @@ function get_divide_func(prob)
     divide_nop
 end
 
+finalise_cell(cell::DECell) = cell
+
 function get_offspring(int_, cell; save_lineages=false)
-    anc = save_lineages ? cell : missing
+    anc = save_lineages ? finalise_cell(cell) : missing
 
     prob = cell.int.sol.prob
     divide = get_divide_func(prob)
