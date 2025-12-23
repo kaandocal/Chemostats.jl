@@ -44,43 +44,56 @@ update_queue!(int, alg::Strict, t) = _resize_pop!(int, alg.L, t)
 
 struct Lax <: AbstractAlgorithm
     L::Int
-    t_adapt::Float64
+    τ::Float64
     tol::Float64
+    β::Float64
 
-    function Lax(L::Int, t_adapt, tol=0.5)
-        @argcheck 0 < tol < 1
-        @argcheck t_adapt > 0
+    function Lax(L::Int, τ; tol=2., β=0.5)
+        @argcheck tol >= 1
+        @argcheck τ > 0
+        @argcheck 0 <= β <= 1
 
-        new(L, t_adapt, tol)
+        new(L, τ, tol, β)
     end 
 end 
 
 function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    snap1 = get_snapshot(snaps, t)
+    rnd = get_round(t, alg)
+    rnd == 0 && return NaN
 
-    @assert issorted(snaps; by = snap -> snap.t)
-    i = searchsortedlast(map(snap -> snap.t, snaps), t - alg.t_adapt)
-    isempty(i) && return NaN
-    snap0 = snaps[i]
+    ret = sum(0:rnd-1) do d 
+        snap_1 = get_snapshot(snaps, (rnd - d - 1) * alg.τ)
+        snap_2 = get_snapshot(snaps, (rnd - d) * alg.τ)
+        Λ_est = est_Λ(snap_1, snap_2)
+        (d > 0 ? alg.β^d : one(alg.β)) * Λ_est
+    end 
 
-    est_Λ(snap0, snap1)
+    norm = alg.β < 1 ? ((1 - alg.β^rnd) / (1 - alg.β)) : rnd * alg.β
+    ret / norm
 end 
 
-function register_tstop!(int, alg::Lax) 
-    find_next_t(int) > int.t + alg.t_adapt && add_tstop!(int, int.t + alg.t_adapt)
+get_round(t, alg::Lax) = floor(Int, div(t, alg.τ))
+
+function register_next_tstop!(int, alg::Lax) 
+    rnd = get_round(int.t, alg)
+    add_tstop!(int, (rnd + 1) * alg.τ)
 end 
 
-init!(alg::Lax, int) = register_tstop!(int, alg)
+init!(alg::Lax, int) = register_next_tstop!(int, alg)
 
 function get_δ(int, alg::Lax)
-    register_tstop!(int, alg)
     get_δ(int.chem, int.t, alg)
 end
+
+function get_last_snapshot(snaps::AbstractVector{Snapshot}, t, alg::Lax)
+    rnd = get_round(t, alg)
+    get_snapshot(snaps, rnd * alg.τ)
+end 
 
 get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.saved, t, alg)
 
 function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    snap = get_snapshot(snaps, t)
+    snap = get_last_snapshot(snaps, t, alg)
 
     # Small population 
     snap.N < 50 && return 0.
@@ -89,18 +102,20 @@ function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     Λ̂ = est_Λ_curr(snaps, t, alg)
     isfinite(Λ̂) || return 0.
 
-    # Expected population size after time t_adapt is 
-    #   `length(queue) * exp((Λ - δ) * t_adapt)` 
+    # Expected population size after time τ is 
+    #   `length(queue) * exp((Λ - δ) * τ)` 
     # Choose δ to make this equal to L
     ΔlogN = log(alg.L) - log(snap.N)
-    ret = Λ̂ - ΔlogN / alg.t_adapt
+    ret = Λ̂ - ΔlogN / alg.τ
     max(0, ret)
 end 
 
 function update_algorithm!(alg::Lax, int)
-    if length(int.queue) > alg.L * (1 + alg.tol)
+    if length(int.queue) > alg.L * alg.tol
         _resize_pop!(int, alg.L, int.t)
     end 
+
+    register_next_tstop!(int, alg)
 end 
 
 is_parallel(::Lax) = true
