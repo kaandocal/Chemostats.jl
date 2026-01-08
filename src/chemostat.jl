@@ -35,9 +35,9 @@ struct Chemostat{C,P}
     all_cells::Vector{C}               # all cells 
 end
 
-function Chemostat(cells, p=nothing)
+function Chemostat(cells, p=nothing; copy=false)
     saved = [ Snapshot(0., length(cells), 0, 0.) ]
-    Chemostat(deepcopy(cells), p, saved, empty(cells), empty(cells))
+    Chemostat(copy ? deepcopy(cells) : cells, p, saved, empty(cells), empty(cells))
 end
 
 function Base.show(io::IO, chem::Chemostat)

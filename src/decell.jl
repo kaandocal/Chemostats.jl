@@ -111,7 +111,8 @@ end
 
 function duplicate_cell(cell::DECell, t)
     @check cell.int.sol.t[1] <= t <= get_curr_t(cell)
-    ret = deepcopy(cell)
-    SciMLBase.change_t_via_interpolation!(ret.int, t, Val{true})
-    ret
+
+    prob_ = remake(cell.int.sol.prob; p=cell.int.p)
+    prob__ = remake(prob_; u0=cell.int.sol(t))
+    DECell(cell.anc, prob__; t0=t)
 end 
