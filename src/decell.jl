@@ -23,7 +23,7 @@ function remake_cell(cell::DECell; anc=cell.anc, t=get_curr_t(cell), u0=nothing,
 
     if !isnothing(p)
         if p isa AbstractVector{<:Pair}
-            setp = ModelingToolkit.setp(prob, first.(p))
+            setp = SciMLBase.setp(prob, first.(p))
             setp(int, last.(p))
         else 
             int.p = p 
@@ -34,7 +34,7 @@ function remake_cell(cell::DECell; anc=cell.anc, t=get_curr_t(cell), u0=nothing,
 
     if !isnothing(u0) && !isempty(u0)
         if first(u0) isa Pair 
-            setu = ModelingToolkit.setu(prob, first.(u0))
+            setu = SciMLBase.setu(prob, first.(u0))
             setu(u, last.(u0))
         else 
             u = u0
