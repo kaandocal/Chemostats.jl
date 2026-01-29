@@ -1,7 +1,7 @@
 @enumx CellState Newborn Alive EndOfLife Dead Divided Killed
 
 mutable struct DECell{I,DF}
-    anc::Union{Missing,DECell{I,DF}}
+    anc::Union{Missing,DECell}
     int::I
     divide::DF
     state::CellState.T
