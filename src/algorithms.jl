@@ -8,7 +8,7 @@ end
 get_δ(int, ::Forward) = 0.
 init!(alg::Forward, int) = _resize_pop!(int, alg.L, int.t)
 is_parallel(::Forward) = true
-filter_offspring(cells, alg::Forward) = (Iterators.take(cells, 1), log(1+(length(cells)-1)/alg.L))
+filter_offspring(cells, ::Forward) = (Iterators.take(cells, 1), NaN)
 update_algorithm!(::Forward, int) = nothing
 update_queue!(queue, ::Forward, t) = nothing
 

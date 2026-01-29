@@ -17,13 +17,12 @@ include("chemostat.jl")
 include("algorithms.jl")
 include("integrate.jl")
 
-export Chemostat
+export Chemostat, DECell, est_Λ
 public CellState, Snapshot
-public DECell
 public Forward, Thin, Direct, Strict, Lax
 
 public simulate!
-public get_curr_t, get_state, est_logN, est_N, est_Λ
+public get_curr_t, get_state, est_logN, est_N
 
 include("models/models.jl")
 
