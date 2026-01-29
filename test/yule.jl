@@ -2,7 +2,6 @@ using Test
 using Distributions
 using Chemostats 
 using OrdinaryDiffEq
-#using SpecialFunctions
 
 ###
 
@@ -41,7 +40,7 @@ niter = 1000
 @testset "Extinction probability (thin, δ = $δ)" for δ in [ 0., 0.5, 0.9, 0.99 ]
     tmax = 4 / (1 - δ)
     NN = map(1:niter) do i
-        chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) ])
+        chem = Chemostat([ Chemostats.Models.sample_cell(prob) ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt), ensalg) 
         chem.saved[end].N
     end
@@ -55,7 +54,7 @@ end
     tmax = 5 / (1 - δ)
     niter = 1000 / (1 - δ)
     NN = map(1:niter) do i
-        chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) ])
+        chem = Chemostat([ Chemostats.Models.sample_cell(prob) ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt), ensalg) 
         chem.saved[end].N
     end
@@ -75,7 +74,7 @@ tmax = 50.
 tt = 0:0.1:tmax
 
 @testset "System size (strict, L=$L)" for L in [ 1, 10 ]
-    chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) ])
+    chem = Chemostat([ Chemostats.Models.sample_cell(prob) ])
     if ensalg isa EnsembleThreads 
         @test_throws "does not support parallelisation" Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg; saveat=tt)
     else 
@@ -87,7 +86,7 @@ tt = 0:0.1:tmax
 end
 
 @testset "System size (forward, L=$L)" for L in [ 1, 10 ]
-    chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
+    chem = Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
     Chemostats.simulate!(chem, tmax, Chemostats.Forward(L), ensalg; saveat=tt)
 
     Ns = [ snap.N for snap in chem.saved ]
@@ -101,7 +100,7 @@ end
     niter = 100
 
     ΛΛ = map(1:niter) do i
-        chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:100 ])
+        chem = Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:100 ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(0.9 * Λ_gt), ensalg) 
         Chemostats.est_Λ(chem)
     end
@@ -116,7 +115,7 @@ end
     niter = 100
 
     ΛΛ = map(1:niter) do i
-        chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:1000 ])
+        chem = Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:1000 ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(0.99 * Λ_gt), ensalg) 
         Chemostats.est_Λ(chem)
     end
@@ -131,7 +130,7 @@ end
     niter = 10
 
     ΛΛ = map(1:niter) do i
-        chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:50000 ])
+        chem = Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:50000 ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(Λ_gt), ensalg) 
         Chemostats.est_Λ(chem)
     end
@@ -147,7 +146,7 @@ niter = 1000
 if ensalg == EnsembleSerial()
     @testset "Reaction counts (strict, L=$L)" for L in [ 1, 10, 100 ]
         nn = map(1:niter) do i
-            chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
+            chem = Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
             Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg) 
             chem.saved[end].log_f / log(1+1/L)
         end
@@ -155,13 +154,13 @@ if ensalg == EnsembleSerial()
         test_poisson(nn, Λ_gt * tmax * L)
     end
 else 
-    chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
+    chem = Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
     @test_throws "does not support parallelisation" Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg) 
 end 
 
 @testset "Reaction counts (forward, L=$L)" for L in [ 1, 10, 100 ]
     nn = map(1:niter) do i
-        chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
+        chem = Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
         Chemostats.simulate!(chem, tmax, Chemostats.Forward(L), ensalg) 
         chem.saved[end].nsim - L
     end

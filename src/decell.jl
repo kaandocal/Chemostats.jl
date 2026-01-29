@@ -1,47 +1,58 @@
 @enumx CellState Newborn Alive EndOfLife Dead Divided Killed
 
-mutable struct DECell{I}
-    anc::Union{Missing,DECell}
+mutable struct DECell{I,DF}
+    anc::Union{Missing,DECell{I,DF}}
     int::I
-    state::CellState.T      # Move to integrator?
+    divide::DF
+    state::CellState.T
 end
 
-function DECell(anc::Union{Missing, DECell}, prob; t0=ismissing(anc) ? 0. : get_curr_t(anc))
+function DECell(anc::Union{Missing, DECell}, prob, divide; t0=ismissing(anc) ? 0. : get_curr_t(anc))
     int = init(prob; tspan=(t0, Inf))
-    @check int.t == t0
-    DECell(anc, int, CellState.Newborn)
+    DECell(anc, int, divide, CellState.Newborn)
 end
 
-function DECell(prob; t0=0.) 
-    if ismissing(get_divide_func(prob))
-        @warn "DECell requires passing the `divide` kwarg to the AbstractDEProblem for cells to replicate"
-    end 
-
-    prob_ = remake(prob; kwargshandle=SciMLBase.KeywordArgSilent)
-    DECell(missing, prob_; t0)
-end
-
-divide_nop(cell) = nothing 
-function get_divide_func(prob)
-    haskey(prob.kwargs, :divide) && return prob.kwargs[:divide]
-    divide_nop
+function DECell(prob, divide) 
+    DECell(missing, prob, divide)
 end
 
 finalise_cell(cell::DECell) = cell
 
+function remake_cell(cell::DECell; anc=cell.anc, t=get_curr_t(cell), u0=nothing, p=nothing)
+    int = init(cell.int.sol.prob; tspan=(t, Inf))
+
+    if !isnothing(p)
+        if p isa AbstractVector{<:Pair}
+            setp = ModelingToolkit.setp(prob, first.(p))
+            setp(int, last.(p))
+        else 
+            int.p = p 
+        end 
+    end 
+
+    u = int.u 
+
+    if !isnothing(u0) && !isempty(u0)
+        if first(u0) isa Pair 
+            setu = ModelingToolkit.setu(prob, first.(u0))
+            setu(u, last.(u0))
+        else 
+            u = u0
+        end
+    end
+
+    SciMLBase.reinit!(int, u; reinit_dae=false)
+
+    DECell(anc, int, cell.divide, CellState.Newborn)
+end 
+
 function get_offspring(int_, cell; save_lineages=false)
     anc = save_lineages ? finalise_cell(cell) : missing
 
-    prob = cell.int.sol.prob
-    divide = get_divide_func(prob)
-    offspring = divide(cell.int)
+    offspring = cell.divide(cell.int)
     isnothing(offspring) && return typeof(cell)[]
 
-    map(offspring) do off
-        prob_ = remake(prob; p=off.p)
-        prob__ = remake(prob_; u0=off.u0)
-        DECell(anc, prob__; t0=get_curr_t(cell))
-    end
+    [ remake_cell(cell; anc, u0=off.u0, p=off.p) for off in offspring ]
 end
 
 get_curr_t(cell::DECell) = cell.int.t
@@ -112,7 +123,5 @@ end
 function duplicate_cell(cell::DECell, t)
     @check cell.int.sol.t[1] <= t <= get_curr_t(cell)
 
-    prob_ = remake(cell.int.sol.prob; p=cell.int.p)
-    prob__ = remake(prob_; u0=cell.int.sol(t))
-    DECell(cell.anc, prob__; t0=t)
+    remake_cell(cell; t, u0=cell.int.sol(t))
 end 

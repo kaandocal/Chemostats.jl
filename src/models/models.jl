@@ -8,7 +8,7 @@ function sample_cell(prob::ODEProblem)
     if hasproperty(prob.p, :s) && hasproperty(prob.p, :model)
         sample_cell_mtm(prob)
     elseif length(prob.p) == 1 && hasproperty(prob.p, :λ)
-        DECell(prob)
+        DECell(prob, divide_det)
     end
 end 
 

@@ -13,6 +13,10 @@ function divide_mtm(int)
     @unpack s, model = int.p
     @unpack λ, T = model 
 
+    if rand() > sum(T[:,s])
+        return nothing 
+    end 
+    
     w = ProbabilityWeights(T[:,s])
 
     map(1:2) do _
@@ -30,7 +34,7 @@ function MultitypeMarkov(λ::AbstractVector, T::AbstractMatrix)
     u0 = randexp() / λ[s]
     p = (; s, model = (; λ, T))
 
-    ODEProblem(f_mtm, u0, (0., 0.), p; callback=cb_mtm, divide=divide_mtm)
+    ODEProblem(f_mtm, u0, (0., 0.), p; callback=cb_mtm)
 end 
 
 Yule(λ = 1.) = MultitypeMarkov([ λ ], [ 1;; ])
@@ -43,7 +47,7 @@ function sample_cell_mtm(prob)
     u0 = randexp() / λ[s]
 
     prob_ = remake(prob; u0=u0, p=(; s, model))
-    Chemostats.DECell(prob_)
+    Chemostats.DECell(prob_, divide_mtm)
 end 
 
 function get_Λ_mtm(model::NamedTuple) 
