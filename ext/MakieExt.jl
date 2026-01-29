@@ -8,21 +8,26 @@ function Makie.plot(snaps::AbstractVector{Chemostats.Snapshot};
                     tspan=(0, snaps[end].t), Λ_gt=nothing, alg=nothing)
     fig = Figure()
 
-    tt = [ snap.t for snap in snaps ]
-
     ax_N = Axis(fig[1,1], xlabel="Time", ylabel="log10(N)")
-    ax_Λ = Axis(fig[2,1], xlabel="Time", ylabel="Λ")
+    ax_L = Axis(fig[2,1], xlabel="Time", ylabel="L")
+    ax_Λ = Axis(fig[3,1], xlabel="Time", ylabel="Λ")
     ax_δ = if alg isa Chemostats.Lax
-        Axis(fig[3,1], xlabel="Time", ylabel="δ")
+        Axis(fig[4,1], xlabel="Time", ylabel="δ")
     else 
         nothing 
     end
 
-    linkxaxes!([ax_N, ax_Λ])
+    linkxaxes!([ax_N, ax_L, ax_Λ])
     snaps = filter(snap -> tspan[1] <= snap.t <= tspan[2], snaps)
+
+    tt = [ snap.t for snap in snaps ]
 
     logNN = [ Chemostats.est_logN(snap) for snap in snaps ] ./ log(10)
     lines!(ax_N, tt, logNN)
+
+    L = [ snap.N for snap in snaps ]
+    lines!(ax_L, tt, L)
+
 
     for f in [ 0., 0.1, 0.2 ]
         t_tgt = tspan[1] + (tspan[2] - tspan[1]) * f
@@ -43,5 +48,6 @@ function Makie.plot(snaps::AbstractVector{Chemostats.Snapshot};
 
     fig
 end 
+
 
 end
