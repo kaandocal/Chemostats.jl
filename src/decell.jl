@@ -30,7 +30,7 @@ function remake_cell(cell::DECell; anc=cell.anc, t=get_curr_t(cell), u0=nothing,
         end 
     end 
 
-    u = int.u 
+    u = cell.int.u 
 
     if !isnothing(u0) && !isempty(u0)
         if first(u0) isa Pair 
