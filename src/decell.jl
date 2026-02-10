@@ -1,25 +1,33 @@
 @enumx CellState Newborn Alive EndOfLife Dead Divided Killed
 
-mutable struct DECell{I,DF}
+mutable struct DECell{I,DF,FT}
     anc::Union{Missing,DECell}
     int::I
     divide::DF
     state::CellState.T
+    tshift::FT
 end
 
-function DECell(anc::Union{Missing, DECell}, prob, divide; t0=ismissing(anc) ? 0. : get_curr_t(anc))
-    int = init(prob; tspan=(t0, Inf))
-    DECell(anc, int, divide, CellState.Newborn)
+function DECell(anc::Union{Missing, DECell}, prob, divide; 
+                t0=ismissing(anc) ? 0. : get_curr_t(anc), 
+                reset_t=ismissing(anc) ? false : !isnothing(anc.tshift))
+    tshift, int = if reset_t
+        t0, init(prob; tspan=(0, Inf))
+    else 
+        nothing, init(prob; tspan=(t0, Inf))
+    end 
+
+    DECell(anc, int, divide, CellState.Newborn, tshift)
 end
 
-function DECell(prob, divide) 
-    DECell(missing, prob, divide)
+function DECell(prob, divide; kwargs...) 
+    DECell(missing, prob, divide; kwargs...)
 end
 
 finalise_cell(cell::DECell) = cell
 
-function remake_cell(cell::DECell; anc=cell.anc, t=get_curr_t(cell), u0=nothing, p=nothing)
-    int = init(cell.int.sol.prob; tspan=(t, Inf))
+function reinit(old_int; t0, p=nothing, u0=nothing)
+    int = init(old_int.sol.prob; tspan=(t0, Inf))
 
     if !isnothing(p)
         if p isa AbstractVector{<:Pair}
@@ -30,7 +38,7 @@ function remake_cell(cell::DECell; anc=cell.anc, t=get_curr_t(cell), u0=nothing,
         end 
     end 
 
-    u = cell.int.u 
+    u = old_int.u 
 
     if !isnothing(u0) && !isempty(u0)
         if first(u0) isa Pair 
@@ -43,7 +51,7 @@ function remake_cell(cell::DECell; anc=cell.anc, t=get_curr_t(cell), u0=nothing,
 
     SciMLBase.reinit!(int, u; reinit_dae=false)
 
-    DECell(anc, int, cell.divide, CellState.Newborn)
+    int
 end 
 
 function get_offspring(int_, cell; save_lineages=false)
@@ -52,10 +60,28 @@ function get_offspring(int_, cell; save_lineages=false)
     offspring = cell.divide(cell.int)
     isnothing(offspring) && return typeof(cell)[]
 
-    [ remake_cell(cell; anc, u0=off.u0, p=off.p) for off in offspring ]
+    t = get_curr_t(cell)
+
+    map(offspring) do off 
+        tshift, t0 = if isnothing(cell.tshift)
+            nothing, t 
+        else 
+            t, zero(t)
+        end 
+
+        int = reinit(cell.int; t0, u0=off.u0, p=off.p)
+        DECell(anc, int, cell.divide, CellState.Newborn, tshift)
+    end
 end
 
-get_curr_t(cell::DECell) = cell.int.t
+function get_curr_t(cell::DECell) 
+    if isnothing(cell.tshift)
+        cell.int.t
+    else 
+        cell.int.t + cell.tshift
+    end 
+end 
+
 get_state(cell::DECell) = cell.state
 
 function set_state!(cell::DECell, state::CellState.T)
@@ -121,7 +147,9 @@ function step!(cell::DECell, dt, p)
 end
 
 function duplicate_cell(cell::DECell, t)
-    @check cell.int.sol.t[1] <= t <= get_curr_t(cell)
+    tshift = isnothing(cell.tshift) ? zero(t) : cell.tshift
+    @check cell.int.sol.t[1] <= t - tshift <= get_curr_t(cell)
 
-    remake_cell(cell; t, u0=cell.int.sol(t))
+    int = reinit(cell.int; t0=t - tshift, u0=cell.int.sol(t - tshift), p=cell.int.p)
+    DECell(cell.anc, int, cell.divide, CellState.Newborn, cell.tshift)
 end 
