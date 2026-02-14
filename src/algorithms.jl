@@ -7,14 +7,17 @@ Simulated ``L`` independent lineages. When a cell divides, it is replaced by one
 Does not currently support cell death. This algorithm is *not* equivalent to [`Strict`](@ref), except in
 the case ``L = 1``.
 
-**Note:** This algorithm does allow estimation of growth rates.
+**Note:** This algorithm does not allow estimation of growth rates.
 """
 struct Forward <: AbstractAlgorithm
     L::Int
 end 
 
 get_δ(int, ::Forward) = 0.
-init!(alg::Forward, int) = _resize_pop!(int, alg.L, int.t)
+function init!(alg::Forward, int)
+    length(int.pop) == alg.L || throw(BoundsError("Using Chemostats.Forward($(alg.L)) on a population of size $(length(int.pop))"))
+end 
+
 is_parallel(::Forward) = true
 filter_offspring(cells, ::Forward) = (Iterators.take(cells, 1), NaN)
 update_algorithm!(::Forward, int) = nothing
@@ -65,11 +68,11 @@ Direct() = Thin(0)
     Strict(L::Int)
 
 Implements the cloning algorithm of Giardinà *et al.* (2006) and Lecomte & Tailleur (2007). 
-Simulates a population of exactly ``L``` cells. When a cell divides in two, one of the resulting
+Simulates a population of exactly ``L`` cells. When a cell divides in two, one of the resulting
 ``L+1`` cells is discarded at random; when a cell dies, another is cloned into its place. 
 
 Since the population size is kept constant, it has stable simulation times. Introduces an error of order 
-``1 / L`` into growth rate estimates. For many problems, ``L = 10--100`` should be enough to obtain good estimates.
+``1 / L`` into growth rate estimates. For many problems, ``L = 10-100`` should be enough to obtain good estimates.
 For ``L \\geq 100`` we recommend [`Lax`](@ref) instead.
 
 **Note:** This algorithm does not support parallelisation.
@@ -91,28 +94,27 @@ update_queue!(int, alg::Strict, t) = _resize_pop!(int, alg.L, t)
     Lax(L::Int, τ::Float64; tol = 2, β = 0.5)
 
 Implements the relaxed chemostat algorithm, combining [`Thin`](@ref) and [`Strict`](@ref). 
-The population is kept around ``L`` by introducing a time-varying death rate ``δ``` that 
+The population is kept around ``L`` by introducing a time-varying death rate ``δ`` that 
 is adapted to the current growth rate. The death rate is updated at intervals of length ``τ``. 
 
 This algorithm trades the strict population size guarantees of [`Strict`](@ref) for better parallelisation. 
 As the population size is only approximately ``L``, runtimes may be somewhat less stable than [`Strict`](@ref). 
 In particular, if the population size hits ``0`` within an interval ``τ``, the population dies out. 
-To reduce the chances of this happening, increase ``L`` or decrease ``τ``. We recommend ``L \\geq 50--100``.
+To reduce the chances of this happening, increase ``L`` or decrease ``τ``. We recommend ``L \\geq 50-100``.
 
 This algorithm determines ``δ`` on the fly by estimating the instantaneous growth rate of the population as 
 
-    ``\\hat Λ_n = \\sum_{i=0}^\\infty \\frac {β^i} {1 - β}  \\hat \\Lambda(t_{n-i-1}, t_{n-i})``
+``\\hat Λ_n = \\sum_{i=0}^\\infty \\frac {β^i} {1 - β}  \\hat \\Lambda(t_{n-i-1}, t_{n-i})``
 
-Here
+and requiring the expected population size after the next interval to equal ``L``. Here
 
-    ``\\hat \\Lambda(t_{n-i-1}, t_{n-i}) = \\frac{\\log \\hat N(t_{n-i}) - \\log \\hat N(t_{n-i-1})}{\\tau}``
+``\\hat \\Lambda(t_{n-i-1}, t_{n-i}) = \\frac{\\log \\hat N(t_{n-i}) - \\log \\hat N(t_{n-i-1})}{\\tau}``
 
 is the growth rate in the `n-i`th interval. The parameter ``0 \\leq β \\leq 1`` controls smoothing:
 Larger ``β`` produces more stable estimates, but does not capture sudden variations in growth rate,
 whereas smaller ``β`` produces less stable estimates that can better adapt to fast fluctuations.
-If ``β = 0``, only growth rate in the last interval is used.
+If ``β = 0``, only the growth rate in the last interval is used.
 """
-
 struct Lax <: AbstractAlgorithm
     L::Int
     τ::Float64

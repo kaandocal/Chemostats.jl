@@ -12,10 +12,12 @@ using SciMLBase: EnsembleAlgorithm, EnsembleSerial, EnsembleThreads
 import SciMLBase: savevalues!, step!, add_tstop!
 
 include("queue.jl")
-include("decell.jl")
+include("cell.jl")
 include("chemostat.jl")
 include("algorithms.jl")
+
 include("integrate.jl")
+include("decell.jl")
 
 export Chemostat, DECell, est_Λ
 public CellState, Snapshot

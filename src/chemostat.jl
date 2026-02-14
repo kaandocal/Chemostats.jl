@@ -8,7 +8,7 @@
 
 Saves the state of a simulate dpopulation at a fixed time `t`. Here `N` is the observed size of the population,
 and `log_f` is minus the log fraction of the true population observed. This allows us to use subsampling algorithms
-(see [Algorithms](@ref)) that only track a small subset of a full population and extrapolate.
+(see [Simulation Algorithms](@ref)) that only track a small subset of a full population and extrapolate.
 
 The true population size can be estimated using [`est_logN`](@ref) or [`est_N`](@ref). The field `nsim` 
 counts the number of cells simulated until the current snapshot (including partially simulated and removed cells).
@@ -39,7 +39,7 @@ est_N = exp ∘ est_logN
 
 Estimates the growth rates from two snapshots at times ``t_1`` and ``t_2`` via 
 
-    ``\\hat \\Lambda(t_1, t_2) = \\frac{\\log \\hat N(t_2) - \\log \\hat N(t_1)}{t_2 - t_1}``
+``\\hat \\Lambda(t_1, t_2) = \\frac{\\log \\hat N(t_2) - \\log \\hat N(t_1)}{t_2 - t_1}``
 
 Here ``\\hat N(t_1)`` and ``\\hat N(t_2)`` are estimated via [`est_N`](@ref).
 """

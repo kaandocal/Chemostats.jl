@@ -1,5 +1,3 @@
-@enumx CellState Newborn Alive EndOfLife Dead Divided Killed
-
 mutable struct DECell{I,DF,FT}
     anc::Union{Missing,DECell}
     int::I
@@ -8,6 +6,17 @@ mutable struct DECell{I,DF,FT}
     tshift::FT
 end
 
+"""
+    DECell([anc = missing, ]prob, divide; reset_t=false)
+
+Creates a new cell around a `SciMLBase.DEProblem`. The function `divide` takes a single integrator argument 
+`int` and returns a list of offspring as a vector of `NamedTuples` with fields `u0` and `p`. The argument 
+`reset_t` determines whether the integration time is started from `0` for every cell, which can avoid floating-point 
+errors for long simulations (many generations). If `reset_t` is set to `true`, each cell should keep track of its 
+starting time, e.g. via a parameter `t0` in `p`.
+
+**Note:** The problem should include a callback that calls `terminate!` when a cell reaches the end of its life.
+"""
 function DECell(anc::Union{Missing, DECell}, prob, divide; 
                 t0=ismissing(anc) ? 0. : get_curr_t(anc), 
                 reset_t=ismissing(anc) ? false : !isnothing(anc.tshift))
@@ -97,7 +106,7 @@ function init_cell!(cell::DECell)
     set_state!(cell, CellState.Alive)
 end
 
-function kill_cell!(cell::DECell, t=get_curr_t(cell)) 
+function kill!(cell::DECell, t=get_curr_t(cell)) 
     if t < get_curr_t(cell) || is_alive(cell)
         cell.state = CellState.Killed
     end 
@@ -153,3 +162,15 @@ function duplicate_cell(cell::DECell, t)
     int = reinit(cell.int; t0=t - tshift, u0=cell.int.sol(t - tshift), p=cell.int.p)
     DECell(cell.anc, int, cell.divide, CellState.Newborn, cell.tshift)
 end 
+
+###
+
+"""
+    DividingCallback(condition; kwargs...)
+
+Implements a `DifferentialEquations.jl` callback to check whether a cell has reached the end of its lifetime. 
+Internally, this returns a `ContinuousCallback` that calls `terminate!`. 
+"""
+function DividingCallback(condition; kwargs...)
+    SciMLBase.ContinuousCallback(condition, SciMLBase.terminate!; kwargs...)
+end

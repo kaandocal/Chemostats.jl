@@ -44,6 +44,13 @@ function add_tstop!(int::PopIntegrator, t)
     sort!(int.tstops)
 end 
 
+""" 
+    simulate!(chem, tmax, alg, ensalg = EnsembleThreads(); saveat = [])
+
+Simulates the chemostat until time `tmax` with algorithm `alg` (see [Simulation Algorithms](@ref) for a list of algorithms).
+`ensalg` can be `EnsembleSerial()` for single-threaded simulations, or `EnsembleThreads()` for multithreading (if `alg` support multithreading).
+The default `ensalg` is `EnsembleThreads()` for multithreaded algorithms, or `EnsembleSerial()` for single-threaded algorithms.
+"""    
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm, 
                    ensalg::EnsembleAlgorithm = default_alg(alg); saveat=[ tmax ], kwargs...)
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
@@ -167,7 +174,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
         t_kill = tb + randexp() / δ
 
         if t_kill < t
-            kill_cell!(cell, t_kill)
+            kill!(cell, t_kill)
             save_leaves && push!(int.chem.leaves, cell)
             return
         end
