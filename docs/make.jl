@@ -14,8 +14,8 @@ makedocs(
     ]
 )
 
-#deploydocs(
-#    repo = "github.com/kaandocal/Chemostats.jl.git",
-#    devbranch = "main",
-#    push_preview = true
-#)
+deploydocs(
+    repo = "github.com/kaandocal/Chemostats.jl.git",
+    devbranch = "main",
+    push_preview = true
+)
