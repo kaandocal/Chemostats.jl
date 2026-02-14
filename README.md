@@ -1,23 +1,12 @@
-# Chemostats.jl Documentation
+# Chemostats.jl
 
-```@meta
-CurrentModule=Chemostats
-```
-
-## Introduction
-
-Chemostats.jl is a package to simulate branching populations in Julia, with a focus on cells and bacteria. It implements state-of-the-art algorithms to efficiently estimate population dynamics at sub-exponential cost. 
-
-## Features:
-
-- Efficient parallel simulation of branching processes
-- Directly compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) and [Catalyst.jl](https://github.com/SciML/Catalyst.jl)
-- Implements state-of-the-art algorithms (thinning, strict and lax cloning)
-- Support for lineage analysis
+Chemostats.jl is a package to efficiently simulate cell populations in Julia, featuring state-of-the-art algorithms that efficiently estimate population dynamics at sub-exponential cost. It is compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) and [Catalyst.jl](https://github.com/SciML/Catalyst.jl)
 
 This package is experimental - any feedback is appreciated (either by email or by opening an issue on GitHub).
 
 ## Example
+
+(This does not quite work yet...)
 
 ```julia
 using Catalyst
