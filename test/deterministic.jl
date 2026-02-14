@@ -12,7 +12,7 @@ niter = 1000
     NN = map(1:niter) do i
         chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ])
         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt), ensalg) 
-        chem.saved[end].N
+        chem.snaps[end].N
     end
 
     @test count(iszero, NN) / niter ≈ exp(δ * Λ_gt) - 1 atol=0.02
@@ -25,7 +25,7 @@ end
 
     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ])
     Chemostats.simulate!(chem, tmax, Chemostats.Direct(), ensalg) 
-    N = chem.saved[end].N
+    N = chem.snaps[end].N
 
     @test N == 2 ^ floor(Int, tmax)
 end 
@@ -40,7 +40,7 @@ if ensalg isa EnsembleSerial
         chem = Chemostats.Chemostat([ Chemostats.DECell(prob) ])
         Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg; saveat=tt)
 
-        Ns = [ snap.N for snap in chem.saved[2:end] ]
+        Ns = [ snap.N for snap in chem.snaps[2:end] ]
         @test all(Ns .== L)
     end
 end
@@ -49,7 +49,7 @@ end
     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ])
     Chemostats.simulate!(chem, tmax, Chemostats.Forward(L), ensalg; saveat=tt)
 
-    Ns = [ snap.N for snap in chem.saved ]
+    Ns = [ snap.N for snap in chem.snaps ]
     @test all(Ns .== L)
 end
 
@@ -106,7 +106,7 @@ tmax = 100.5
     chem = Chemostats.Chemostat([ Chemostats.DECell(prob) for i in 1:L ])
     Chemostats.simulate!(chem, tmax, Chemostats.Forward(L), ensalg) 
     
-    n = chem.saved[end].nsim - L
+    n = chem.snaps[end].nsim - L
 
     @test n ≈ floor(Int, tmax) * L
 end

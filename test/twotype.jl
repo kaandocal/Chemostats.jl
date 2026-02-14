@@ -13,7 +13,7 @@ prob = Chemostats.Models.MultitypeMarkov([ 1., 2. ], [ 0.7 0.1; 0.3 0.9 ])
 #     NN = map(1:niter) do i
 #         chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) ])
 #         Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ * Λ_gt), ensalg) 
-#         chem.saved[end].N
+#         chem.snaps[end].N
 #     end
 
 #     @test count(iszero, NN) / niter ≈ δ atol=0.01
@@ -31,7 +31,7 @@ tt = 0:0.1:tmax
     else 
         Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), ensalg; saveat=tt)
 
-        Ns = [ snap.N for snap in chem.saved[2:end] ]
+        Ns = [ snap.N for snap in chem.snaps[2:end] ]
         @test all(Ns .== L)
     end
 end
@@ -40,7 +40,7 @@ end
     chem = Chemostats.Chemostat([ Chemostats.Models.sample_cell(prob) for i in 1:L ])
     Chemostats.simulate!(chem, tmax, Chemostats.Forward(L), ensalg; saveat=tt)
 
-    Ns = [ snap.N for snap in chem.saved ]
+    Ns = [ snap.N for snap in chem.snaps ]
     @test all(Ns .== L)
 end
 

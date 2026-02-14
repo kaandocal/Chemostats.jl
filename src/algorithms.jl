@@ -161,7 +161,7 @@ function get_last_snapshot(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     get_snapshot(snaps, rnd * alg.τ)
 end 
 
-get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.saved, t, alg)
+get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.snaps, t, alg)
 
 function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     snap = get_last_snapshot(snaps, t, alg)

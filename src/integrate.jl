@@ -28,12 +28,12 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
     queue = create_queue(chem.pop, ensalg) 
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
-                  chem.saved[end].nsim, chem.saved[end].log_f, 
+                  chem.snaps[end].nsim, chem.snaps[end].log_f, 
                   SciMLBase.ReturnCode.Default)
 end 
 
 Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
-savevalues!(int::PopIntegrator) = push!(int.chem.saved, Snapshot(int))
+savevalues!(int::PopIntegrator) = push!(int.chem.snaps, Snapshot(int))
 
 function add_tstop!(int::PopIntegrator, t)
     @argcheck t >= int.t_next "Cannot add tstop at time $t: middle of simulation"
