@@ -216,7 +216,7 @@ function _resize_pop!(int, L::Int, t)
     N_start = length(int.queue)
     
     while length(int.queue) < L
-        _duplicate_random!(int.queue, t)
+        _clone_random!(int.queue, t)
     end
 
     _truncate_queue!(int.queue, L)

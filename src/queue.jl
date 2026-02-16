@@ -109,9 +109,9 @@ function _popat!(queue::BinaryHeap, idx::Integer)
     pop!(queue)
 end 
 
-function _duplicate_random!(queue::BinaryHeap, t)
+function _clone_random!(queue::BinaryHeap, t)
     i = rand(1:length(queue))
-    push!(queue, duplicate_cell(queue.valtree[i], t))
+    push!(queue, clone_cell(queue.valtree[i], t))
 end 
 
 function _truncate_queue!(queue::BinaryHeap, N)
@@ -122,4 +122,4 @@ function _truncate_queue!(queue::BinaryHeap, N)
 end 
 
 _truncate_queue!(queue::ThreadedQueue, N) = _truncate_queue!(queue.heap, N)
-_duplicate_random!(queue::ThreadedQueue, t) = _duplicate_random!(queue.heap, t)
+_clone_random!(queue::ThreadedQueue, t) = _clone_random!(queue.heap, t)

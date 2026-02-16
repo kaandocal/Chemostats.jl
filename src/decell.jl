@@ -155,7 +155,7 @@ function step!(cell::DECell, dt, p)
     end 
 end
 
-function duplicate_cell(cell::DECell, t)
+function clone_cell(cell::DECell, t)
     tshift = isnothing(cell.tshift) ? zero(t) : cell.tshift
     @check cell.int.sol.t[1] <= t - tshift <= get_curr_t(cell)
 
@@ -168,7 +168,7 @@ end
 """
     DivideCallback(condition; kwargs...)
 
-Implements a `DifferentialEquations.jl` callback to check whether a cell has reached the end of its lifetime. 
+Implements a differential equation callback to check whether a cell has reached the end of its lifetime. 
 Internally, this returns a `ContinuousCallback` that calls `terminate!`. 
 """
 function DivideCallback(condition; kwargs...)

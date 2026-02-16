@@ -16,6 +16,3 @@ When a cell reaches the end of its life, the `divide` function is called to dete
 Chemostats.DECell
 Chemostats.DivideCallback
 ```
-
-## To do:
-* Symbolic callbacks defined in ModelingToolkit.jl

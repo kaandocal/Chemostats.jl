@@ -62,9 +62,9 @@ of the parent cell.
 function get_offspring end 
 
 """
-    duplicate_cell(cell, t)
+    clone_cell(cell, t)
 
 Creates an independent of the copy of the cell at time `t`. Used by [`Chemostats.Strict`](@ref) to maintain
 a constant population size.
 """
-function duplicate_cell end 
+function clone_cell end 
