@@ -68,7 +68,7 @@ plot(chem)
 ```
 
 ### See also
-* [Agents.jl](https://juliadynamics.github.io/Agents.jl): A Julia framework for agent-based modelling. More general than Chemostats.jl, which is targeted towards efficient estimation of cell population dynamics.
+* [Agents.jl](https://juliadynamics.github.io/Agents.jl/): A Julia framework for agent-based modelling. More general than Chemostats.jl, which is targeted towards efficient estimation of cell population dynamics.
 
 ### References 
 * Giardinà, Kurchan, Peliti. "Direct evaluation of large-deviation functions," Phys. Rev. Lett. 96(12), 2006

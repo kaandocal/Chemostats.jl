@@ -4,12 +4,12 @@
 
 The current state of a cell as returned by [`Chemostats.get_state`](@ref).
 
-`Newborn`: Newborn cell that has  not been simulated yet.
-`Alive`: Cell that is currently being simulated, but has not reached its end of life.
-`EndOfLive`: Cell that has reached its end of life, before its offspring are determined.
-`Dead`: Cell that has died, leaving no offspring.
-`Divided`: Cell that has divided into daughter cells.
-`Killed`: Cell that has been killed (e.g. removed), by the [Simulation Algorithm](@ref "Simulation Algorithms").
+* `Newborn`: Newborn cell that has  not been simulated yet.
+* `Alive`: Cell that is currently being simulated, but has not reached its end of life.
+* `EndOfLive`: Cell that has reached its end of life, before its offspring are determined.
+* `Dead`: Cell that has died, leaving no offspring.
+* `Divided`: Cell that has divided into daughter cells.
+* `Killed`: Cell that has been killed (e.g. removed), by the [Simulation Algorithm](@ref "Simulation Algorithms").
 """
 @enumx CellState Newborn Alive EndOfLife Dead Divided Killed
 

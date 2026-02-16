@@ -11,7 +11,8 @@ makedocs(
         "Usage" => "usage.md",
         "Algorithms" => "alg.md",
         "Using Chemostats.jl with DifferentialEquations.jl" => "decell.md",
-    ]
+    ],
+    linkcheck = true,
 )
 
 deploydocs(

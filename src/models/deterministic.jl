@@ -1,9 +1,10 @@
-using OrdinaryDiffEq 
+using OrdinaryDiffEq
+using Chemostats
 
 f_det(u, p, t) = u * p.λ
 get_Λ_det(prob) = prob.p.λ
 
-cb_det = DivideCallback((u, t, int) -> u - int.p.Vd; interp_points=0)
+cb_det = Chemostats.DivideCallback((u, t, int) -> u - int.p.Vd; interp_points=0)
 
 function divide_det(int)
     map(1:2) do _
