@@ -7,7 +7,7 @@ using UnPack
 using Chemostats
 
 f_mtm(u, p, t) = -1.
-cb_mtm = ContinuousCallback((u, t, int) -> u, terminate!, interp_points=0)
+cb_mtm = DivideCallback((u, t, int) -> u; interp_points=0)
 
 function divide_mtm(int)
     @unpack s, model = int.p

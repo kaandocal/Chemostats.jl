@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 f_det(u, p, t) = u * p.λ
 get_Λ_det(prob) = prob.p.λ
 
-cb_det = ContinuousCallback((u, t, int) -> u - int.p.Vd, terminate!, interp_points=0)
+cb_det = DivideCallback((u, t, int) -> u - int.p.Vd; interp_points=0)
 
 function divide_det(int)
     map(1:2) do _

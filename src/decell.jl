@@ -166,11 +166,11 @@ end
 ###
 
 """
-    DividingCallback(condition; kwargs...)
+    DivideCallback(condition; kwargs...)
 
 Implements a `DifferentialEquations.jl` callback to check whether a cell has reached the end of its lifetime. 
 Internally, this returns a `ContinuousCallback` that calls `terminate!`. 
 """
-function DividingCallback(condition; kwargs...)
+function DivideCallback(condition; kwargs...)
     SciMLBase.ContinuousCallback(condition, SciMLBase.terminate!; kwargs...)
 end
