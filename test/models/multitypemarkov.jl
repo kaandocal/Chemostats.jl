@@ -1,6 +1,6 @@
 using Random
 using StatsBase
-using OrdinaryDiffEq
+using OrdinaryDiffEqTsit5
 using LinearAlgebra
 using ArgCheck
 using UnPack
@@ -34,7 +34,7 @@ function MultitypeMarkov(λ::AbstractVector, T::AbstractMatrix)
     u0 = randexp() / λ[s]
     p = (; s, model = (; λ, T))
 
-    ODEProblem(f_mtm, u0, (0., 0.), p; callback=cb_mtm)
+    ODEProblem(f_mtm, u0, (0., 0.), p; callback=cb_mtm, alg=Tsit5(), abstol=1e-12, reltol=1e-9)
 end 
 
 Yule(λ = 1.) = MultitypeMarkov([ λ ], [ 1;; ])

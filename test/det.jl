@@ -1,7 +1,6 @@
 using Test
 using Distributions
 using Chemostats 
-using OrdinaryDiffEq
 
 include("models/deterministic.jl")
 

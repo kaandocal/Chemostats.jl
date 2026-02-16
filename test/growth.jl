@@ -1,6 +1,5 @@
 using Test
 using Chemostats 
-using OrdinaryDiffEq
 
 include("models/multitypemarkov.jl")
 

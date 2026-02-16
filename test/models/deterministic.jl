@@ -1,4 +1,4 @@
-using OrdinaryDiffEq
+using OrdinaryDiffEqTsit5
 using Chemostats
 
 f_det(u, p, t) = u * p.Λ * log(2)
@@ -15,5 +15,5 @@ end
 function Deterministic(Λ = log(2); Vd = 2.)
     p = (; Vd, Λ)
     u0 = p.Vd / 2
-    ODEProblem(f_det, u0, (0., 0.), p; callback=cb_det)
+    ODEProblem(f_det, u0, (0., 0.), p; callback=cb_det, alg=Tsit5(), abstol=1e-9, reltol=1e-6)
 end 
