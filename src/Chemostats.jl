@@ -26,6 +26,4 @@ public Forward, Thin, Direct, Strict, Lax
 public simulate!
 public get_curr_t, get_state, est_logN, est_N
 
-include("models/models.jl")
-
 end 
