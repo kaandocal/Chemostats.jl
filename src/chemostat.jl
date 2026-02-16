@@ -81,7 +81,7 @@ end
 
 function Chemostat(cells, p=nothing; copy=false)
     snaps = [ Snapshot(0., length(cells), 0, 0.) ]
-    Chemostat(copy ? deepcopy(cells) : cells, p, snaps, empty(cells))
+    Chemostat(copy ? deepcopy(cells) : cells, p, snaps)
 end
 
 function Base.show(io::IO, chem::Chemostat)
@@ -103,10 +103,13 @@ get_snapshot(chem::Chemostat, args...) = get_snapshot(chem.snaps, args...)
 Searches and returns for a population snapshot saved at time `t`. Errors if no snapshots are found.
 If multiple snapshots at time `t` exist, this function returns the last one. 
 """
-function get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t)
+function get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t; atol=1e-6)
     @assert issorted(snaps; by = snap -> snap.t)
-    i = searchsorted(map(snap -> snap.t, snaps), t)
-    isempty(i) && throw(ArgumentError("No snapshot saved at time t=$t"))
+    i = searchsortedlast(map(snap -> snap.t, snaps), t + atol)
+    if i < 1 || snaps[i].t < t - atol
+        throw(ArgumentError("No snapshot saved at time t=$t"))
+    end 
+    
     snaps[last(i)]
 end 
 

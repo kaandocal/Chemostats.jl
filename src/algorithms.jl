@@ -15,7 +15,7 @@ end
 
 get_δ(int, ::Forward) = 0.
 function init!(alg::Forward, int)
-    length(int.pop) == alg.L || throw(BoundsError("Using Chemostats.Forward($(alg.L)) on a population of size $(length(int.pop))"))
+    length(int.queue) == alg.L || throw(DimensionMismatch("Using Chemostats.Forward($(alg.L)) on a population of size $(length(int.queue))"))
 end 
 
 is_parallel(::Forward) = true
@@ -131,12 +131,12 @@ struct Lax <: AbstractAlgorithm
 end 
 
 function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    rnd = get_round(t, alg)
-    rnd == 0 && return NaN
+    rnd = floor(Int, t / alg.τ + 1e-6)
+    rnd <= 0 && return NaN
 
     ret = sum(0:rnd-1) do d 
-        snap_1 = get_snapshot(snaps, (rnd - d - 1) * alg.τ)
-        snap_2 = get_snapshot(snaps, (rnd - d) * alg.τ)
+        snap_1 = get_snapshot(snaps, t - (d + 1) * alg.τ)
+        snap_2 = get_snapshot(snaps, t - d * alg.τ)
         Λ_est = est_Λ(snap_1, snap_2)
         (d > 0 ? alg.β^d : one(alg.β)) * Λ_est
     end 
@@ -145,31 +145,16 @@ function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     ret / norm
 end 
 
-get_round(t, alg::Lax) = floor(Int, div(t, alg.τ))
+init!(alg::Lax, int) = update_algorithm!(alg, int)
 
-function register_next_tstop!(int, alg::Lax) 
-    rnd = get_round(int.t, alg)
-    add_tstop!(int, (rnd + 1) * alg.τ)
-end 
-
-init!(alg::Lax, int) = register_next_tstop!(int, alg)
-
-function get_δ(int, alg::Lax)
-    get_δ(int.chem, int.t, alg)
-end
-
-function get_last_snapshot(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    rnd = get_round(t, alg)
-    get_snapshot(snaps, rnd * alg.τ)
-end 
-
+get_δ(int, alg::Lax) = get_δ(int.chem, int.t, alg)
 get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.snaps, t, alg)
 
 function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    snap = get_last_snapshot(snaps, t, alg)
-
     # Small population 
+    snap = get_snapshot(snaps, t)
     snap.N < 50 && return 0.
+    t < alg.τ && return 0.
 
     # Estimate current growth rate
     Λ̂ = est_Λ_curr(snaps, t, alg)
@@ -188,7 +173,7 @@ function update_algorithm!(alg::Lax, int)
         _resize_pop!(int, alg.L, int.t)
     end 
 
-    register_next_tstop!(int, alg)
+    add_tstop!(int, int.t + alg.τ)
 end 
 
 is_parallel(::Lax) = true
