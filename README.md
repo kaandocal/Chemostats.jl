@@ -1,4 +1,4 @@
-# ![Logo](assets/logo.svg) Chemostats.jl
+# ![Logo](docs/assets/logo.svg) Chemostats.jl
 
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://kaandocal.github.io/Chemostats.jl/dev)
 
