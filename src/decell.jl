@@ -17,26 +17,26 @@ starting time, e.g. via a parameter `t0` in `p`.
 
 **Note:** The problem should include a callback that calls `terminate!` when a cell reaches the end of its life.
 """
-function DECell(anc::Union{Missing, DECell}, prob, divide; 
+function DECell(anc::Union{Missing, DECell}, prob, alg, divide; 
                 t0=ismissing(anc) ? 0. : get_curr_t(anc), 
                 reset_t=ismissing(anc) ? false : !isnothing(anc.tshift))
     tshift, int = if reset_t
-        t0, init(prob; tspan=(0, Inf))
+        t0, init(prob, alg; tspan=(0, Inf))
     else 
-        nothing, init(prob; tspan=(t0, Inf))
+        nothing, init(prob, alg; tspan=(t0, Inf))
     end 
 
     DECell(anc, int, divide, CellState.Newborn, tshift)
 end
 
-function DECell(prob, divide; kwargs...) 
-    DECell(missing, prob, divide; kwargs...)
+function DECell(prob, alg, divide; kwargs...) 
+    DECell(missing, prob, alg, divide; kwargs...)
 end
 
 finalise_cell(cell::DECell) = cell
 
 function reinit(old_int; t0, p=nothing, u0=nothing)
-    int = init(old_int.sol.prob; tspan=(t0, Inf))
+    int = init(old_int.sol.prob, old_int.alg; tspan=(t0, Inf))
 
     if !isnothing(p)
         if p isa AbstractVector{<:Pair}
