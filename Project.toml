@@ -3,6 +3,9 @@ uuid = "0c42c343-380a-49b2-a381-bd06de99d09a"
 version = "0.1.0"
 authors = ["kaandocal <26488673+kaandocal@users.noreply.github.com>"]
 
+[workspace]
+projects = ["test", "docs"]
+
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -14,12 +17,11 @@ UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [weakdeps]
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 
 [extensions]
 MakieExt = "Makie"
-
-[workspace]
-projects = [ "test", "docs" ]
+ModelingToolkitExt = "ModelingToolkit"
 
 [compat]
 ArgCheck = "2.5.0"
@@ -27,6 +29,7 @@ DataStructures = "0.18, 0.19"
 EnumX = "1.0.5"
 LinearAlgebra = "1.12.0"
 Makie = "0.24.6"
+ModelingToolkit = "9.60, 10, 11"
 Random = "1.11.0"
 SciMLBase = "2.127.0"
 UnPack = "1.0.2"

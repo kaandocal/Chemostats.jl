@@ -1,6 +1,7 @@
 module MakieExt
 
-using Chemostats, Makie
+using Chemostats
+using Makie
 
 Makie.plot(chem::Chemostat; kwargs...) = Makie.plot(chem.snaps; kwargs...)
 
@@ -27,7 +28,6 @@ function Makie.plot(snaps::AbstractVector{Chemostats.Snapshot};
 
     L = [ snap.N for snap in snaps ]
     lines!(ax_L, tt, L)
-
 
     for f in [ 0., 0.1, 0.2 ]
         t_tgt = tspan[1] + (tspan[2] - tspan[1]) * f

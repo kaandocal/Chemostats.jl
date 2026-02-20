@@ -26,4 +26,8 @@ public Forward, Thin, Direct, Strict, Lax
 public simulate!
 public get_curr_t, get_state, est_logN, est_N
 
+function SymbolicDivideContinuous end
+function SymbolicDivideDiscrete end
+function MTKDivideAffect end
+
 end 
