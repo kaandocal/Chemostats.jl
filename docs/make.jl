@@ -9,6 +9,7 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Usage" => "usage.md",
+        "Theory" => "theory.md",
         "Algorithms" => "alg.md",
         "Using Chemostats.jl with DifferentialEquations.jl" => "decell.md",
     ],
