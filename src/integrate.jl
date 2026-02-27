@@ -189,7 +189,7 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
     @debug "Dividing cell..."
 
     # Cell dies or divides
-    offspr = get_offspring(int, cell)
+    offspr = get_offspring(cell, int.chem.p)
 
     if isempty(offspr)
         die!(cell)

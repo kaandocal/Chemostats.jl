@@ -1,5 +1,4 @@
 mutable struct DECell{I,DF,FT}
-    anc::Union{Missing,DECell}
     int::I
     divide::DF
     state::CellState.T
@@ -17,20 +16,14 @@ starting time, e.g. via a parameter `t0` in `p`.
 
 **Note:** The problem should include a callback that calls `terminate!` when a cell reaches the end of its life.
 """
-function DECell(anc::Union{Missing, DECell}, prob, alg, divide; 
-                t0=ismissing(anc) ? 0. : get_curr_t(anc), 
-                reset_t=ismissing(anc) ? false : !isnothing(anc.tshift))
+function DECell(prob, alg, divide; t0 = 0., reset_t=false)
     tshift, int = if reset_t
         t0, init(prob, alg; tspan=(0, Inf))
     else 
         nothing, init(prob, alg; tspan=(t0, Inf))
     end 
 
-    DECell(anc, int, divide, CellState.Newborn, tshift)
-end
-
-function DECell(prob, alg, divide; kwargs...) 
-    DECell(missing, prob, alg, divide; kwargs...)
+    DECell(int, divide, CellState.Newborn, tshift)
 end
 
 finalise_cell(cell::DECell) = cell
@@ -63,23 +56,21 @@ function reinit(old_int; t0, p=nothing, u0=nothing)
     int
 end 
 
-function get_offspring(int_, cell; save_lineages=false)
-    anc = save_lineages ? finalise_cell(cell) : missing
+function get_offspring(parent, p=nothing)
+    offspring = parent.divide(parent.int)
+    isnothing(offspring) && return typeof(parent)[]
 
-    offspring = cell.divide(cell.int)
-    isnothing(offspring) && return typeof(cell)[]
-
-    t = get_curr_t(cell)
+    t = get_curr_t(parent)
 
     map(offspring) do off 
-        tshift, t0 = if isnothing(cell.tshift)
+        tshift, t0 = if isnothing(parent.tshift)
             nothing, t 
         else 
             t, zero(t)
         end 
 
-        int = reinit(cell.int; t0, u0=off.u0, p=off.p)
-        DECell(anc, int, cell.divide, CellState.Newborn, tshift)
+        int = reinit(parent.int; t0, u0=off.u0, p=off.p)
+        DECell(int, parent.divide, CellState.Newborn, tshift)
     end
 end
 
@@ -160,7 +151,7 @@ function clone_cell(cell::DECell, t)
     @check cell.int.sol.t[1] <= t - tshift <= get_curr_t(cell)
 
     int = reinit(cell.int; t0=t - tshift, u0=cell.int.sol(t - tshift), p=cell.int.p)
-    DECell(cell.anc, int, cell.divide, CellState.Newborn, cell.tshift)
+    DECell(int, cell.divide, CellState.Newborn, cell.tshift)
 end 
 
 ###
