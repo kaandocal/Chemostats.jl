@@ -114,12 +114,4 @@ function _clone_random!(queue::BinaryHeap, t)
     push!(queue, clone_cell(queue.valtree[i], t))
 end 
 
-function _truncate_queue!(queue::BinaryHeap, N)
-    while length(queue) > N
-        j = rand(1:length(queue))
-        _popat!(queue, j)
-    end 
-end 
-
-_truncate_queue!(queue::ThreadedQueue, N) = _truncate_queue!(queue.heap, N)
 _clone_random!(queue::ThreadedQueue, t) = _clone_random!(queue.heap, t)

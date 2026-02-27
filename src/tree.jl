@@ -1,87 +1,58 @@
 using ArgCheck
 using UnPack
 
-# Cell -> user-defined data
-# Each cell has a unique ID 
-
 const OffspringType{T} = Union{Nothing, Tuple{T}, Tuple{T, T}}
 
-struct PopTree{T,ID}
-    data::Dict{ID,T}
-    parents::Dict{ID,ID}
-    children::Dict{ID,OffspringType{ID}}
-    leaves::Vector{ID}
-    save_lineages::Bool 
+struct AncestryTree{T}
+    parents::WeakKeyDict{T,T}
+    children::WeakKeyDict{T,OffspringType{T}}
+    leaves::Vector{T}
+    save_ancestors::Bool 
+    save_children::Bool
     save_leaves::Bool
 end
 
-function PopTree(roots::AbstractVector; save_lineages=false, save_leaves=false)
-    data = Dict(objectid(root) => root for root in roots)
-    ID = eltype(keys(data))
-    PopTree(data, Dict{ID,ID}(), Dict{ID,OffspringType{ID}}(), ID[], save_lineages, save_leaves)
-end 
-
-function add_cell!(tree, cell) 
-    id = objectid(cell)
-    @check !haskey(tree.data, id) "Adding duplicate cell to population tree"
-    tree.data[id] = cell
-    tree
-end 
-
-function getid(tree::PopTree{T}, obj::T) where T 
-    id = objectid(obj)
-    haskey(tree.data, id) || raise(BoundsError("Attempting to index cell not in tree"))
-    id 
+function PopTree{T}(; save_ancestors=false, save_children=false, save_leaves=false) where T
+    PopTree(WeakKeyDict{T,T}(), WeakKeyDict{T,OffspringType{T}}(), T[], save_ancestors, save_children, save_leaves)
 end 
 
 function parent(tree::PopTree{T}, obj::T) where {T}
-    pid = get(tree.parents, getid(tree, obj), missing)
-
-    ismissing(pid) && return missing 
-    tree.data[pid]
+    get(tree.parents, obj, missing)
 end 
 
-function set_parent!(tree::PopTree{T,ID}, obj::T, pid::ID) where {T,ID}
-    id = getid(tree, obj)
-    @check !haskey(tree.parents, id) "Attempting to assign parent to cell which already has parent"
+function set_parent!(tree::PopTree{T}, obj::T, parent::T) where {T}
+    @check !haskey(tree.parents, obj) "Attempting to assign parent to cell which already has parent"
 
-    tree.parents[id] = pid
+    tree.parents[obj] = parent
 end 
 
 function children(tree::PopTree{T}, obj::T) where {T} 
-    ch = get(tree.children, getid(tree, obj), missing)
-
-    (isnothing(ch) || ismissing(ch)) && return ch
-    map(id -> tree.data[id], ch)
+    get(tree.children, obj, missing)
 end 
 
 function add_offspring!(tree::PopTree{T}, parent::T, children::OffspringType{T}) where {T}
-    pid = getid(tree, parent)
-    @check !haskey(tree.children, pid) "Attempting to assign children to cell which already has children"
+    @check !haskey(tree.children, parent) "Attempting to assign children to cell which already has children"
 
-    if isnothing(children)
-        tree.children[pid] = nothing 
-    else 
+    if tree.save_ancestors
         for cell in children
-            add_cell!(tree, cell)
-            tree.save_lineages && set_parent!(tree, cell, pid)
+            set_parent!(tree, cell, parent)
         end 
-        
-        tree.children[pid] = map(cell -> getid(tree, cell), children)
+    end 
+
+    if tree.save_children
+        tree.children[parent] = children
     end
 
     nothing
 end 
 
+function add_leaf!(tree::PopTree{T}, obj::T) where {T}
+    @check !haskey(tree.children, obj) "Attempting to assign children to cell which already has children"
 
-function die!(tree::PopTree{T}, obj::T) where {T}
-    id = getid(tree, obj)
-    @check !haskey(tree.children, id) "Attempting to assign children to cell which already has children"
-
-    tree.children[id] = nothing 
+    tree.children[obj] = nothing 
 
     if tree.save_leaves 
-        push!(tree.leaves, getid(tree, obj))
+        push!(tree.leaves, obj)
     end 
 end
 
@@ -95,19 +66,19 @@ end
 # function alive_at(node, t)
 
 
-struct BackwardsIterator{ID,TT <: PopTree{T,ID} where {T}}
-    tree::TT
-    id::ID 
+struct BackwardsIterator{T}
+    tree::PopTree{T}
+    obj::T
 end 
 
-ancestors(tree::PopTree{T}, obj::T) where T = BackwardsIterator(tree, getid(tree, obj))
+ancestors(tree::PopTree{T}, obj::T) where T = BackwardsIterator(tree, obj)
 
-function Base.iterate(iter::BackwardsIterator{ID}, id::ID=iter.id) where {ID}
+function Base.iterate(iter::BackwardsIterator{T}, obj::T=iter.obj) where T
     @unpack tree = iter 
 
-    if haskey(tree.parents, id)
-        pid = tree.parents[id]
-        tree.data[pid], pid
+    if haskey(tree.parents, obj)
+        parent = tree.parents[obj]
+        parent, parent
     else 
         nothing 
     end 

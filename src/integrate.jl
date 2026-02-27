@@ -160,7 +160,7 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
     int
 end
 
-function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false, kwargs...)
+function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
     @argcheck get_state(cell) == CellState.Alive 
 
     tb = get_curr_t(cell)
@@ -175,7 +175,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
 
         if t_kill < t
             kill!(cell, t_kill)
-            save_leaves && push!(int.chem.leaves, cell)
+            add_leaf!(int.chem.tree, cell)
             return
         end
     end
@@ -184,20 +184,22 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., save_leaves=false,
     push!(int.queue, cell)
 end 
 
-function process_eol!(int::PopIntegrator, cell; save_lineages=false, kwargs...)
+function process_eol!(int::PopIntegrator, cell; kwargs...)
     @argcheck get_state(cell) == CellState.EndOfLife
     @debug "Dividing cell..."
 
     # Cell dies or divides
-    offspr = get_offspring(int, cell; save_lineages)
+    offspr = get_offspring(int, cell)
 
     if isempty(offspr)
         die!(cell)
+        add_leaf!(int.chem.tree, cell)
         return 
     end 
 
     offspr_filtered, Δlog_f = filter_offspring(offspr, int.alg)
     divide!(cell)
+    add_offspring!(int.chem.tree, cell, Tuple(offspr_filtered))
 
     lock(int.queue) do 
         @debug "Appending $(length(offspr_filtered))/$(length(offspr)) cells..."
@@ -214,12 +216,16 @@ function _resize_pop!(int, L::Int, t)
     end
 
     N_start = length(int.queue)
+
+    while length(int.queue) > L 
+        j = rand(1:length(int.queue))
+        cell = _popat!(queue, j)
+        add_leaf!(int.chem.tree, cell)
+    end 
     
     while length(int.queue) < L
         _clone_random!(int.queue, t)
     end
-
-    _truncate_queue!(int.queue, L)
 
     int.log_f += log(N_start) - log(L)
 end

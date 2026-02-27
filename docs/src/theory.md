@@ -69,7 +69,7 @@ We see that longer simulations times typically result in more accurate estimates
 
 ![](assets/yule_bias.svg)
 
-Here the dashed line indicates `1 / L`. This log-log plot shows that the asymptotic error decreases in proportion to ``1 / L``, as predicted in [2].
+Here the dashed line indicates `1 / L`. This log-log plot shows that the asymptotic error decreases in proportion to ``1 / L``, as predicted in [2]. Note that the time it takes to reach this optimum grows as ``L``, which can be seen in the first plot; the total computational effort is therefore approximately ``O(L \cdot t) = O(L^2)``.
 
 ## Example: Cell size control
 
