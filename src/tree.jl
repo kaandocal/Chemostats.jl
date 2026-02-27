@@ -72,6 +72,8 @@ struct BackwardsIterator{T}
 end 
 
 ancestors(tree::PopTree{T}, obj::T) where T = BackwardsIterator(tree, obj)
+Base.eltype(::BackwardsIterator{T}) where T = T
+Base.IteratorSize(::BackwardsIterator) = Base.SizeUnknown()
 
 function Base.iterate(iter::BackwardsIterator{T}, obj::T=iter.obj) where T
     @unpack tree = iter 
