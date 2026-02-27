@@ -3,7 +3,7 @@ using UnPack
 
 const OffspringType{T} = Union{Nothing, Tuple{T}, Tuple{T, T}}
 
-struct AncestryTree{T}
+struct PopTree{T}
     parents::WeakKeyDict{T,T}
     children::WeakKeyDict{T,OffspringType{T}}
     leaves::Vector{T}

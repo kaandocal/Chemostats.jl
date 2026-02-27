@@ -13,6 +13,7 @@ import SciMLBase: savevalues!, step!, add_tstop!
 
 include("queue.jl")
 include("cell.jl")
+include("tree.jl")
 include("chemostat.jl")
 include("algorithms.jl")
 
