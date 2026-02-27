@@ -101,7 +101,8 @@ end
 
 function Chemostat(cells, p=nothing; copy=false, save_ancestors=false, save_leaves=false)
     snaps = [ Snapshot(0., length(cells), 0, 0.) ]
-    Chemostat(copy ? deepcopy(cells) : cells, p, snaps, PopTree{C}(; save_ancestors, save_leaves))
+    cells = copy ? deepcopy(cells) : cells
+    Chemostat(cells, p, snaps, PopTree{eltype(cells)}(; save_ancestors, save_leaves))
 end
 
 function Base.show(io::IO, chem::Chemostat)

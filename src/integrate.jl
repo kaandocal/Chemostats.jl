@@ -219,7 +219,7 @@ function _resize_pop!(int, L::Int, t)
 
     while length(int.queue) > L 
         j = rand(1:length(int.queue))
-        cell = _popat!(queue, j)
+        cell = _popat!(int.queue, j)
         add_leaf!(int.chem.tree, cell)
     end 
     

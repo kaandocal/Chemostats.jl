@@ -13,7 +13,7 @@ struct PopTree{T}
 end
 
 function PopTree{T}(; save_ancestors=false, save_children=false, save_leaves=false) where T
-    PopTree(WeakKeyDict{T,T}(), WeakKeyDict{T,OffspringType{T}}(), T[], save_ancestors, save_children, save_leaves)
+    PopTree{T}(WeakKeyDict{T,T}(), WeakKeyDict{T,OffspringType{T}}(), T[], save_ancestors, save_children, save_leaves)
 end 
 
 function parent(tree::PopTree{T}, obj::T) where {T}
