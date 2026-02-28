@@ -1,5 +1,6 @@
 mutable struct DECell{I,DF,FT}
-    int::I
+    int::Union{I,Nothing}
+    sol
     divide::DF
     state::CellState.T
     tshift::FT
@@ -23,10 +24,17 @@ function DECell(prob, alg, divide; t0 = 0., reset_t=false)
         nothing, init(prob, alg; tspan=(t0, Inf))
     end 
 
-    DECell(int, divide, CellState.Newborn, tshift)
+    DECell(int, missing, divide, CellState.Newborn, tshift)
 end
 
-finalise_cell(cell::DECell) = cell
+process_int(int) = int.sol 
+
+function finalise!(cell::DECell)
+    isnothing(cell.int) && return 
+
+    cell.sol = process_int(cell.int)
+    cell.int = nothing
+end 
 
 function reinit(old_int; t0, p=nothing, u0=nothing)
     int = init(old_int.sol.prob, old_int.alg; tspan=(t0, Inf))
@@ -56,30 +64,38 @@ function reinit(old_int; t0, p=nothing, u0=nothing)
     int
 end 
 
-function get_offspring(parent, p=nothing)
-    offspring = parent.divide(parent.int)
-    isnothing(offspring) && return typeof(parent)[]
+function get_children(parent, p=nothing)
+    @assert !isnothing(parent.int)
+
+    children = parent.divide(parent.int)
+    isnothing(children) && return typeof(parent)[]
 
     t = get_curr_t(parent)
 
-    map(offspring) do off 
+    map(children) do ch 
         tshift, t0 = if isnothing(parent.tshift)
             nothing, t 
         else 
             t, zero(t)
         end 
 
-        int = reinit(parent.int; t0, u0=off.u0, p=off.p)
-        DECell(int, parent.divide, CellState.Newborn, tshift)
+        int = reinit(parent.int; t0, u0=ch.u0, p=ch.p)
+        DECell(int, missing, parent.divide, CellState.Newborn, tshift)
     end
 end
 
 function get_curr_t(cell::DECell) 
-    if isnothing(cell.tshift)
-        cell.int.t
+    ret = if !isnothing(cell.int)
+        cell.int.t 
     else 
-        cell.int.t + cell.tshift
+        last(cell.sol.t)
     end 
+
+    if !isnothing(cell.tshift)
+        ret += cell.tshift 
+    end 
+
+    ret 
 end 
 
 get_state(cell::DECell) = cell.state
@@ -98,34 +114,45 @@ function init_cell!(cell::DECell)
 end
 
 function kill!(cell::DECell, t=get_curr_t(cell)) 
+    @assert !isnothing(cell.int)
+    
     if t < get_curr_t(cell) || is_alive(cell)
         cell.state = CellState.Killed
     end 
 
     SciMLBase.done(cell.int) || terminate!(cell.int)
+    finalise!(cell)
 end 
 
 function die!(cell::DECell)
+    @assert !isnothing(cell.int)
+
     if get_state(cell) != CellState.EndOfLife
         @warn "Called `die!` on cell in state $(get_state(cell))"
         return 
     end 
 
     set_state!(cell, CellState.Dead)
+    finalise!(cell)
 end 
 
 function divide!(cell::DECell)
+    @assert !isnothing(cell.int)
+
     if get_state(cell) != CellState.EndOfLife
         @warn "Cell in state $(get_state(cell)) tried to divide"
         return 
     end 
 
     set_state!(cell, CellState.Divided)
+    finalise!(cell)
 end
 
 savevalues!(cell::DECell) = savevalues!(cell.int)
 
 function step!(cell::DECell, dt, p)
+    @assert !isnothing(cell.int)
+
     isnothing(p) || @warn "Parameter arguments to DECell are ignored"
 
     if get_state(cell) != CellState.Alive
@@ -140,6 +167,7 @@ function step!(cell::DECell, dt, p)
         if !SciMLBase.successful_retcode(cell.int.sol)
             @warn "Cell solver errored, removing cell..."
             set_state!(cell, CellState.Killed)
+            finalise!(cell)
         else 
             set_state!(cell, CellState.EndOfLife)
         end
@@ -147,11 +175,13 @@ function step!(cell::DECell, dt, p)
 end
 
 function clone_cell(cell::DECell, t)
+    @assert !isnothing(cell.int)
+
     tshift = isnothing(cell.tshift) ? zero(t) : cell.tshift
     @check cell.int.sol.t[1] <= t - tshift <= get_curr_t(cell)
 
     int = reinit(cell.int; t0=t - tshift, u0=cell.int.sol(t - tshift), p=cell.int.p)
-    DECell(int, cell.divide, CellState.Newborn, cell.tshift)
+    DECell(int, missing, cell.divide, CellState.Newborn, cell.tshift)
 end 
 
 ###

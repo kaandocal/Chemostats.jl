@@ -189,21 +189,21 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
     @debug "Dividing cell..."
 
     # Cell dies or divides
-    offspr = get_offspring(cell, int.chem.p)
+    children = get_children(cell, int.chem.p)
 
-    if isempty(offspr)
+    if isempty(children)
         die!(cell)
         add_leaf!(int.chem.tree, cell)
         return 
     end 
 
-    offspr_filtered, Δlog_f = filter_offspring(offspr, int.alg)
+    children_filtered, Δlog_f = filter_offspring(children, int.alg)
     divide!(cell)
-    add_offspring!(int.chem.tree, cell, Tuple(offspr_filtered))
+    add_offspring!(int.chem.tree, cell, Tuple(children_filtered))
 
     lock(int.queue) do 
-        @debug "Appending $(length(offspr_filtered))/$(length(offspr)) cells..."
-        _append!(int.queue, offspr_filtered)
+        @debug "Appending $(length(children_filtered))/$(length(children)) cells..."
+        _append!(int.queue, children_filtered)
         int.log_f += Δlog_f
     end
 end

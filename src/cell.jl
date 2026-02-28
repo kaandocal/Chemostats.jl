@@ -59,7 +59,7 @@ Returns an array of cells representing the offspring of the given cell. Here `ch
 surrounding chemostat. If `save_lineages` is `true`, the resulting offspring should keep track
 of the parent cell.
 """
-function get_offspring end 
+function get_children end 
 
 """
     clone_cell(cell, t)
