@@ -169,6 +169,11 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
 
     @check get_state(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
 
+    if get_state(cell) == CellState.Killed 
+        add_leaf!(int.chem.tree, cell)
+        return
+    end 
+
     # Cells are culled with rate δ
     if δ > 0 
         t_kill = tb + randexp() / δ
