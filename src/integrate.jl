@@ -9,6 +9,7 @@ mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: Thre
     nsim::Int
     log_f::Float64
     retcode::ReturnCode.T
+    tree_lock::ReentrantLock
 end
 
 function default_ensalg(alg::AbstractAlgorithm) 
@@ -29,7 +30,7 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
                   chem.snaps[end].nsim, chem.snaps[end].log_f, 
-                  SciMLBase.ReturnCode.Default)
+                  SciMLBase.ReturnCode.Default, ReentrantLock())
 end 
 
 Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
@@ -170,7 +171,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
     @check get_state(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
 
     if get_state(cell) == CellState.Killed 
-        add_leaf!(int.chem.tree, cell)
+        @lock int.tree_lock add_leaf!(int.chem.tree, cell)
         return
     end 
 
@@ -180,7 +181,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
 
         if t_kill < t
             kill!(cell, t_kill)
-            add_leaf!(int.chem.tree, cell)
+            @lock int.tree_lock add_leaf!(int.chem.tree, cell)
             return
         end
     end
@@ -198,13 +199,13 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
 
     if isempty(children)
         die!(cell)
-        add_leaf!(int.chem.tree, cell)
+        @lock int.tree_lock add_leaf!(int.chem.tree, cell)
         return 
     end 
 
     children_filtered, Δlog_f = filter_offspring(children, int.alg)
     divide!(cell)
-    add_offspring!(int.chem.tree, cell, Tuple(children_filtered))
+    @lock int.tree_lock add_offspring!(int.chem.tree, cell, Tuple(children_filtered))
 
     lock(int.queue) do 
         @debug "Appending $(length(children_filtered))/$(length(children)) cells..."
@@ -225,7 +226,7 @@ function _resize_pop!(int, L::Int, t)
     while length(int.queue) > L 
         j = rand(1:length(int.queue))
         cell = _popat!(int.queue, j)
-        add_leaf!(int.chem.tree, cell)
+        @lock int.tree_lock add_leaf!(int.chem.tree, cell)
     end 
     
     while length(int.queue) < L
