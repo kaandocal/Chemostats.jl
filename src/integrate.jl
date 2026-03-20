@@ -1,4 +1,4 @@
-mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: QueueType}
+mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: ThreadedQueue}
     chem::CT
     alg::A
     queue::QT
@@ -25,7 +25,7 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
     tstops = filter(t -> t0 < t, tstops)
     tstops = unique(sort(tstops))
 
-    queue = create_queue(chem.pop, ensalg) 
+    queue = ThreadedQueue(chem.pop) 
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
                   chem.snaps[end].nsim, chem.snaps[end].log_f, 
@@ -66,7 +66,7 @@ function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default
         int.retcode == ReturnCode.Default || break
         step!(int, tmax, ensalg; save=true, kwargs...)
     end
-
+    
     empty!(int.chem.pop)
     extract_queue!(int.chem.pop, int.queue)
 
@@ -89,7 +89,7 @@ function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     error("Ensemble algorithm $ensalg not supported")
 end 
 
-function worker_task(int::PopIntegrator, out::QueueType; Nmax=Int(1e7), δ=0., kwargs...)
+function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0., kwargs...)
     register_listener!(int.queue)
 
     while true 
@@ -127,7 +127,7 @@ end
 
 function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleThreads}; save=false, kwargs...)
     @unpack chem, queue = int 
-    out = create_queue(empty(chem.pop), ensalg)
+    out = ThreadedQueue(empty(chem.pop))
     
     if ensalg isa EnsembleThreads && !is_parallel(int.alg)
         error("Algorithm $(typeof(int.alg)) does not support parallelisation")

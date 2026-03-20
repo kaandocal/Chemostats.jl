@@ -15,22 +15,20 @@ end
 
 Base.lock(f::Function, queue::ThreadedQueue) = lock(f, queue.lock)
 function Base.length(queue::ThreadedQueue) 
-    lock(queue) do 
-        length(queue.heap) 
-    end 
+    @lock queue.lock length(queue.heap) 
 end
 
 Base.isempty(queue::ThreadedQueue) = length(queue) == 0
-
-create_queue(vals, ::Union{EnsembleSerial,EnsembleThreads}) = ThreadedQueue(BinaryHeap(TimeOrder, vals))
+ThreadedQueue(vals) = ThreadedQueue(BinaryHeap(TimeOrder, vals))
 
 function register_listener!(queue::ThreadedQueue)
+    # Race condition?
     Threads.atomic_add!(queue.nwork, 1)
     @debug "Thread $(Threads.threadid()): register (# $(queue.nwork[]))..."
 end
 
 function Base.push!(queue::ThreadedQueue, v)
-    lock(queue.lock) do 
+    @lock queue.lock begin 
         @debug "Thread $(Threads.threadid()): put..."
         push!(queue.heap, v)
         notify(queue.cond_wait; all=false)
@@ -39,7 +37,7 @@ end
 
 function fetch!(queue::ThreadedQueue)
     @debug "Thread $(Threads.threadid()): fetching..."
-    lock(queue.cond_wait) do 
+    @lock queue.cond_wait begin
         Threads.atomic_sub!(queue.nwork, 1)
         while isempty(queue.heap)
             if queue.nwork[] == 0
@@ -64,32 +62,21 @@ end
 
 ###
 
-const QueueType = Union{BinaryHeap, ThreadedQueue}
-
-function _append!(queue::QueueType, vals)
-    lock(queue) do 
+function _append!(queue::ThreadedQueue, vals)
+    @lock queue.lock begin
         for v in vals 
-            push!(queue, v)
+            push!(queue.heap, v)
         end 
     end
 end
 
-function extract_queue!(pop, queue::BinaryHeap)
-    while !isempty(queue)
-        push!(pop, pop!(queue))
-    end
-end 
-
 function extract_queue!(pop, queue::ThreadedQueue)
-    lock(queue) do 
+    @lock queue.lock begin 
         while !isempty(queue)
             push!(pop, pop!(queue.heap))
         end
     end
 end 
-
-# Adapted from DataStructures.jl 
-_getindex(queue::BinaryHeap, i::Integer) = queue.valtree[i]
 
 # THESE FUNCTIONS ARE NOT THREAD SAFE 
 function _force_up!(queue::BinaryHeap, i::Integer)
@@ -110,7 +97,7 @@ function _popat!(queue::BinaryHeap, idx::Integer)
 end 
 
 function _popat!(queue::ThreadedQueue, idx::Integer)
-    lock(queue) do 
+    @lock queue.lock begin
         _popat!(queue.heap, idx)
     end
 end 
