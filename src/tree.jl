@@ -49,7 +49,9 @@ end
 function add_leaf!(tree::PopTree{T}, obj::T) where {T}
     @check !haskey(tree.children, obj) "Attempting to assign children to cell which already has children"
 
-    tree.children[obj] = nothing 
+    if tree.save_children
+        tree.children[obj] = nothing 
+    end
 
     if tree.save_leaves 
         push!(tree.leaves, obj)
