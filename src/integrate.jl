@@ -93,37 +93,42 @@ end
 function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0., kwargs...)
     register_listener!(int.queue)
 
-    while true 
-        if length(int.queue) > Nmax  
-            @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
-            lock(int.queue) do 
-                int.retcode = ReturnCode.MaxIters
+    try
+        while true 
+            if length(int.queue) > Nmax  
+                @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
+                lock(int.queue) do 
+                    int.retcode = ReturnCode.MaxIters
+                end
+                break 
+            end 
+    
+            cell = fetch!(int.queue)
+            if isnothing(cell) || int.retcode != ReturnCode.Default 
+                break
+            elseif get_curr_t(cell) >= int.t_next
+                push!(out, cell)
+                continue
+            end 
+    
+            if get_state(cell) == CellState.Newborn 
+                init_cell!(cell)
+                int.nsim += 1
+            end 
+    
+            if get_state(cell) == CellState.Alive 
+                process_cell!(int, cell, int.t_next; δ, kwargs...)
+            elseif get_state(cell) == CellState.EndOfLife
+                process_eol!(int, cell; kwargs...)
             end
-            break 
-        end 
-
-        cell = fetch!(int.queue)
-        if isnothing(cell) || int.retcode != ReturnCode.Default 
-            break
-        elseif get_curr_t(cell) >= int.t_next
-            push!(out, cell)
-            continue
-        end 
-
-        if get_state(cell) == CellState.Newborn 
-            init_cell!(cell)
-            int.nsim += 1
-        end 
-
-        if get_state(cell) == CellState.Alive 
-            process_cell!(int, cell, int.t_next; δ, kwargs...)
-        elseif get_state(cell) == CellState.EndOfLife
-            process_eol!(int, cell; kwargs...)
+    
+            # We assume this is threadsafe (`Strict` does not support multithreading)
+            update_queue!(int, int.alg, get_curr_t(cell))
         end
-
-        # We assume this is threadsafe (`Strict` does not support multithreading)
-        update_queue!(int, int.alg, get_curr_t(cell))
-    end
+    catch e
+        showerror(stderr, e, catch_backtrace())
+        flush(stderr)
+     end
 end 
 
 function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleThreads}; save=false, kwargs...)
