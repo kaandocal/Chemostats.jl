@@ -62,10 +62,9 @@ end
 
 ###
 
-function release_and_notify!(f, queue::ThreadedQueue, holding_slot::Bool)
+function release_and_notify!(queue::ThreadedQueue)
     @lock queue.cond_wait begin
-        f()
-        holding_slot && Threads.atomic_sub!(queue.nwork, 1)
+        Threads.atomic_sub!(queue.nwork, 1)
         notify(queue.cond_wait; all=true)
     end
 end
@@ -77,6 +76,7 @@ function _append!(queue::ThreadedQueue, vals)
         for v in vals 
             push!(queue.heap, v)
         end 
+        notify(queue.cond_wait; all=true)
     end
 end
 

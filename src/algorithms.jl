@@ -82,11 +82,11 @@ struct Strict <: AbstractAlgorithm
 end 
 
 get_δ(int, ::Strict) = 0.
-init!(alg::Strict, int) = _resize_pop!(int, alg.L, int.t)
+init!(alg::Strict, int) = _resize_pop_unsafe!(int, alg.L, int.t)
 is_parallel(alg::Strict) = false
 filter_offspring(cells, ::Strict) = (cells, 0)
 update_algorithm!(::Strict, int) = nothing
-update_queue!(int, alg::Strict, t) = _resize_pop!(int, alg.L, t)
+update_queue!(int, alg::Strict, t) = _resize_pop_unsafe!(int, alg.L, t)
 
 ###
 
@@ -170,8 +170,8 @@ end
 
 function update_algorithm!(alg::Lax, int)
     if length(int.queue) > alg.L * alg.tol
-        _resize_pop!(int, alg.L, int.t)
-    end 
+        _resize_pop_unsafe!(int, alg.L, int.t)
+    end
 
     add_tstop!(int, int.t + alg.τ)
 end 

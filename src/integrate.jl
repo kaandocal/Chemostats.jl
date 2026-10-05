@@ -6,9 +6,9 @@ mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: Thre
     t0::Float64
     t::Float64
     t_next::Float64
-    nsim::Int
+    nsim::Threads.Atomic{Int}
     log_f::Float64
-    retcode::ReturnCode.T
+    @atomic retcode::ReturnCode.T
     tree_lock::ReentrantLock
 end
 
@@ -28,12 +28,12 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
 
     queue = ThreadedQueue(chem.pop) 
     
-    PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0, 
-                  chem.snaps[end].nsim, chem.snaps[end].log_f, 
+    PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0,
+                  Threads.Atomic{Int}(chem.snaps[end].nsim), chem.snaps[end].log_f,
                   SciMLBase.ReturnCode.Default, ReentrantLock())
 end 
 
-Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
+Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim[], int.log_f)
 savevalues!(int::PopIntegrator) = push!(int.chem.snaps, Snapshot(int))
 
 function add_tstop!(int::PopIntegrator, t)
@@ -46,15 +46,16 @@ function add_tstop!(int::PopIntegrator, t)
 end 
 
 """
-    simulate!(chem, tmax, alg, ensalg = EnsembleThreads(); saveat = [], throw_on_error = false)
+    simulate!(chem, tmax, alg, ensalg = EnsembleThreads(); saveat = [], Nmax = 1e7, throw_on_error = false)
 
 Simulates the chemostat until time `tmax` with algorithm `alg` (see [Simulation Algorithms](@ref) for a list of algorithms).
 `ensalg` can be `EnsembleSerial()` for single-threaded simulations, or `EnsembleThreads()` for multithreading (if `alg` support multithreading).
 The default `ensalg` is `EnsembleThreads()` for multithreaded algorithms, or `EnsembleSerial()` for single-threaded algorithms.
 
-If `throw_on_error` is `true`, exceptions that occur while simulating a cell
-will stop the simulation. If it is `false`, the exception will be caught and the
-cell will be removed from the population.
+If the population size exceeds `Nmax`, the simulation exits (useful for `Direct` and `Lax`).
+
+If `throw_on_error` is `true`, exceptions that occur while simulating a cell will stop the simulation. 
+If it is `false`, the exception will be caught and the cell will be removed from the population.
 """
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
                    ensalg::EnsembleAlgorithm = default_ensalg(alg); saveat=[ tmax ], throw_on_error::Bool=false, kwargs...)
@@ -74,9 +75,9 @@ function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default
     empty!(int.chem.pop)
     extract_queue!(int.chem.pop, int.queue)
 
-    if int.retcode == ReturnCode.Default 
-        int.retcode = ReturnCode.Success
-    end 
+    if int.retcode == ReturnCode.Default
+        @atomic int.retcode = ReturnCode.Success
+    end
 
     int
 end 
@@ -95,28 +96,27 @@ end
 
 function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0., throw_on_error::Bool=false, kwargs...)
     register_listener!(int.queue)
-    cell = nothing
-    holding_slot = true
 
     while true
         try
             if length(int.queue) > Nmax
                 @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
 
-                release_and_notify!(int.queue, holding_slot) do
-                    int.retcode == ReturnCode.Default && (int.retcode = ReturnCode.MaxIters)
-                end
+                @atomicreplace int.retcode ReturnCode.Default => ReturnCode.MaxIters
+                release_and_notify!(int.queue)
                 return
             end
 
+            # `fetch!` already released this worker's slot internally before
+            # returning `nothing` (see its own nwork bookkeeping) -- so this
+            # must return immediately, *without* going through
+            # release_and_notify!, or nwork would be decremented twice.
             cell = fetch!(int.queue)
-            holding_slot = !isnothing(cell)
             isnothing(cell) && return
 
             if int.retcode != ReturnCode.Default
                 push!(int.queue, cell)
-                release_and_notify!(int.queue, holding_slot) do
-                end
+                release_and_notify!(int.queue)
                 return
             elseif get_curr_t(cell) >= int.t_next
                 push!(out, cell)
@@ -125,7 +125,7 @@ function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0
 
             if get_state(cell) == CellState.Newborn
                 init_cell!(cell)
-                int.nsim += 1
+                Threads.atomic_add!(int.nsim, 1)
             end
 
             if get_state(cell) == CellState.Alive
@@ -139,9 +139,8 @@ function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0
         catch e
             # Simulating the cell caused an error
             if throw_on_error
-                release_and_notify!(int.queue, holding_slot) do
-                    int.retcode == ReturnCode.Default && (int.retcode = ReturnCode.Failure)
-                end
+                @atomicreplace int.retcode ReturnCode.Default => ReturnCode.Failure
+                release_and_notify!(int.queue)
                 rethrow()
             else
                 showerror(stderr, e, catch_backtrace())
@@ -244,10 +243,10 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
     end
 end
 
-function _resize_pop!(int, L::Int, t)
+function _resize_pop_unsafe!(int, L::Int, t)
     if isempty(int.queue)
         @warn "No cells left in chemostat, terminating..."
-        int.retcode = ReturnCode.Unstable
+        @atomic int.retcode = ReturnCode.Unstable
         return
     end
 
