@@ -1,2 +1,8 @@
 Manifest.toml
 docs/build
+
+# Code coverage artifacts from local `--code-coverage=user` test runs
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+lcov.info

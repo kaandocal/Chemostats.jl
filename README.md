@@ -1,6 +1,7 @@
 # ![](docs/src/assets/logo.svg) Chemostats.jl
 
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://kaandocal.github.io/Chemostats.jl/dev)
+[![codecov](https://codecov.io/gh/kaandocal/Chemostats.jl/graph/badge.svg)](https://codecov.io/gh/kaandocal/Chemostats.jl)
 
 Chemostats.jl is a package to efficiently simulate cell populations in Julia, featuring state-of-the-art algorithms that estimate population dynamics at sub-exponential cost. It is compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) and [Catalyst.jl](https://github.com/SciML/Catalyst.jl)
 

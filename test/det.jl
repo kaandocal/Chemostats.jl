@@ -39,8 +39,8 @@ tmax = 20.5
     @test snap.N == L
 
     if L == 1
-        Chemostats.est_logN(snap) ≈ floor(Int, tmax * Λ_gt) * log(1 + 1/L) * L + log(L)
-    end 
+        @test Chemostats.est_logN(snap) ≈ floor(Int, tmax * Λ_gt) * log(1 + 1/L) * L + log(L)
+    end
 end
 
 for ensalg in [ EnsembleSerial(), EnsembleThreads() ]
