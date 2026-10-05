@@ -71,6 +71,19 @@ end
 
 Base.first(queue::ThreadedQueue) = first(queue.heap)
 
+"""
+    iter_unsafe(queue::ThreadedQueue)
+
+Returns `queue`'s backing array directly -- already a fully-featured
+iterable, so no wrapper type is needed. NOT thread safe: no locking, no
+copy. Only valid where nothing else can be concurrently mutating `queue`
+(e.g. after `@sync` in `step!` has already rejoined every worker). A lock
+per element wouldn't give a true snapshot anyway (another task could still
+mutate between steps), and holding the lock across the whole iteration would
+mean holding it across arbitrary caller code in between.
+"""
+iter_unsafe(queue::ThreadedQueue) = queue.heap.valtree
+
 function _append!(queue::ThreadedQueue, vals)
     @lock queue.lock begin
         for v in vals 

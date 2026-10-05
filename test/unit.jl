@@ -100,12 +100,4 @@ end
         Chemostats.simulate!(chem, 5.0, Chemostats.Direct())
         @test chem.snaps[end].N == 1   # each division replaces 1 cell with 1
     end
-
-    @testset ">2 children" begin
-        divide_triple(int) = [ (u0 = randexp(), p = int.p) for _ in 1:3 ]
-        prob = ODEProblem(f_exp, randexp(), (0., 0.), (; id = 1); callback = cb_exp)
-        chem = Chemostat([ DECell(prob, Tsit5(), divide_triple) ])
-
-        @test_throws ArgCheck.CheckError Chemostats.simulate!(chem, 5.0, Chemostats.Direct(); throw_on_error = true)
-    end
 end

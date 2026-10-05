@@ -3,18 +3,17 @@ using UnPack
 
 const OffspringType{T} = Union{Nothing, Tuple{T}, Tuple{T, T}}
 
-struct PopTree{T}
-    parents::WeakKeyDict{T,T}
-    children::WeakKeyDict{T,OffspringType{T}}
+mutable struct PopTree{T}
+    parents::Dict{T,T}
     leaves::Vector{T}
-    save_ancestors::Bool 
-    save_children::Bool
+    save_ancestors::Bool
     save_leaves::Bool
+    last_sweep_size::Int
 end
 
-function PopTree{T}(; save_ancestors=false, save_children=false, save_leaves=false) where T
-    PopTree{T}(WeakKeyDict{T,T}(), WeakKeyDict{T,OffspringType{T}}(), T[], save_ancestors, save_children, save_leaves)
-end 
+function PopTree{T}(; save_ancestors=false, save_leaves=false) where T
+    PopTree{T}(Dict{T,T}(), T[], save_ancestors, save_leaves, 0)
+end
 
 function parent(tree::PopTree{T}, obj::T) where {T}
     get(tree.parents, obj, missing)
@@ -26,37 +25,49 @@ function set_parent!(tree::PopTree{T}, obj::T, parent::T) where {T}
     tree.parents[obj] = parent
 end 
 
-function children(tree::PopTree{T}, obj::T) where {T} 
-    get(tree.children, obj, missing)
-end 
-
 function add_offspring!(tree::PopTree{T}, parent::T, children::Union{Nothing,Tuple{Vararg{T}}}) where {T}
-    @check !haskey(tree.children, parent) "Attempting to assign children to cell which already has children"
-    @check !(children isa Tuple) || length(children) <= 2 "Only support a maximum of 2 offspring per cell"
-
     if tree.save_ancestors
         for cell in children
             set_parent!(tree, cell, parent)
         end
     end
 
-    if tree.save_children
-        tree.children[parent] = children
-    end
-
     nothing
 end 
 
 function add_leaf!(tree::PopTree{T}, obj::T) where {T}
-    @check !haskey(tree.children, obj) "Attempting to assign children to cell which already has children"
+    if tree.save_leaves
+        push!(tree.leaves, obj)
+    end
+end
 
-    if tree.save_children
-        tree.children[obj] = nothing 
+function simplify!(tree::PopTree, samples)
+    if tree.save_ancestors && length(tree.parents) > 2 * tree.last_sweep_size
+        prune!(tree, samples)
+    end
+end
+
+"""
+    prune!(tree::PopTree, samples)
+
+Prunes `tree.parents` to eliminate dead leaves.
+"""
+function prune!(tree::PopTree{T}, samples) where T
+    new_parents = Dict{T,T}()
+    sizehint!(new_parents, tree.last_sweep_size)
+
+    for s in samples
+        c = s
+        while haskey(tree.parents, c) && !haskey(new_parents, c)
+            p = tree.parents[c]
+            new_parents[c] = p
+            c = p
+        end
     end
 
-    if tree.save_leaves 
-        push!(tree.leaves, obj)
-    end 
+    tree.parents = new_parents
+    tree.last_sweep_size = length(new_parents)
+    tree
 end
 
 struct BackwardsIterator{T}

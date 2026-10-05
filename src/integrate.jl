@@ -70,8 +70,10 @@ function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default
         update_algorithm!(int.alg, int)
         int.retcode == ReturnCode.Default || break
         step!(int, tmax, ensalg; save=true, throw_on_error, kwargs...)
+
+        simplify!(int.chem.tree, iter_unsafe(int.queue))
     end
-    
+
     empty!(int.chem.pop)
     extract_queue!(int.chem.pop, int.queue)
 
@@ -107,10 +109,6 @@ function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0
                 return
             end
 
-            # `fetch!` already released this worker's slot internally before
-            # returning `nothing` (see its own nwork bookkeeping) -- so this
-            # must return immediately, *without* going through
-            # release_and_notify!, or nwork would be decremented twice.
             cell = fetch!(int.queue)
             isnothing(cell) && return
 
