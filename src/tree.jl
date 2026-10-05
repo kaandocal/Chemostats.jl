@@ -30,14 +30,15 @@ function children(tree::PopTree{T}, obj::T) where {T}
     get(tree.children, obj, missing)
 end 
 
-function add_offspring!(tree::PopTree{T}, parent::T, children::OffspringType{T}) where {T}
+function add_offspring!(tree::PopTree{T}, parent::T, children::Union{Nothing,Tuple{Vararg{T}}}) where {T}
     @check !haskey(tree.children, parent) "Attempting to assign children to cell which already has children"
+    @check !(children isa Tuple) || length(children) <= 2 "Only support a maximum of 2 offspring per cell"
 
     if tree.save_ancestors
         for cell in children
             set_parent!(tree, cell, parent)
-        end 
-    end 
+        end
+    end
 
     if tree.save_children
         tree.children[parent] = children
@@ -57,16 +58,6 @@ function add_leaf!(tree::PopTree{T}, obj::T) where {T}
         push!(tree.leaves, obj)
     end 
 end
-
-# function clone!(tree, obj)
-# end 
-
-# Need lifetime support
-# function snapshot(tree, t)
-# end 
-
-# function alive_at(node, t)
-
 
 struct BackwardsIterator{T}
     tree::PopTree{T}

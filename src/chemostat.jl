@@ -6,7 +6,7 @@
         log_f::Float64
     end 
 
-Saves the state of a simulate dpopulation at a fixed time `t`. Here `N` is the observed size of the population,
+Saves the state of a simulated population at a fixed time `t`. Here `N` is the observed size of the population,
 and `log_f` is minus the log fraction of the true population observed. This allows us to use subsampling algorithms
 (see [Simulation Algorithms](@ref)) that only track a small subset of a full population and extrapolate.
 

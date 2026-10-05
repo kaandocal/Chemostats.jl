@@ -7,10 +7,11 @@ mutable struct DECell{I,DF,FT}
 end
 
 """
-    DECell([anc = missing, ]prob, divide; reset_t=false)
+    DECell(prob, alg, divide; t0 = 0., reset_t=false)
 
-Creates a new cell around a `SciMLBase.DEProblem`. The function `divide` takes a single integrator argument 
-`int` and returns a list of offspring as a vector of `NamedTuples` with fields `u0` and `p`. The argument 
+Creates a new cell around a `SciMLBase.DEProblem`, simulated with algorithm `alg` starting at time `t0`. 
+The function `divide` takes a single integrator argument `int` and returns a list of offspring as a vector of `NamedTuples` with fields `u0` and `p`.
+
 `reset_t` determines whether the integration time is started from `0` for every cell, which can avoid floating-point 
 errors for long simulations (many generations). If `reset_t` is set to `true`, each cell should keep track of its 
 starting time, e.g. via a parameter `t0` in `p`.
@@ -153,7 +154,7 @@ savevalues!(cell::DECell) = savevalues!(cell.int)
 function step!(cell::DECell, dt, p)
     @assert !isnothing(cell.int)
 
-    isnothing(p) || @warn "Parameter arguments to DECell are ignored"
+    isnothing(p) || @warn "Parameter arguments to DECell are ignored" maxlog=1
 
     if get_state(cell) != CellState.Alive
         @warn "Tried to simulate cell in state $(get_state(cell))"

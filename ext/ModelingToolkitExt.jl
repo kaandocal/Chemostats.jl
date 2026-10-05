@@ -19,7 +19,7 @@ function Chemostats.SymbolicDivideContinuous(cond; iv=MTK.t_nounits, name=:__che
 end 
 
 function Chemostats.SymbolicDivideDiscrete(cond; iv=MTK.t_nounits, name=:__chemostat_div__)
-    event = MTK.SymbolicDiscreteCallback(cond, Chemostats.MTKDivideAffect)
+    event = MTK.SymbolicDiscreteCallback(cond, Chemostats.MTKDivideAffect())
     MTK.System(MTK.Equation[], iv; name, discrete_events = [ event ])
 end 
 

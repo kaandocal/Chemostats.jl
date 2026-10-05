@@ -33,7 +33,7 @@ function die! end
     kill!(cell, t)
 
 Called when a cell is killed by the simulation algorithm. The argument `t` is the time at which a cell is killed.
-After this call, [`Chemostats.get_state`](@ref) should return `Killed`.
+Unless the cell is already dead, [`Chemostats.get_state`](@ref) should return `Killed`.
 """
 function kill! end 
 
@@ -53,11 +53,9 @@ Returns the current cell state, see [`CellState`](@ref).
 function get_state end 
 
 """
-    get_offspring(chem, cell; save_lineages=false)
+    get_children(parent, args...)
 
-Returns an array of cells representing the offspring of the given cell. Here `chem` is the 
-surrounding chemostat. If `save_lineages` is `true`, the resulting offspring should keep track
-of the parent cell.
+Returns an array of cells representing the offspring of the given cell.
 """
 function get_children end 
 

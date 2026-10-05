@@ -61,7 +61,7 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
 end
 
 
-function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default_ensalg(alg); kwargs...)
+function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default_ensalg(int.alg); kwargs...)
     while int.t < tmax && int.retcode == ReturnCode.Default
         update_algorithm!(int.alg, int)
         int.retcode == ReturnCode.Default || break
@@ -231,6 +231,7 @@ function _resize_pop!(int, L::Int, t)
     while length(int.queue) > L 
         j = rand(1:length(int.queue))
         cell = _popat!(int.queue, j)
+        kill!(cell, t)
         @lock int.tree_lock add_leaf!(int.chem.tree, cell)
     end 
     
@@ -240,3 +241,4 @@ function _resize_pop!(int, L::Int, t)
 
     int.log_f += log(N_start) - log(L)
 end
+

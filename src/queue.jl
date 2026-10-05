@@ -62,6 +62,8 @@ end
 
 ###
 
+Base.first(queue::ThreadedQueue) = first(queue.heap)
+
 function _append!(queue::ThreadedQueue, vals)
     @lock queue.lock begin
         for v in vals 
@@ -104,7 +106,8 @@ end
 
 function _clone_random!(queue::BinaryHeap, t)
     i = rand(1:length(queue))
-    push!(queue, clone_cell(queue.valtree[i], t))
+    cell = clone_cell(queue.valtree[i], t)
+    push!(queue, cell)
 end 
 
 _clone_random!(queue::ThreadedQueue, t) = _clone_random!(queue.heap, t)
