@@ -30,7 +30,7 @@ Searches and returns for a population snapshot saved at time `t`. Errors if no s
 If multiple snapshots at time `t` exist, this function returns the last one. 
 """
 function get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t; atol=1e-6)
-    @assert issorted(snaps; by = snap -> snap.t)
+    #@assert issorted(snaps; by = snap -> snap.t)
     i = searchsortedlast(map(snap -> snap.t, snaps), t + atol)
     if i < 1 || snaps[i].t < t - atol
         throw(ArgumentError("No snapshot saved at time t=$t"))

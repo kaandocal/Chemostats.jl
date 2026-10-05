@@ -19,7 +19,7 @@ function init!(alg::Forward, int)
 end 
 
 is_parallel(::Forward) = true
-filter_offspring(cells, ::Forward) = (Iterators.take(cells, 1), NaN)
+filter_offspring(cells, ::Forward) = ((rand(cells),), NaN)
 update_algorithm!(::Forward, int) = nothing
 update_queue!(queue, ::Forward, t) = nothing
 

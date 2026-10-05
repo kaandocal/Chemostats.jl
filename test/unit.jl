@@ -40,6 +40,30 @@ end
     @test Chemostats.Lax(10, 1.0) isa Chemostats.Lax
 end
 
+@testset "Lax est_Λ_curr matches a known growth rate across β" begin
+    # Synthetic snapshots for a population with a perfectly constant, known
+    # growth rate: every single-interval est_Λ equals Λ_true exactly, so any
+    # β-weighted average of them should too, regardless of β.
+    Λ_true = 0.3
+    τ = 0.5
+    N0 = 1.0e6   # large, so rounding N to an Int is negligible
+
+    ts = 0:τ:10
+    snaps = [ Chemostats.Snapshot(t, round(Int, N0 * exp(Λ_true * t)), 0, 0.0) for t in ts ]
+    t = ts[end]
+
+    Λ_direct = Chemostats.est_Λ(snaps[1], snaps[end])
+    @test Λ_direct ≈ Λ_true atol = 1e-6
+
+    for β in (0.0, 0.3, 0.5, 0.8, 1.0)
+        alg = Chemostats.Lax(50, τ; β)
+        Λ_curr = Chemostats.est_Λ_curr(snaps, t, alg)
+
+        @test Λ_curr ≈ Λ_true atol = 1e-6
+        @test Λ_curr ≈ Λ_direct atol = 1e-6
+    end
+end
+
 @testset "die!/divide!" begin
     cell = ExponentialCell((; id = 1))
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
@@ -49,6 +73,33 @@ end
 
     Chemostats.divide!(cell)
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
+end
+
+@testset "kill! always kills, regardless of prior state" begin
+    # Alive
+    prob1 = ODEProblem(f_exp, 5.0, (0., 0.), (; id = 1); callback = cb_exp)
+    cell1 = DECell(prob1, Tsit5(), divide_exp)
+    Chemostats.init_cell!(cell1)
+    Chemostats.step!(cell1, 2.0, nothing)
+    @test Chemostats.get_state(cell1) == Chemostats.CellState.Alive
+
+    Chemostats.kill!(cell1, Chemostats.get_curr_t(cell1))
+    @test Chemostats.get_state(cell1) == Chemostats.CellState.Killed
+    @test isnothing(cell1.int)   # properly finalized
+
+    # EndOfLife, killed at exactly its own current time -- this is the
+    # specific case that used to be silently skipped (neither `t <
+    # get_curr_t(cell)` nor `is_alive(cell)` held), leaving the cell
+    # mislabeled as EndOfLife instead of Killed.
+    prob2 = ODEProblem(f_exp, 0.1, (0., 0.), (; id = 2); callback = cb_exp)
+    cell2 = DECell(prob2, Tsit5(), divide_exp)
+    Chemostats.init_cell!(cell2)
+    Chemostats.step!(cell2, 1.0, nothing)
+    @test Chemostats.get_state(cell2) == Chemostats.CellState.EndOfLife
+
+    Chemostats.kill!(cell2, Chemostats.get_curr_t(cell2))
+    @test Chemostats.get_state(cell2) == Chemostats.CellState.Killed
+    @test isnothing(cell2.int)
 end
 
 @testset "clone independence" begin
@@ -68,6 +119,21 @@ end
     Chemostats.step!(clone, 1.0, nothing)
     @test Chemostats.get_curr_t(cell) == 2.0
     @test Chemostats.get_curr_t(clone) == 3.0
+end
+
+@testset "clone_cell rejects out-of-range t" begin
+    prob = ODEProblem(f_exp, 5.0, (0., 0.), (; id = 1); callback = cb_exp)
+    cell = DECell(prob, Tsit5(), divide_exp)
+    Chemostats.init_cell!(cell)
+    Chemostats.step!(cell, 2.0, nothing)
+    t_curr = Chemostats.get_curr_t(cell)   # 2.0 -- not yet simulated past this
+
+    @test_throws ArgCheck.CheckError Chemostats.clone_cell(cell, t_curr + 1.0)  # future
+    @test_throws ArgCheck.CheckError Chemostats.clone_cell(cell, -1.0)          # before trajectory start
+
+    # Within range: must still succeed (not an off-by-one on the boundary).
+    clone = Chemostats.clone_cell(cell, t_curr)
+    @test Chemostats.get_curr_t(clone) == t_curr
 end
 
 @testset "reset_t = true" begin

@@ -90,9 +90,9 @@ end
         tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
 
         root = mk()
-        a, b = mk(), mk()        # children of root
-        a1, a2 = mk(), mk()      # children of a -- a2's branch goes extinct
-        b1 = mk()                # child of b
+        a, b = mk(), mk()
+        a1, a2 = mk(), mk()
+        b1 = mk()           
 
         Chemostats.set_parent!(tree, a, root)
         Chemostats.set_parent!(tree, b, root)
@@ -115,13 +115,13 @@ end
         @test collect(Chemostats.ancestors(tree, a1)) == [a, root]
     end
 
-    @testset "a sample that's already a root is a no-op for it" begin
+    @testset "no-op on root" begin
         tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
         root, a = mk(), mk()
         Chemostats.set_parent!(tree, a, root)
 
-        Chemostats.prune!(tree, [root])   # root has no parent entry to keep
-        @test isempty(tree.parents)       # a's branch is unreachable from {root}, dropped
+        Chemostats.prune!(tree, [root])
+        @test isempty(tree.parents)
     end
 
     @testset "empty sample set drops everything" begin
@@ -145,7 +145,7 @@ end
         @test tree.parents == snapshot
     end
 
-    @testset "shared ancestry is only walked once (identical result either way)" begin
+    @testset "shared ancestry is only walked once" begin
         # Not a timing test -- just confirms the early-stop-on-shared-path
         # logic doesn't change the *result* vs. walking each sample fully.
         tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
@@ -165,7 +165,7 @@ end
 end
 
 @testset "simplify!" begin
-    @testset "only prunes once parents has doubled since the last prune" begin
+    @testset "only prunes once tree has doubled" begin
         tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
         root, a = mk(), mk()
         Chemostats.set_parent!(tree, a, root)
@@ -180,7 +180,7 @@ end
         @test tree.last_sweep_size == 1    # prune! ran and updated it
     end
 
-    @testset "save_ancestors=false never touches samples" begin
+    @testset "save_ancestors = false makes this a no-op" begin
         tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = false)
 
         never_iterate = Iterators.map(_ -> error("samples should not be touched"), 1:1)

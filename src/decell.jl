@@ -114,16 +114,14 @@ function init_cell!(cell::DECell)
     set_state!(cell, CellState.Alive)
 end
 
-function kill!(cell::DECell, t=get_curr_t(cell)) 
+function kill!(cell::DECell, t=get_curr_t(cell))
     @assert !isnothing(cell.int)
-    
-    if t < get_curr_t(cell) || is_alive(cell)
-        cell.state = CellState.Killed
-    end 
+
+    cell.state = CellState.Killed
 
     SciMLBase.done(cell.int) || terminate!(cell.int)
     finalise!(cell)
-end 
+end
 
 function die!(cell::DECell)
     @assert !isnothing(cell.int)
