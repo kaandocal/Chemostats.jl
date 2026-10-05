@@ -31,7 +31,7 @@ Chemostats.get_state
 Chemostats.divide!
 Chemostats.die!
 Chemostats.kill!
-Chemostats.get_offspring
+Chemostats.get_children
 Chemostats.clone_cell
 Chemostats.CellState
 ```

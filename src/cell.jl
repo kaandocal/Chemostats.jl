@@ -16,7 +16,7 @@ The current state of a cell as returned by [`Chemostats.get_state`](@ref).
 """
     divide!(cell)
 
-Called after a cell divides, as determined by [`Chemostats.get_offspring`](@ref). 
+Called after a cell divides, as determined by [`Chemostats.get_children`](@ref).
 After this call, [`Chemostats.get_state`](@ref) should return `Divided`.
 """
 function divide! end 
@@ -24,7 +24,7 @@ function divide! end
 """
     die!(cell)
 
-Called after a cell dies, as determined by [`Chemostats.get_offspring`](@ref). 
+Called after a cell dies, as determined by [`Chemostats.get_children`](@ref).
 After this call, [`Chemostats.get_state`](@ref) should return `Dead`.
 """
 function die! end 

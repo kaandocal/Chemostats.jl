@@ -2,6 +2,7 @@ using Test
 using ArgCheck
 using OrdinaryDiffEqTsit5
 using Random
+using SciMLBase
 using Chemostats
 
 include("models/exponential.jl")
@@ -13,9 +14,8 @@ include("models/exponential.jl")
     @test Chemostats.est_logN(s1) == log(10)
     @test Chemostats.est_N(s1) ≈ 10
     @test Chemostats.est_Λ(s1, s2) ≈ log(2)
-    @test isnan(Chemostats.est_Λ(s2, s1))   # before.t >= after.t is undefined
+    @test isnan(Chemostats.est_Λ(s2, s1))
 
-    # log_f != 0 means we're only tracking a fraction of the true population.
     s3 = Chemostats.Snapshot(0.0, 10, 10, log(2))
     @test Chemostats.est_N(s3) ≈ 20
 end
@@ -41,9 +41,6 @@ end
 end
 
 @testset "Lax est_Λ_curr matches a known growth rate across β" begin
-    # Synthetic snapshots for a population with a perfectly constant, known
-    # growth rate: every single-interval est_Λ equals Λ_true exactly, so any
-    # β-weighted average of them should too, regardless of β.
     Λ_true = 0.3
     τ = 0.5
     N0 = 1.0e6   # large, so rounding N to an Int is negligible
@@ -87,10 +84,6 @@ end
     @test Chemostats.get_state(cell1) == Chemostats.CellState.Killed
     @test isnothing(cell1.int)   # properly finalized
 
-    # EndOfLife, killed at exactly its own current time -- this is the
-    # specific case that used to be silently skipped (neither `t <
-    # get_curr_t(cell)` nor `is_alive(cell)` held), leaving the cell
-    # mislabeled as EndOfLife instead of Killed.
     prob2 = ODEProblem(f_exp, 0.1, (0., 0.), (; id = 2); callback = cb_exp)
     cell2 = DECell(prob2, Tsit5(), divide_exp)
     Chemostats.init_cell!(cell2)
@@ -166,4 +159,44 @@ end
         Chemostats.simulate!(chem, 5.0, Chemostats.Direct())
         @test chem.snaps[end].N == 1   # each division replaces 1 cell with 1
     end
+end
+
+@testset "Snapshot/Chemostat show methods" begin
+    snap = Chemostats.Snapshot(1.5, 20, 25, 0.1)
+    str = sprint(show, snap)
+    @test occursin("t=1.5", str)
+    @test occursin("N=20", str)
+    @test occursin("nsim=25", str)
+
+    chem = Chemostat(make_population(4))
+    chem_str = sprint(show, chem)
+    @test occursin("Chemostat(", chem_str)
+    @test occursin("t=0.0", chem_str)
+end
+
+@testset "est_logN(chem) matches the Snapshot-based version" begin
+    chem = Chemostat(make_population(4))
+    chem.snaps[1] = Chemostats.Snapshot(0.0, 4, 4, log(2))   # pretend partial sampling
+
+    @test Chemostats.est_logN(chem) ≈ Chemostats.est_logN(chem.snaps[end])
+    @test Chemostats.est_logN(chem) ≈ log(4) + log(2)
+end
+
+@testset "step! warns and no-ops on a non-Alive cell" begin
+    cell = ExponentialCell((; id = 1))
+    @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
+
+    # step! requires Alive; calling it on a Newborn cell should warn and
+    # leave the cell untouched, not error.
+    @test_logs (:warn, r"Tried to simulate cell in state") Chemostats.step!(cell, 1.0, nothing)
+    @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
+end
+
+@testset "step! rejects unsupported ensemble algorithms" begin
+    chem = Chemostat(make_population(4))
+    alg = Chemostats.Direct()
+    int = Chemostats.PopIntegrator(chem, alg, EnsembleSerial())
+    Chemostats.init!(alg, int)
+
+    @test_throws "not supported" Chemostats.step!(int, 5.0, SciMLBase.EnsembleDistributed())
 end
