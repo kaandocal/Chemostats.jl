@@ -11,21 +11,42 @@ on:
     paths-ignore:
       - 'docs/**'
 
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch || github.ref != 'refs/tags/v*' }}
 
 jobs:
-  tests:
-    name: "Tests"
+  test:
+    name: "Julia ${{ matrix.version }} - ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        group:
-          - Core
-    uses: "SciML/.github/.github/workflows/tests.yml@v1"
-    with:
-      group: ${{ matrix.group }}
-      julia-version: '1'
-    secrets: "inherit"
+        version:
+          - '1'
+        os:
+          - ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: ${{ matrix.version }}
+
+      - uses: julia-actions/cache@v3
+
+      - uses: julia-actions/julia-buildpkg@v1
+
+      - uses: julia-actions/julia-runtest@v1
+
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src,ext
+
+      - name: "Report coverage to Codecov"
+        uses: codecov/codecov-action@v7
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          verbose: true
