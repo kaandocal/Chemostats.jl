@@ -1,0 +1,14 @@
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Catalyst = "479239e8-5488-4da2-87a7-35f2df7eef83"
+Chemostats = "0c42c343-380a-49b2-a381-bd06de99d09a"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
+
+[sources]
+Chemostats = {path = ".."}
+
+[compat]
+Chemostats = "0.1"
+Distributions = "0.25"
+OrdinaryDiffEqTsit5 = "1.8"
