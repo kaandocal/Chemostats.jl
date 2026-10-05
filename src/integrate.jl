@@ -45,27 +45,30 @@ function add_tstop!(int::PopIntegrator, t)
     sort!(int.tstops)
 end 
 
-""" 
-    simulate!(chem, tmax, alg, ensalg = EnsembleThreads(); saveat = [])
+"""
+    simulate!(chem, tmax, alg, ensalg = EnsembleThreads(); saveat = [], throw_on_error = false)
 
 Simulates the chemostat until time `tmax` with algorithm `alg` (see [Simulation Algorithms](@ref) for a list of algorithms).
 `ensalg` can be `EnsembleSerial()` for single-threaded simulations, or `EnsembleThreads()` for multithreading (if `alg` support multithreading).
 The default `ensalg` is `EnsembleThreads()` for multithreaded algorithms, or `EnsembleSerial()` for single-threaded algorithms.
-"""    
-function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm, 
-                   ensalg::EnsembleAlgorithm = default_ensalg(alg); saveat=[ tmax ], kwargs...)
+
+If `throw_on_error` is `true`, exceptions that occur while simulating a cell
+will stop the simulation. If it is `false`, the exception will be caught and the
+cell will be removed from the population.
+"""
+function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
+                   ensalg::EnsembleAlgorithm = default_ensalg(alg); saveat=[ tmax ], throw_on_error::Bool=false, kwargs...)
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
     init!(int.alg, int)
-    simulate!(int, tmax, ensalg; kwargs...)
+    simulate!(int, tmax, ensalg; throw_on_error, kwargs...)
     chem
 end
 
-
-function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default_ensalg(int.alg); kwargs...)
+function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default_ensalg(int.alg); throw_on_error::Bool=false, kwargs...)
     while int.t < tmax && int.retcode == ReturnCode.Default
         update_algorithm!(int.alg, int)
         int.retcode == ReturnCode.Default || break
-        step!(int, tmax, ensalg; save=true, kwargs...)
+        step!(int, tmax, ensalg; save=true, throw_on_error, kwargs...)
     end
     
     empty!(int.chem.pop)
@@ -90,46 +93,63 @@ function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     error("Ensemble algorithm $ensalg not supported")
 end 
 
-function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0., kwargs...)
+function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0., throw_on_error::Bool=false, kwargs...)
     register_listener!(int.queue)
+    cell = nothing
+    holding_slot = true
 
-    try
-        while true 
-            if length(int.queue) > Nmax  
+    while true
+        try
+            if length(int.queue) > Nmax
                 @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
-                lock(int.queue) do 
-                    int.retcode = ReturnCode.MaxIters
+
+                release_and_notify!(int.queue, holding_slot) do
+                    int.retcode == ReturnCode.Default && (int.retcode = ReturnCode.MaxIters)
                 end
-                break 
-            end 
-    
+                return
+            end
+
             cell = fetch!(int.queue)
-            if isnothing(cell) || int.retcode != ReturnCode.Default 
-                break
+            holding_slot = !isnothing(cell)
+            isnothing(cell) && return
+
+            if int.retcode != ReturnCode.Default
+                push!(int.queue, cell)
+                release_and_notify!(int.queue, holding_slot) do
+                end
+                return
             elseif get_curr_t(cell) >= int.t_next
                 push!(out, cell)
                 continue
-            end 
-    
-            if get_state(cell) == CellState.Newborn 
+            end
+
+            if get_state(cell) == CellState.Newborn
                 init_cell!(cell)
                 int.nsim += 1
-            end 
-    
-            if get_state(cell) == CellState.Alive 
+            end
+
+            if get_state(cell) == CellState.Alive
                 process_cell!(int, cell, int.t_next; δ, kwargs...)
             elseif get_state(cell) == CellState.EndOfLife
                 process_eol!(int, cell; kwargs...)
             end
-    
+
             # We assume this is threadsafe (`Strict` does not support multithreading)
             update_queue!(int, int.alg, get_curr_t(cell))
+        catch e
+            # Simulating the cell caused an error
+            if throw_on_error
+                release_and_notify!(int.queue, holding_slot) do
+                    int.retcode == ReturnCode.Default && (int.retcode = ReturnCode.Failure)
+                end
+                rethrow()
+            else
+                showerror(stderr, e, catch_backtrace())
+                flush(stderr)
+            end
         end
-    catch e
-        showerror(stderr, e, catch_backtrace())
-        flush(stderr)
-     end
-end 
+    end
+end
 
 function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleThreads}; save=false, kwargs...)
     @unpack chem, queue = int 
@@ -154,13 +174,18 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
 
     int.log_f += δ * (int.t_next - t0)
 
-    int.t = if int.retcode == ReturnCode.MaxIters 
-        first(queue).t
-    else 
-        int.t_next 
-    end 
+    if int.retcode == ReturnCode.Default
+        int.t = int.t_next
+        int.queue = out
+    else
+        int.t = isempty(queue) ? int.t_next : get_curr_t(first(queue))
 
-    int.queue = out
+        merged = empty(chem.pop)
+        extract_queue!(merged, queue)
+        extract_queue!(merged, out)
+        int.queue = ThreadedQueue(merged)
+    end
+
     save && savevalues!(int)
 
     int

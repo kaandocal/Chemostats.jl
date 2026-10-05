@@ -62,6 +62,14 @@ end
 
 ###
 
+function release_and_notify!(f, queue::ThreadedQueue, holding_slot::Bool)
+    @lock queue.cond_wait begin
+        f()
+        holding_slot && Threads.atomic_sub!(queue.nwork, 1)
+        notify(queue.cond_wait; all=true)
+    end
+end
+
 Base.first(queue::ThreadedQueue) = first(queue.heap)
 
 function _append!(queue::ThreadedQueue, vals)
