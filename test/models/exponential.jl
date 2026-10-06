@@ -78,3 +78,13 @@ make_throwing_population(K; alg = Tsit5()) = [ ThrowingCell((; id), alg) for id 
 has_cause(e, ::Type{T}) where T = e isa T
 has_cause(e::CompositeException, ::Type{T}) where T = any(ex -> has_cause(ex, T), e.exceptions)
 has_cause(e::TaskFailedException, ::Type{T}) where T = has_cause(e.task.result, T)
+has_cause(e::CellException, ::Type{T}) where T = e isa T || has_cause(e.exc, T)
+
+mutable struct BuggyCell
+    state::Chemostats.CellState.T
+    t::Float64
+end
+
+Chemostats.get_curr_t(c::BuggyCell) = c.t
+Chemostats.get_state(c::BuggyCell) = c.state
+Chemostats.init_cell!(::BuggyCell) = error("not a cell exception")

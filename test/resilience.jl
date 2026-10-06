@@ -58,6 +58,7 @@ end
 
         @test !isnothing(caught)
         @test has_cause(caught, CellError)
+        @test has_cause(caught, CellException)   # the divide error is wrapped, not raw
     end
 
     @testset "throw_on_error = false ($ensalg)" for ensalg in ENSALGS
@@ -80,6 +81,20 @@ end
 
         @test int.retcode == Chemostats.ReturnCode.Success
         @test length(chem.pop) == 0
+    end
+
+    @testset "throw_on_error=false throws on non-CellException ($ensalg)" for ensalg in ENSALGS
+        chem = Chemostat([ BuggyCell(Chemostats.CellState.Newborn, 0.0) ])
+        caught = nothing
+        try
+            Chemostats.simulate!(chem, 1.0, Chemostats.Direct(), ensalg; throw_on_error = false)
+        catch e
+            caught = e
+        end
+
+        @test !isnothing(caught)
+        @test has_cause(caught, ErrorException)
+        @test !has_cause(caught, CellException)
     end
 end
 

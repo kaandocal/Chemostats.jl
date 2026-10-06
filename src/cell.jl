@@ -13,6 +13,12 @@ The current state of a cell as returned by [`Chemostats.get_state`](@ref).
 """
 @enumx CellState Newborn Alive EndOfLife Dead Divided Killed
 
+struct CellException <: Exception
+    exc::Any
+end
+
+Base.showerror(io::IO, e::CellException) = (print(io, "CellException: "); showerror(io, e.exc))
+
 """
     divide!(cell)
 

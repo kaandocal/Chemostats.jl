@@ -1,25 +1,25 @@
 function get_curr_t end;
 const TimeOrder = Base.By(get_curr_t)
 
-mutable struct ThreadedQueue{H <: BinaryHeap}
+mutable struct ThreadedQueue{H <: MutableBinaryHeap}
     heap::H
     lock::ReentrantLock
     cond_wait::Threads.Condition
     @atomic nwork::Int
 
-    function ThreadedQueue(heap::BinaryHeap)
+    function ThreadedQueue(heap::MutableBinaryHeap)
         lock = ReentrantLock()
         new{typeof(heap)}(heap, lock, Threads.Condition(lock), 0)
     end
-end 
+end
 
 Base.lock(f::Function, queue::ThreadedQueue) = lock(f, queue.lock)
-function Base.length(queue::ThreadedQueue) 
-    @lock queue.lock length(queue.heap) 
+function Base.length(queue::ThreadedQueue)
+    @lock queue.lock length(queue.heap)
 end
 
 Base.isempty(queue::ThreadedQueue) = length(queue) == 0
-ThreadedQueue(vals) = ThreadedQueue(BinaryHeap(TimeOrder, vals))
+ThreadedQueue(vals) = ThreadedQueue(MutableBinaryHeap(TimeOrder, vals))
 
 function register_listener!(queue::ThreadedQueue)
     # Race condition?
@@ -71,18 +71,7 @@ end
 
 Base.first(queue::ThreadedQueue) = first(queue.heap)
 
-"""
-    iter_unsafe(queue::ThreadedQueue)
-
-Returns `queue`'s backing array directly -- already a fully-featured
-iterable, so no wrapper type is needed. NOT thread safe: no locking, no
-copy. Only valid where nothing else can be concurrently mutating `queue`
-(e.g. after `@sync` in `step!` has already rejoined every worker). A lock
-per element wouldn't give a true snapshot anyway (another task could still
-mutate between steps), and holding the lock across the whole iteration would
-mean holding it across arbitrary caller code in between.
-"""
-iter_unsafe(queue::ThreadedQueue) = queue.heap.valtree
+iter_unsafe(queue::ThreadedQueue) = Iterators.map(node -> node.value, queue.heap.nodes)
 
 function _append!(queue::ThreadedQueue, vals)
     @lock queue.lock begin
@@ -101,35 +90,24 @@ function extract_queue!(pop, queue::ThreadedQueue)
     end
 end 
 
-# THESE FUNCTIONS ARE NOT THREAD SAFE 
-function _force_up!(queue::BinaryHeap, i::Integer)
-    x = queue.valtree[i]
+function _pop_random_unsafe!(heap::MutableBinaryHeap)
+    i = rand(1:length(heap.nodes))
+    v = heap.nodes[i].value
+    delete!(heap, heap.nodes[i].handle)
+    v
+end
 
-    @inbounds while i > 1
-        j = DataStructures.heapparent(i)
-        queue.valtree[i] = queue.valtree[j]
-        i = j
-    end
-
-    queue.valtree[i] = x
-end 
-
-function _popat!(queue::BinaryHeap, idx::Integer)
-    _force_up!(queue, idx)
-    pop!(queue)
-end 
-
-function _popat!(queue::ThreadedQueue, idx::Integer)
+function _pop_random!(queue::ThreadedQueue)
     @lock queue.lock begin
-        _popat!(queue.heap, idx)
+        _pop_random_unsafe!(queue.heap)
     end
-end 
+end
 
-function _clone_random!(queue::BinaryHeap, t)
-    i = rand(1:length(queue))
-    source = queue.valtree[i]
+function _clone_random!(heap::MutableBinaryHeap, t)
+    i = rand(1:length(heap.nodes))
+    source = heap.nodes[i].value
     cell = clone_cell(source, t)
-    push!(queue, cell)
+    push!(heap, cell)
     source, cell
 end
 

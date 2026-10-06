@@ -136,8 +136,7 @@ function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0
             # We assume this is threadsafe (`Strict` does not support multithreading)
             update_queue!(int, int.alg, get_curr_t(cell))
         catch e
-            # Simulating the cell caused an error
-            if throw_on_error
+            if throw_on_error || !(e isa CellException)
                 @atomicreplace int.retcode ReturnCode.Default => ReturnCode.Failure
                 release_and_notify!(int.queue)
                 rethrow()
@@ -193,7 +192,11 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
     @argcheck get_state(cell) == CellState.Alive 
 
     tb = get_curr_t(cell)
-    step!(cell, tmax - tb, int.chem.p)
+    try
+        step!(cell, tmax - tb, int.chem.p)
+    catch e
+        throw(CellException(e))
+    end
     t = get_curr_t(cell)
 
     @check get_state(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
@@ -223,7 +226,11 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
     @debug "Dividing cell..."
 
     # Cell dies or divides
-    children = get_children(cell, int.chem.p)
+    children = try
+        get_children(cell, int.chem.p)
+    catch e
+        throw(CellException(e))
+    end
 
     if isempty(children)
         die!(cell)
@@ -251,12 +258,11 @@ function _resize_pop_unsafe!(int, L::Int, t)
 
     N_start = length(int.queue)
 
-    while length(int.queue) > L 
-        j = rand(1:length(int.queue))
-        cell = _popat!(int.queue, j)
+    while length(int.queue) > L
+        cell = _pop_random!(int.queue)
         kill!(cell, t)
         @lock int.tree_lock add_leaf!(int.chem.tree, cell)
-    end 
+    end
     
     while length(int.queue) < L
         source, clone = _clone_random!(int.queue, t)

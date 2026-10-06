@@ -19,7 +19,7 @@ include("algorithms.jl")
 include("integrate.jl")
 include("decell.jl")
 
-export Chemostat, DECell, est_Λ
+export Chemostat, DECell, est_Λ, CellException
 public CellState, Snapshot
 public Forward, Thin, Direct, Strict, Lax
 
