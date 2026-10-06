@@ -24,44 +24,16 @@ Simulating an entire cell population is too slow; simulating a single lineage is
 
 ## Example: Yule Process
 
-Let us see this in action by considering a very simple model of cell division: every cell lives for an exponentially distributed amount of time ``\tau \sim \mathrm{Exp}(1)``. This is the Yule process, also known as the linear birth process. This population grows with rate ``\Lambda = 1``. We can implement this in Julia as follows (see [here](@ref decell-page)):
+Let us see this in action by considering a very simple model of cell division: every cell lives for an exponentially distributed amount of time ``\tau \sim \mathrm{Exp}(1)``. This is the Yule process, also known as the linear birth process. This population grows with rate ``\Lambda = 1``. 
 
-```julia
-using Chemostats
-using Distributions
-using OrdinaryDiffEq
+We can implement this in Julia as follows (see `demo/yule.jl`):
 
-# We represent each cell by a single variable `u`, the time to division.
-# Then `u` follows a very simple ODE:
-f(u, p, t) = -one(u)
-
-# We divide when the time to division hits zero
-div_cond(u, t, int) = u
-cb_div = Chemostats.DivideCallback(div_cond)
-
-# The time to division of every cell is exponentially distributed
-u0 = randexp()
-
-prob = ODEProblem(f, u0, (0, 1.); callback=cb_div)
-
-function divide(int)
-    # Return two cells with exponentially distributed times to division
-    [ (u0 = randexp(), p = nothing), (u0 = randexp(), p = nothing) ]
-end 
-
-cells = [ DECell(prob, KenCarp4(), divide) ]
-chem = Chemostat(cells)
+```@eval
+using Markdown
+Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "demo", "yule.jl"), String) * "\n```")
 ```
 
-Let us estimate the growth rate from a single lineage:
-```julia
-Chemostats.simulate!(chem, 1_000_000, Chemostats.Strict(1))
-
-# The true growth rate is exactly 1
-est_Λ(chem) # 0.692
-```
-
-Even though we simulate roughly a million generations, our estimate of the growth rate is off by 30%. 
+Even though we simulate roughly a million generations, our estimate of the growth rate (`0.692`) is off by 30%. 
 
 We can investigate the estimation error depending on the Chemostat size ``L`` and the simulation time. The plot below shows the result for various choices of ``L`` and the [`Chemostats.Strict`](@ref) algorithm, described e.g. in [3,4]. The ``y``-axis shows the root mean square error (RMSE) over 10 runs, and the ``x``-axis measures computational effort by the number of cells simulated. For each value of ``L``, we simulate the system for times ``t = 1, 10, 100, \ldots``. Note that both axes are logarithmic.
 
@@ -75,43 +47,13 @@ Here the dashed line represents `1 / L`, which matches the asymptotic error as p
 
 ## Example: Cell size control
 
-Here we consider a simple model of cell size control [5] where each cell grows exponentially in size with rate ``1`` and divides once it hits a threshold size. The threshold size equals the birth size ``V_b`` plus a random amount ``\Delta \sim \Gamma(5, 0.2)``. When a cell divides, its daughters inherit a random fraction ``f`` of the parent's volume, where ``f \sim \Beta(1, 1)``.
+Here we consider a simple model of cell size control [5] where each cell grows exponentially in size with rate ``1`` and divides once it hits a threshold size. The threshold size equals the birth size ``V_b`` plus a random amount ``\Delta \sim \Gamma(5, 0.2)``. When a cell divides, its daughters inherit a random fraction ``f`` of the parent's volume, where ``f \sim \Beta(1, 1)``. 
 
-```julia 
-using Chemostats
-using Distributions
-using OrdinaryDiffEq
+We can implement this in Julia as follows (see `demo/sizecontrol.jl`):
 
-# We represent each cell by its size `u`, which grows exponentially in time:
-f(u, p, t) = u
-
-# We divide once a cell hits its division volume `V_d`, stored as a parameter
-div_cond(u, t, int) = u - int.p.V_d
-cb_div = Chemostats.DivideCallback(div_cond)
-
-# The 
-dist_Δ = Gamma(5, 0.2)
-dist_div = Beta(1)
-
-u0 = 1.
-p = (V_d = 2.,)
-
-prob = ODEProblem(f, u0, (0, 1.), p; callback=cb_div)
-
-function divide(int)
-    # Sample sizes of each daughter cell
-    f = rand(dist_div)
-    V1 = f * int.u
-    V2 = (1 - f) * int.u
-
-    # Return two cells with the given starting sizes and randomly sampled
-    # division thresholds
-    [ (u0 = V1, p = (V_d = V1 + rand(dist_Δ),)),
-      (u0 = V2, p = (V_d = V2 + rand(dist_Δ),)) ]
-end 
-
-cells = [ DECell(prob, KenCarp4(), divide) ]
-chem = Chemostat(cells)
+```@eval
+using Markdown
+Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "demo", "sizecontrol.jl"), String) * "\n```")
 ```
 
 Here again the true growth rate of the population is ``\Lambda = 1`` -- this agrees with the physical growth rate of each cell. Numerically estimating the growth rate yields the same picture as before:
