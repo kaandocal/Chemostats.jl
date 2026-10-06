@@ -5,7 +5,7 @@ The class [`DECell`](@ref) provides a convenient way to use models defined using
 ## The [`DECell`](@ref) interface
 To use this functionality we require:
 * An `AbstractDEProblem` describing how the cells behave
-* A `DivideCallback` provided to the `AbstractDEProblem` (to be implemented!)
+* A `DivideCallback` provided to the `AbstractDEProblem`
 * A `divide` function
 
 Chemostats.jl supports `AbstractDEProblem`s with arbitrary parameters `p` and state vectors `u`. This problem should include a `DivideCallback` to determine when a cell has reached the end of its life, either due to division or death. 

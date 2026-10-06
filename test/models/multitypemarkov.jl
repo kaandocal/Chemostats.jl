@@ -38,7 +38,7 @@ end
 
 Yule(λ = 1.) = MultitypeMarkov([ λ ], [ 1;; ])
 
-function sample_cell_mtm(prob)
+function sample_cell_mtm(prob, alg = Tsit5())
     (; model) = prob.p
     (; λ, T) = model
 
@@ -46,8 +46,8 @@ function sample_cell_mtm(prob)
     u0 = randexp() / λ[s]
 
     prob_ = remake(prob; u0=u0, p=(; s, model))
-    Chemostats.DECell(prob_, divide_mtm)
-end 
+    Chemostats.DECell(prob_, alg, divide_mtm)
+end
 
 function get_Λ_mtm(model::NamedTuple) 
     Q = 2 .* model.T .* model.λ - diagm(model.λ)

@@ -3,6 +3,10 @@ using Chemostats
 
 include("models/exponential.jl")
 
+# Suppresses @warn (the default logger writes to stderr) and raw showerror
+# writes alike -- both happen on purpose in these tests.
+quietly(f) = redirect_stderr(f, devnull)
+
 ENSALGS = (EnsembleSerial(), EnsembleThreads())
 
 # Test the scheduler behaves under edge conditions (explosion, extinction, errors)
@@ -13,7 +17,9 @@ ENSALGS = (EnsembleSerial(), EnsembleThreads())
 
     int = Chemostats.PopIntegrator(chem, alg, ensalg)
     Chemostats.init!(alg, int)
-    Chemostats.simulate!(int, 20.0, ensalg; Nmax = K)
+    quietly() do
+        Chemostats.simulate!(int, 20.0, ensalg; Nmax = K)
+    end
 
     @test int.retcode == Chemostats.ReturnCode.MaxIters
     @test length(chem.pop) > 0
@@ -33,7 +39,9 @@ end
             chem = Chemostat(make_dying_population(K))
             tmax = 20.0
 
-            Chemostats.simulate!(chem, tmax, alg, ensalg; Nmax = 10_000)
+            quietly() do
+                Chemostats.simulate!(chem, tmax, alg, ensalg; Nmax = 10_000)
+            end
             snap = chem.snaps[end]
 
             @test snap.t == tmax
@@ -64,7 +72,9 @@ end
     @testset "throw_on_error = false ($ensalg)" for ensalg in ENSALGS
         chem = Chemostat(make_throwing_population(K))
 
-        Chemostats.simulate!(chem, tmax, Chemostats.Direct(), ensalg)
+        quietly() do
+            Chemostats.simulate!(chem, tmax, Chemostats.Direct(), ensalg)
+        end
 
         @test length(chem.pop) == 0
 
@@ -77,7 +87,9 @@ end
         int = Chemostats.PopIntegrator(chem, alg, ensalg)
         Chemostats.init!(alg, int)
 
-        Chemostats.simulate!(int, tmax, ensalg; throw_on_error = false)
+        quietly() do
+            Chemostats.simulate!(int, tmax, ensalg; throw_on_error = false)
+        end
 
         @test int.retcode == Chemostats.ReturnCode.Success
         @test length(chem.pop) == 0

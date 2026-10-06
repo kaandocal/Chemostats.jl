@@ -14,7 +14,7 @@ makedocs(
         "Using Chemostats.jl with DifferentialEquations.jl" => "decell.md",
     ],
     linkcheck = true,
-    checkdocs = :exports,
+    checkdocs = :public,
 )
 
 deploydocs(

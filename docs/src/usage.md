@@ -8,6 +8,7 @@ Chemostats.jl simulates individual cells in a [`Chemostat`](@ref) object.
 Chemostat
 Chemostats.simulate!
 Chemostats.get_snapshot
+Chemostats.CellException
 ```
 
 ## Estimating population sizes

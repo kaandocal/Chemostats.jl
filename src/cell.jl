@@ -13,6 +13,11 @@ The current state of a cell as returned by [`Chemostats.get_state`](@ref).
 """
 @enumx CellState Newborn Alive EndOfLife Dead Divided Killed
 
+""" 
+    struct CellException <: Exception 
+        
+Wrapper type for exceptions that occur during cell simulations
+"""
 struct CellException <: Exception
     exc::Any
 end

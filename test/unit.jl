@@ -65,10 +65,10 @@ end
     cell = ExponentialCell((; id = 1))
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
 
-    Chemostats.die!(cell)
+    @test_logs (:warn, r"Called `die!`") Chemostats.die!(cell)
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
 
-    Chemostats.divide!(cell)
+    @test_logs (:warn, r"tried to divide") Chemostats.divide!(cell)
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
 end
 

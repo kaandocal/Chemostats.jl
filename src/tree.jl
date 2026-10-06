@@ -1,7 +1,5 @@
 using ArgCheck
 
-const OffspringType{T} = Union{Nothing, Tuple{T}, Tuple{T, T}}
-
 mutable struct PopTree{T}
     parents::Dict{T,T}
     leaves::Vector{T}
@@ -24,7 +22,9 @@ function set_parent!(tree::PopTree{T}, obj::T, parent::T) where {T}
     tree.parents[obj] = parent
 end 
 
-function add_offspring!(tree::PopTree{T}, parent::T, children::Union{Nothing,Tuple{Vararg{T}}}) where {T}
+add_offspring!(tree::PopTree{T}, parent::T, ::Nothing) where {T} = nothing
+
+function add_offspring!(tree::PopTree{T}, parent::T, children::Tuple{Vararg{T}}) where {T}
     if tree.save_ancestors && !isnothing(children)
         for cell in children
             set_parent!(tree, cell, parent)

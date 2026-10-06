@@ -51,7 +51,7 @@ est_logN(snap::Snapshot) = log(snap.N) + snap.log_f
     
 Estimates the true population size from a snapshot.
 """
-est_N = exp ∘ est_logN
+const est_N = exp ∘ est_logN
 
 """
     est_Λ(snap1::Snapshot, snap2::Snapshot)
@@ -86,18 +86,22 @@ end
         pop::Vector{C}
         p::P
         snaps::Vector{Snapshot}
-    end    
+        tree::PopTree{C}
+        status::ReturnCode.T
+    end
 
 Chemostat object. The field `pop` contains the current population of cells.
 The field `p` can be a user-defined parameter object (defaults to `nothing`).
-`snaps` contains a list of `Snapshot`s saved at different times.
+`snaps` contains a list of `Snapshot`s saved at different times. `tree`
+contains the ancestry tree (used if `save_ancestors=true`), and `status`
+the status code.
 """
 mutable struct Chemostat{C,P}
     pop::Vector{C}
     p::P
     snaps::Vector{Snapshot}
     tree::PopTree{C}
-    retcode::ReturnCode.T
+    status::ReturnCode.T
 end
 
 function Chemostat(cells, p=nothing; copy=false, save_ancestors=false, save_leaves=false)

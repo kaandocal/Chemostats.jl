@@ -4,7 +4,7 @@ using Chemostats
 using ModelingToolkitBase
 using SciMLBase
 
-MTK = ModelingToolkitBase
+const MTK = ModelingToolkitBase
 
 function affect_terminate!(x, obs, ctx, int)
     terminate!(int)
@@ -27,7 +27,7 @@ end
     DivideCallback(eqs::MTK.Equation; kwargs...)
     DivideCallback(eqs::AbstractVector{<:MTK.Equation}; kwargs...)
 
-Create a [`DivideCallback`](@ref) from one or more symbolic equalities of the form `lhs ~ rhs`. 
+Create a [`DivideCallback`](@ref) from one or more symbolic equalities of the form `lhs ~ rhs`.
 """
 function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK.Equation}}; kwargs...)
     eqs = eqs isa MTK.Equation ? [eqs] : eqs

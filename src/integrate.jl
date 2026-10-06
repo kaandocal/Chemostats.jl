@@ -62,7 +62,7 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
     init!(int.alg, int)
     simulate!(int, tmax, ensalg; throw_on_error, kwargs...)
-    chem.retcode = int.retcode
+    chem.status = int.retcode
     chem
 end
 
