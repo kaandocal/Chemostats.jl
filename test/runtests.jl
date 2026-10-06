@@ -6,6 +6,7 @@ using Aqua
 	Aqua.test_all(Chemostats)
 end
 
+@testset "Queue" begin include("queue.jl") end
 @testset "Deterministic" begin include("det.jl") end
 @testset "Unit" begin include("unit.jl") end
 @testset "Tree" begin include("tree.jl") end

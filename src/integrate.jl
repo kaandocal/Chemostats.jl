@@ -97,53 +97,45 @@ function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
     error("Ensemble algorithm $ensalg not supported")
 end 
 
-function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0., throw_on_error::Bool=false, kwargs...)
-    register_listener!(int.queue)
+function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7), δ=0., throw_on_error::Bool=false, kwargs...)
+    try
+        if int.retcode != ReturnCode.Default
+            push!(int.queue, cell)
+            return false
+        end
 
-    while true
-        try
-            if length(int.queue) > Nmax
-                @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
+        if length(int.queue) > Nmax
+            @warn "Population size exceeds $Nmax, aborting. Consider adjusting Nmax."
+            @atomicreplace int.retcode ReturnCode.Default => ReturnCode.MaxIters
+            push!(int.queue, cell)
+            return false
+        end
 
-                @atomicreplace int.retcode ReturnCode.Default => ReturnCode.MaxIters
-                release_and_notify!(int.queue)
-                return
-            end
+        if get_curr_t(cell) >= int.t_next
+            push!(out, cell)
+            return
+        end
 
-            cell = fetch!(int.queue)
-            isnothing(cell) && return
+        if get_state(cell) == CellState.Newborn
+            init_cell!(cell)
+            @atomic int.nsim += 1
+        end
 
-            if int.retcode != ReturnCode.Default
-                push!(int.queue, cell)
-                release_and_notify!(int.queue)
-                return
-            elseif get_curr_t(cell) >= int.t_next
-                push!(out, cell)
-                continue
-            end
+        if get_state(cell) == CellState.Alive
+            process_cell!(int, cell, int.t_next; δ, kwargs...)
+        elseif get_state(cell) == CellState.EndOfLife
+            process_eol!(int, cell; kwargs...)
+        end
 
-            if get_state(cell) == CellState.Newborn
-                init_cell!(cell)
-                @atomic int.nsim += 1
-            end
-
-            if get_state(cell) == CellState.Alive
-                process_cell!(int, cell, int.t_next; δ, kwargs...)
-            elseif get_state(cell) == CellState.EndOfLife
-                process_eol!(int, cell; kwargs...)
-            end
-
-            # We assume this is threadsafe (`Strict` does not support multithreading)
-            update_queue!(int, int.alg, get_curr_t(cell))
-        catch e
-            if throw_on_error || !(e isa CellException)
-                @atomicreplace int.retcode ReturnCode.Default => ReturnCode.Failure
-                release_and_notify!(int.queue)
-                rethrow()
-            else
-                showerror(stderr, e, catch_backtrace())
-                flush(stderr)
-            end
+        # We assume this is threadsafe (`Strict` does not support multithreading)
+        update_queue!(int, int.alg, get_curr_t(cell))
+    catch e
+        if throw_on_error || !(e isa CellException)
+            @atomicreplace int.retcode ReturnCode.Default => ReturnCode.Failure
+            rethrow()
+        else
+            showerror(stderr, e, catch_backtrace())
+            flush(stderr)
         end
     end
 end
@@ -151,21 +143,27 @@ end
 function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleThreads}; save=false, kwargs...)
     (; chem, queue) = int
     out = ThreadedQueue(empty(chem.pop))
-    
+
     if ensalg isa EnsembleThreads && !is_parallel(int.alg)
         error("Algorithm $(typeof(int.alg)) does not support parallelisation")
-    end 
+    end
 
     δ = get_δ(int, int.alg)
     int.t_next = min(find_next_t(int), tmax)
-    t0 = int.t 
+    t0 = int.t
     int.t_next <= t0 && return int
 
+    wp = WorkerPool(queue)
+
     if ensalg isa EnsembleSerial
-        worker_task(int, out; δ, kwargs...)
+        run!(wp) do cell
+            worker_task(int, cell, out; δ, kwargs...)
+        end
     elseif ensalg isa EnsembleThreads
         @sync for i in 1:Threads.nthreads()
-            Threads.@spawn worker_task(int, out; δ, kwargs...)
+            Threads.@spawn run!(wp) do cell
+                worker_task(int, cell, out; δ, kwargs...)
+            end
         end
     end
 

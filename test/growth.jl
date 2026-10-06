@@ -1,40 +1,73 @@
 using Test
 using Random
+using Statistics
 using Chemostats
 
+include("models/exponential.jl")
+include("models/sizecontrol.jl")
 include("models/multitypemarkov.jl")
 
-Random.seed!(20260101)
-prob = MultitypeMarkov([ 1., 2. ], [ 0.7 0.1; 0.3 0.9 ])
-Λ_gt = get_Λ_mtm(prob.p.model)
-alg = Tsit5()
+rmse(Λs, Λ_gt) = sqrt(mean(abs2.(Λs .- Λ_gt)))
 
-@testset "Strict(100)" begin
-    Random.seed!(20260101)
-    tmax = 100 / Λ_gt
-    niter = 10
-
-    ΛΛ = map(1:niter) do i
-        chem = Chemostat([ DECell(prob, alg, divide_mtm) for i in 1:100 ])
-        Chemostats.simulate!(chem, tmax, Chemostats.Strict(100))
+function rmse_Λ(make_chem, alg, Λ_gt, tmax, ensalg = Chemostats.default_ensalg(alg); niter = 10, kwargs...)
+    Λs = map(1:niter) do _
+        chem = make_chem()
+        Chemostats.simulate!(chem, tmax, alg, ensalg; kwargs...)
         est_Λ(chem)
     end
-
-    @test sqrt(mean(abs2.(ΛΛ .- Λ_gt))) < 0.02 * Λ_gt
+    rmse(Λs, Λ_gt)
 end
 
-for ensalg in [ EnsembleSerial(), EnsembleThreads() ]
-    @testset "Lax(100) with $ensalg" begin
+@testset "Yule process" begin
+    Λ_gt = 1.0
+    tmax = 50.0
+
+    @testset "Strict(L=$L)" for (L, tol) in [(20, 0.08), (100, 0.02)]
+        Random.seed!(20260101 + L)
+        make_chem = () -> Chemostat(make_population(L))
+        @test rmse_Λ(make_chem, Chemostats.Strict(L), Λ_gt, tmax) < tol
+    end
+
+    @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+        Random.seed!(20260102)
+        make_chem = () -> Chemostat([ ExponentialCell((; id = 1)) ])
+        @test rmse_Λ(make_chem, Chemostats.Lax(100, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.04
+    end
+end
+
+@testset "Size control (adder)" begin
+    Λ_gt = 1.0
+    tmax = 50.0
+
+    @testset "Strict(L=$L)" for (L, tol) in [(20, 0.08), (100, 0.02)]
+        Random.seed!(20260201 + L)
+        make_chem = () -> Chemostat(make_sizecontrol_population(L))
+        @test rmse_Λ(make_chem, Chemostats.Strict(L), Λ_gt, tmax) < tol
+    end
+
+    @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+        Random.seed!(20260202)
+        make_chem = () -> Chemostat([ SizeControlCell() ])
+        @test rmse_Λ(make_chem, Chemostats.Lax(100, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.04
+    end
+end
+
+@testset "Multitype Markov" begin
+    Random.seed!(20260101)
+    prob = MultitypeMarkov([ 1., 2. ], [ 0.7 0.1; 0.3 0.9 ])
+    Λ_gt = get_Λ_mtm(prob.p.model)
+    alg = Tsit5()
+    tmax = 100 / Λ_gt
+
+    @testset "Strict(100)" begin
         Random.seed!(20260101)
-        tmax = 100 / Λ_gt
-        niter = 10
+        make_chem = () -> Chemostat([ DECell(prob, alg, divide_mtm) for _ in 1:100 ])
+        @test rmse_Λ(make_chem, Chemostats.Strict(100), Λ_gt, tmax) < 0.02 * Λ_gt
+    end
 
-        ΛΛ = map(1:niter) do i
-            chem = Chemostat([ DECell(prob, alg, divide_mtm) ])
-            Chemostats.simulate!(chem, tmax, Chemostats.Lax(100, 0.5 / Λ_gt), ensalg; Nmax=1e4)
-            est_Λ(chem)
-        end
-
-        @test sqrt(mean(abs2.(ΛΛ .- Λ_gt))) < 0.04 * Λ_gt
+    @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+        Random.seed!(20260101)
+        make_chem = () -> Chemostat([ DECell(prob, alg, divide_mtm) ])
+        @test rmse_Λ(make_chem, Chemostats.Lax(100, 0.5 / Λ_gt), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.04 * Λ_gt
     end
 end

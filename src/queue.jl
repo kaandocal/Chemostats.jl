@@ -1,94 +1,80 @@
-function get_curr_t end;
+function get_curr_t end
 const TimeOrder = Base.By(get_curr_t)
 
+"""
+    ThreadedQueue{H}
+
+A thread-safe priority queue (min-heap ordered by `get_curr_t`). Knows nothing
+about "workers" or when work is exhausted -- see [`WorkerPool`](@ref) for that.
+"""
 mutable struct ThreadedQueue{H <: MutableBinaryHeap}
     heap::H
     lock::ReentrantLock
     cond_wait::Threads.Condition
-    @atomic nwork::Int
 
     function ThreadedQueue(heap::MutableBinaryHeap)
         lock = ReentrantLock()
-        new{typeof(heap)}(heap, lock, Threads.Condition(lock), 0)
+        new{typeof(heap)}(heap, lock, Threads.Condition(lock))
     end
 end
 
-Base.lock(f::Function, queue::ThreadedQueue) = lock(f, queue.lock)
-function Base.length(queue::ThreadedQueue)
-    @lock queue.lock length(queue.heap)
-end
-
-Base.isempty(queue::ThreadedQueue) = length(queue) == 0
 ThreadedQueue(vals) = ThreadedQueue(MutableBinaryHeap(TimeOrder, vals))
 
-function register_listener!(queue::ThreadedQueue)
-    # Race condition?
-    @atomic queue.nwork += 1
-    @debug "Thread $(Threads.threadid()): register (# $(queue.nwork))..."
-end
+Base.lock(f::Function, queue::ThreadedQueue) = lock(f, queue.lock)
+Base.length(queue::ThreadedQueue) = @lock queue.lock length(queue.heap)
+Base.isempty(queue::ThreadedQueue) = length(queue) == 0
+Base.first(queue::ThreadedQueue) = first(queue.heap)
+
+# Must be called while already holding `queue.lock` (i.e. from within `lock(queue) do ... end`).
+Base.wait(queue::ThreadedQueue) = wait(queue.cond_wait)
+Base.notify(queue::ThreadedQueue; all=true) = notify(queue.cond_wait; all)
 
 function Base.push!(queue::ThreadedQueue, v)
-    @lock queue.lock begin 
-        @debug "Thread $(Threads.threadid()): put..."
+    @lock queue.lock begin
         push!(queue.heap, v)
         notify(queue.cond_wait; all=false)
     end
-end 
+end
 
-function fetch!(queue::ThreadedQueue)
-    @debug "Thread $(Threads.threadid()): fetching..."
-    @lock queue.cond_wait begin
-        @atomic queue.nwork -= 1
-        while isempty(queue.heap)
-            if queue.nwork == 0
-                @debug "Thread $(Threads.threadid()): detecting done..."
-                notify(queue.cond_wait; all=true)
-                return nothing
-            end 
+"""
+    trypop!(queue::ThreadedQueue)
 
-            @debug "Thread $(Threads.threadid()): wait..."
-            wait(queue.cond_wait)
-            @debug "Thread $(Threads.threadid()): wake..."
-        end
-
-        # Two different locks here
-        @debug "Thread $(Threads.threadid()): take ($(queue.nwork) waiting)..."
-        @atomic queue.nwork += 1
-        ret = pop!(queue.heap)
-        notify(queue.cond_wait; all=false)
-        ret
-    end
-end 
-
-###
-
-function release_and_notify!(queue::ThreadedQueue)
-    @lock queue.cond_wait begin
-        @atomic queue.nwork -= 1
-        notify(queue.cond_wait; all=true)
+Pops the minimum element, or returns `nothing` immediately if empty. Never blocks.
+"""
+function trypop!(queue::ThreadedQueue)
+    @lock queue.lock begin
+        isempty(queue.heap) ? nothing : pop!(queue.heap)
     end
 end
 
-Base.first(queue::ThreadedQueue) = first(queue.heap)
+"""
+    iter_unsafe(queue::ThreadedQueue)
 
+Lazy iterable over `queue`'s current contents -- no copy, no wrapper allocation.
+NOT thread safe: no locking. Only valid where nothing else can be concurrently
+mutating `queue` (e.g. after `@sync` in `step!` has already rejoined every
+worker). A lock per element wouldn't give a true snapshot anyway (another task
+could still mutate between steps), and holding the lock across the whole
+iteration would mean holding it across arbitrary caller code in between.
+"""
 iter_unsafe(queue::ThreadedQueue) = Iterators.map(node -> node.value, queue.heap.nodes)
 
 function _append!(queue::ThreadedQueue, vals)
     @lock queue.lock begin
-        for v in vals 
+        for v in vals
             push!(queue.heap, v)
-        end 
+        end
         notify(queue.cond_wait; all=true)
     end
 end
 
 function extract_queue!(pop, queue::ThreadedQueue)
-    @lock queue.lock begin 
-        while !isempty(queue)
+    @lock queue.lock begin
+        while !isempty(queue.heap)
             push!(pop, pop!(queue.heap))
         end
     end
-end 
+end
 
 function _pop_random_unsafe!(heap::MutableBinaryHeap)
     i = rand(1:length(heap.nodes))
@@ -97,11 +83,7 @@ function _pop_random_unsafe!(heap::MutableBinaryHeap)
     v
 end
 
-function _pop_random!(queue::ThreadedQueue)
-    @lock queue.lock begin
-        _pop_random_unsafe!(queue.heap)
-    end
-end
+_pop_random!(queue::ThreadedQueue) = @lock queue.lock _pop_random_unsafe!(queue.heap)
 
 function _clone_random!(heap::MutableBinaryHeap, t)
     i = rand(1:length(heap.nodes))
@@ -111,4 +93,4 @@ function _clone_random!(heap::MutableBinaryHeap, t)
     source, cell
 end
 
-_clone_random!(queue::ThreadedQueue, t) = _clone_random!(queue.heap, t)
+_clone_random!(queue::ThreadedQueue, t) = @lock queue.lock _clone_random!(queue.heap, t)

@@ -11,6 +11,7 @@ using SciMLBase: EnsembleAlgorithm, EnsembleSerial, EnsembleThreads
 import SciMLBase: savevalues!, step!, add_tstop!
 
 include("queue.jl")
+include("worker.jl")
 include("cell.jl")
 include("tree.jl")
 include("chemostat.jl")
