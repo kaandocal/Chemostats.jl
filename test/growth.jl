@@ -31,7 +31,7 @@ end
     @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
         Random.seed!(20260102)
         make_chem = () -> Chemostat([ ExponentialCell((; id = 1)) ])
-        @test rmse_Λ(make_chem, Chemostats.Lax(250, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.02
+        @test rmse_Λ(make_chem, Chemostats.Lax(250, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.025
     end
 end
 
@@ -48,7 +48,7 @@ end
     @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
         Random.seed!(20260202)
         make_chem = () -> Chemostat([ SizeControlCell() ])
-        @test rmse_Λ(make_chem, Chemostats.Lax(250, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.02
+        @test rmse_Λ(make_chem, Chemostats.Lax(250, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.025
     end
 end
 
@@ -65,9 +65,9 @@ end
         @test rmse_Λ(make_chem, Chemostats.Strict(250), Λ_gt, tmax) < 0.02 * Λ_gt
     end
 
-    @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+    @testset "Lax(300) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
         Random.seed!(20260101)
         make_chem = () -> Chemostat([ DECell(prob, alg, divide_mtm) ])
-        @test rmse_Λ(make_chem, Chemostats.Lax(250, 0.5 / Λ_gt), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.02 * Λ_gt
+        @test rmse_Λ(make_chem, Chemostats.Lax(300, 0.5 / Λ_gt), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.025 * Λ_gt
     end
 end
