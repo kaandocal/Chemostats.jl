@@ -3,7 +3,6 @@ module Chemostats
 using Random
 using DataStructures
 using ArgCheck
-using UnPack
 using EnumX
 
 using SciMLBase

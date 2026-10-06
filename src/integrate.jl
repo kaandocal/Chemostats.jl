@@ -6,7 +6,7 @@ mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: Thre
     t0::Float64
     t::Float64
     t_next::Float64
-    nsim::Threads.Atomic{Int}
+    @atomic nsim::Int
     log_f::Float64
     @atomic retcode::ReturnCode.T
     tree_lock::ReentrantLock
@@ -29,11 +29,11 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
     queue = ThreadedQueue(chem.pop) 
     
     PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0,
-                  Threads.Atomic{Int}(chem.snaps[end].nsim), chem.snaps[end].log_f,
+                  chem.snaps[end].nsim, chem.snaps[end].log_f,
                   SciMLBase.ReturnCode.Default, ReentrantLock())
 end 
 
-Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim[], int.log_f)
+Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
 savevalues!(int::PopIntegrator) = push!(int.chem.snaps, Snapshot(int))
 
 function add_tstop!(int::PopIntegrator, t)
@@ -62,6 +62,7 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
     init!(int.alg, int)
     simulate!(int, tmax, ensalg; throw_on_error, kwargs...)
+    chem.retcode = int.retcode
     chem
 end
 
@@ -123,7 +124,7 @@ function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0
 
             if get_state(cell) == CellState.Newborn
                 init_cell!(cell)
-                Threads.atomic_add!(int.nsim, 1)
+                @atomic int.nsim += 1
             end
 
             if get_state(cell) == CellState.Alive
@@ -149,7 +150,7 @@ function worker_task(int::PopIntegrator, out::ThreadedQueue; Nmax=Int(1e7), δ=0
 end
 
 function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleThreads}; save=false, kwargs...)
-    @unpack chem, queue = int 
+    (; chem, queue) = int
     out = ThreadedQueue(empty(chem.pop))
     
     if ensalg isa EnsembleThreads && !is_parallel(int.alg)
@@ -258,7 +259,8 @@ function _resize_pop_unsafe!(int, L::Int, t)
     end 
     
     while length(int.queue) < L
-        _clone_random!(int.queue, t)
+        source, clone = _clone_random!(int.queue, t)
+        @lock int.tree_lock add_clone!(int.chem.tree, source, clone)
     end
 
     int.log_f += log(N_start) - log(L)

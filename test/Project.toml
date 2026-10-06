@@ -16,7 +16,6 @@ SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
 
 [sources]
 Chemostats = {path = ".."}
@@ -30,4 +29,3 @@ ModelingToolkit = "9.60, 10, 11"
 OrdinaryDiffEqTsit5 = "1.8"
 SciMLBase = "2.127.0"
 StatsBase = "0.34"
-UnPack = "1.0"

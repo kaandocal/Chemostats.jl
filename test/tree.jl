@@ -60,6 +60,27 @@ end
     @test isempty(tree_empty.parents)
 end
 
+@testset "add_clone! inherits parent" begin
+    tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
+    root, source = mk(), mk()
+    Chemostats.set_parent!(tree, source, root)
+
+    clone = mk()
+    Chemostats.add_clone!(tree, source, clone)
+    @test Chemostats.parent(tree, clone) == root
+    @test Chemostats.parent(tree, source) == root   # source itself is untouched
+
+    # A clone of a root (no recorded parent) stays rootless too.
+    tree_root = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
+    founder, clone_of_founder = mk(), mk()
+    Chemostats.add_clone!(tree_root, founder, clone_of_founder)
+    @test Chemostats.parent(tree_root, clone_of_founder) === missing
+
+    tree_off = Chemostats.PopTree{typeof(mk())}(; save_ancestors = false)
+    Chemostats.add_clone!(tree_off, source, mk())
+    @test isempty(tree_off.parents)
+end
+
 @testset "add_leaf! respects save_leaves" begin
     cell = mk()
 
@@ -201,9 +222,6 @@ end
         chem_pruned = run_sim(; disable_pruning = false)
         chem_full = run_sim(; disable_pruning = true)
 
-        # Pruning is pure bookkeeping on the side -- it must not perturb the
-        # actual stochastic simulation (no RNG draws, doesn't touch int.queue
-        # processing order).
         @test chem_pruned.snaps[end].N == chem_full.snaps[end].N
         @test chem_pruned.snaps[end].nsim == chem_full.snaps[end].nsim
 

@@ -100,6 +100,7 @@ is adapted to the current growth rate. The death rate is updated at intervals of
 This algorithm trades the strict population size guarantees of [`Strict`](@ref) for better parallelisation. 
 As the population size is only approximately ``L``, runtimes may be somewhat less stable than [`Strict`](@ref). 
 In particular, if the population size hits ``0`` within an interval ``τ``, the population dies out. 
+For this reason, the algorithm sets ``δ = 0`` when it detects that ``L`` drops below 50.
 To reduce the chances of this happening, increase ``L`` or decrease ``τ``. We recommend ``L \\geq 50-100``.
 
 This algorithm determines ``δ`` on the fly by estimating the instantaneous growth rate of the population as 

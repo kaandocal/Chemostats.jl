@@ -68,7 +68,7 @@ function est_Λ(before::Snapshot, after::Snapshot)
 end
 
 function snapshot_str(snap::Snapshot)
-    @unpack t, N, nsim = snap
+    (; t, N, nsim) = snap
     N_est = round(est_N(snap); sigdigits=3)
 
     return "t=$t, N=$N/$N_est, nsim=$nsim"
@@ -92,17 +92,18 @@ Chemostat object. The field `pop` contains the current population of cells.
 The field `p` can be a user-defined parameter object (defaults to `nothing`).
 `snaps` contains a list of `Snapshot`s saved at different times.
 """
-struct Chemostat{C,P}
+mutable struct Chemostat{C,P}
     pop::Vector{C}
     p::P
     snaps::Vector{Snapshot}
     tree::PopTree{C}
+    retcode::ReturnCode.T
 end
 
 function Chemostat(cells, p=nothing; copy=false, save_ancestors=false, save_leaves=false)
     snaps = [ Snapshot(0., length(cells), 0, 0.) ]
     cells = copy ? deepcopy(cells) : cells
-    Chemostat(cells, p, snaps, PopTree{eltype(cells)}(; save_ancestors, save_leaves))
+    Chemostat(cells, p, snaps, PopTree{eltype(cells)}(; save_ancestors, save_leaves), ReturnCode.Default)
 end
 
 function Base.show(io::IO, chem::Chemostat)

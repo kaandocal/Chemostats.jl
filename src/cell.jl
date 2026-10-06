@@ -6,7 +6,7 @@ The current state of a cell as returned by [`Chemostats.get_state`](@ref).
 
 * `Newborn`: Newborn cell that has  not been simulated yet.
 * `Alive`: Cell that is currently being simulated, but has not reached its end of life.
-* `EndOfLive`: Cell that has reached its end of life, before its offspring are determined.
+* `EndOfLife`: Cell that has reached its end of life, before its offspring are determined.
 * `Dead`: Cell that has died, leaving no offspring.
 * `Divided`: Cell that has divided into daughter cells.
 * `Killed`: Cell that has been killed (e.g. removed), by the [Simulation Algorithm](@ref "Simulation Algorithms").
@@ -62,7 +62,7 @@ function get_children end
 """
     clone_cell(cell, t)
 
-Creates an independent of the copy of the cell at time `t`. Used by [`Chemostats.Strict`](@ref) to maintain
+Creates an independent copy of the cell at time `t`. Used by [`Chemostats.Strict`](@ref) to maintain
 a constant population size.
 """
 function clone_cell end 

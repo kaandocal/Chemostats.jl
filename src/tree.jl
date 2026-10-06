@@ -1,5 +1,4 @@
 using ArgCheck
-using UnPack
 
 const OffspringType{T} = Union{Nothing, Tuple{T}, Tuple{T, T}}
 
@@ -26,14 +25,23 @@ function set_parent!(tree::PopTree{T}, obj::T, parent::T) where {T}
 end 
 
 function add_offspring!(tree::PopTree{T}, parent::T, children::Union{Nothing,Tuple{Vararg{T}}}) where {T}
-    if tree.save_ancestors
+    if tree.save_ancestors && !isnothing(children)
         for cell in children
             set_parent!(tree, cell, parent)
         end
     end
 
     nothing
-end 
+end
+
+function add_clone!(tree::PopTree{T}, source::T, clone::T) where {T}
+    if tree.save_ancestors
+        p = parent(tree, source)
+        ismissing(p) || set_parent!(tree, clone, p)
+    end
+
+    nothing
+end
 
 function add_leaf!(tree::PopTree{T}, obj::T) where {T}
     if tree.save_leaves
@@ -80,7 +88,7 @@ Base.eltype(::BackwardsIterator{T}) where T = T
 Base.IteratorSize(::BackwardsIterator) = Base.SizeUnknown()
 
 function Base.iterate(iter::BackwardsIterator{T}, obj::T=iter.obj) where T
-    @unpack tree = iter 
+    (; tree) = iter
 
     if haskey(tree.parents, obj)
         parent = tree.parents[obj]

@@ -5,11 +5,11 @@ mutable struct ThreadedQueue{H <: BinaryHeap}
     heap::H
     lock::ReentrantLock
     cond_wait::Threads.Condition
-    nwork::Threads.Atomic{Int}
+    @atomic nwork::Int
 
-    function ThreadedQueue(heap::BinaryHeap) 
+    function ThreadedQueue(heap::BinaryHeap)
         lock = ReentrantLock()
-        new{typeof(heap)}(heap, lock, Threads.Condition(lock), Threads.Atomic{Int}(0))
+        new{typeof(heap)}(heap, lock, Threads.Condition(lock), 0)
     end
 end 
 
@@ -23,8 +23,8 @@ ThreadedQueue(vals) = ThreadedQueue(BinaryHeap(TimeOrder, vals))
 
 function register_listener!(queue::ThreadedQueue)
     # Race condition?
-    Threads.atomic_add!(queue.nwork, 1)
-    @debug "Thread $(Threads.threadid()): register (# $(queue.nwork[]))..."
+    @atomic queue.nwork += 1
+    @debug "Thread $(Threads.threadid()): register (# $(queue.nwork))..."
 end
 
 function Base.push!(queue::ThreadedQueue, v)
@@ -38,9 +38,9 @@ end
 function fetch!(queue::ThreadedQueue)
     @debug "Thread $(Threads.threadid()): fetching..."
     @lock queue.cond_wait begin
-        Threads.atomic_sub!(queue.nwork, 1)
+        @atomic queue.nwork -= 1
         while isempty(queue.heap)
-            if queue.nwork[] == 0
+            if queue.nwork == 0
                 @debug "Thread $(Threads.threadid()): detecting done..."
                 notify(queue.cond_wait; all=true)
                 return nothing
@@ -52,8 +52,8 @@ function fetch!(queue::ThreadedQueue)
         end
 
         # Two different locks here
-        @debug "Thread $(Threads.threadid()): take ($(queue.nwork[]) waiting)..."
-        Threads.atomic_add!(queue.nwork, 1)
+        @debug "Thread $(Threads.threadid()): take ($(queue.nwork) waiting)..."
+        @atomic queue.nwork += 1
         ret = pop!(queue.heap)
         notify(queue.cond_wait; all=false)
         ret
@@ -64,7 +64,7 @@ end
 
 function release_and_notify!(queue::ThreadedQueue)
     @lock queue.cond_wait begin
-        Threads.atomic_sub!(queue.nwork, 1)
+        @atomic queue.nwork -= 1
         notify(queue.cond_wait; all=true)
     end
 end
@@ -127,8 +127,10 @@ end
 
 function _clone_random!(queue::BinaryHeap, t)
     i = rand(1:length(queue))
-    cell = clone_cell(queue.valtree[i], t)
+    source = queue.valtree[i]
+    cell = clone_cell(source, t)
     push!(queue, cell)
-end 
+    source, cell
+end
 
 _clone_random!(queue::ThreadedQueue, t) = _clone_random!(queue.heap, t)

@@ -10,7 +10,7 @@ To use this functionality we require:
 
 Chemostats.jl supports `AbstractDEProblem`s with arbitrary parameters `p` and state vectors `u`. This problem should include a `DivideCallback` to determine when a cell has reached the end of its life, either due to division or death. 
 
-When a cell reaches the end of its life, the `divide` function is called to determine the parameters and initial state vectors of the daughter cells. This function takes a single argument `int`, the [integrator](https://docs.sciml.ai/DiffEqDocs/stable/basics/integrator) of the cell. It should an array of daughter cells, or `nothing` if there are no offspring. Each daughter cell is determined by a `NamedTuple` with fields `p` containing the parameters and `u0` containing the initial state of the daughter cell defined by the `AbstractDEProblem`.
+When a cell reaches the end of its life, the `divide` function is called to determine the parameters and initial state vectors of the daughter cells. This function takes a single argument `int`, the [integrator](https://docs.sciml.ai/DiffEqDocs/stable/basics/integrator) of the cell. It should return an array of daughter cells, or `nothing` if there are no offspring. Each daughter cell is determined by a `NamedTuple` with fields `p` containing the parameters and `u0` containing the initial state of the daughter cell defined by the `AbstractDEProblem`.
 
 ```@docs
 Chemostats.DECell

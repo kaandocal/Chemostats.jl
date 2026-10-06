@@ -19,52 +19,11 @@ This package is experimental - any feedback is appreciated (either by email or b
 
 ## Example
 
-```julia
-using Catalyst
-using Chemostats
-using JumpProcesses
-using CairoMakie
+A simple model of cell division, featuring volume growth coupled to ribosome production (the full, runnable script lives at `demo/ribosomes.jl`):
 
-# Define a reaction network in which ribosomes are produced in a volume-dependent manner
-# Time is measured in units
-rn = @reaction_network begin
-    @species R(t) = 0.
-    @variables V(t) = V_d / 2
-    @parameters σ = 10. λ = 1. V_d = 2.
-
-    σ * V(t), 0 --> R
-
-    @equations begin
-        D(V) ~ λ * R
-    end
-end 
-
-# A cell divides once it doubles its initial volume. Implemented with a callback.
-cb_div = Chemostats.DivideCallback(rn, rn.V ~ rn.V_d)
-
-# This function determines what offspring a dividing cell produces.
-function divide(int)
-    rand() < 0.1 && return nothing      # Die with probability 1/10
-
-    # Create two cells with half the volume and (roughly) half the ribosomes
-    # The model parameters are inherited from the parent cell
-    cell_1 = (u0 = (V = int[:V] / 2, R = rand(Binomial(Int(int[:R]), 0.5))), p=nothing)
-    cell_2 = (u0 = (V = int[:V] / 2, R = int[:R] - cell_1.u0.R), p=nothing)
-    
-    cell_1, cell_2
-end
-
-prob = ODEProblem(rn, [], (0., 1.); callbacks=cb_div) # tspan here does not matter
-cells = DECell[ DECell(prob, divide) ]
-chem = Chemostat(cells)
-
-# Simulate population for a day
-Chemostats.simulate!(chem, 24 * 60, Chemostats.Strict(10); saveat=0:10:100.)
-
-# The full population would require simulating a lot of cells!
-est_Λ(chem)
-
-plot(chem)
+```@eval
+using Markdown
+Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "demo", "ribosomes.jl"), String) * "\n```")
 ```
 
 ### See also

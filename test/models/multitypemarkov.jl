@@ -3,15 +3,14 @@ using StatsBase
 using OrdinaryDiffEqTsit5
 using LinearAlgebra
 using ArgCheck
-using UnPack
 using Chemostats
 
 f_mtm(u, p, t) = -1.
 cb_mtm = Chemostats.DivideCallback((u, t, int) -> u; interp_points=0)
 
 function divide_mtm(int)
-    @unpack s, model = int.p
-    @unpack λ, T = model 
+    (; s, model) = int.p
+    (; λ, T) = model
 
     if rand() > sum(T[:,s])
         return nothing 
@@ -40,8 +39,8 @@ end
 Yule(λ = 1.) = MultitypeMarkov([ λ ], [ 1;; ])
 
 function sample_cell_mtm(prob)
-    @unpack model = prob.p
-    @unpack λ, T = model 
+    (; model) = prob.p
+    (; λ, T) = model
 
     s = sample(1:length(λ))
     u0 = randexp() / λ[s]
