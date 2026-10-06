@@ -182,7 +182,7 @@ end
     @test Chemostats.est_logN(chem) ≈ log(4) + log(2)
 end
 
-@testset "step! warns and no-ops on a non-Alive cell" begin
+@testset "step! warns and no-ops on a non-alive cell" begin
     cell = ExponentialCell((; id = 1))
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
 
@@ -199,4 +199,24 @@ end
     Chemostats.init!(alg, int)
 
     @test_throws "not supported" Chemostats.step!(int, 5.0, SciMLBase.EnsembleDistributed())
+end
+
+@testset "step! error kills the cell" begin
+    fail_cb = SciMLBase.DiscreteCallback(
+        (u, t, int) -> t > 0.5, int -> SciMLBase.terminate!(int, SciMLBase.ReturnCode.Unstable)
+    )
+    prob = ODEProblem(f_exp, 10.0, (0., 0.), (; id = 1); callback = CallbackSet(cb_exp, fail_cb))
+    cell = DECell(prob, Tsit5(), divide_exp)
+    Chemostats.init_cell!(cell)
+
+    @test_logs (:warn, r"Cell solver errored") Chemostats.step!(cell, 1.0, nothing)
+    @test Chemostats.get_state(cell) == Chemostats.CellState.Killed
+end
+
+@testset "default_ensalg with is_parallel and nthreads" begin
+    for alg in (Chemostats.Forward(10), Chemostats.Strict(10), Chemostats.Thin(0.1), Chemostats.Lax(10, 1.0))
+        ensalg = Chemostats.default_ensalg(alg)
+        expect_threaded = Chemostats.is_parallel(alg) && Threads.nthreads() > 1
+        @test (ensalg isa EnsembleThreads) == expect_threaded
+    end
 end

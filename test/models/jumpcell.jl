@@ -34,9 +34,9 @@ function divide_jumpcell(int)
       (u0 = [:P => P2, :V => V_half], p = [:V_d => V_half + 1.0]) ]
 end
 
-function JumpCell(alg = Tsit5(); k = 1.0, V_d = 2.0)
+function JumpCell(alg = Tsit5(); k = 1.0, V_d = 2.0, remake = false)
     prob = HybridProblem(jump_rn, [:P => 0, :V => 1.0], (0., Inf), [:k => k, :V_d => V_d]; callback = cb_div_jump)
-    DECell(prob, alg, divide_jumpcell)
+    DECell(prob, alg, divide_jumpcell; remake)
 end
 
 jumpcell_aggregator(int) = int.opts.callback.discrete_callbacks[1].condition

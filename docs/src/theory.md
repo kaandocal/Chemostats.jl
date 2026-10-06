@@ -4,9 +4,9 @@ The main goal of Chemostats.jl is to estimate growth rates of cell populations. 
 
 `` N(t) \sim e^{\Lambda t} ``
 
-where ``N`` is the number of cells, ``t`` is time and ``\Lambda`` is the characteristic growth rate, which depends on the environment. For single-celled organisms such as bacteria, the growth rate is commonly used as a measure of evolutionary fitness: bacteria with a higher growth rate will outcompete others. Growth rates can also be used to estimate selection coefficients in population genetics. 
+where ``N`` is the number of cells, ``t`` is time and ``\Lambda`` is the _growth rate_ (which depends on the strain and the environment). For single-celled organisms such as bacteria, the growth rate is commonly used as a measure of evolutionary fitness: bacteria with a higher growth rate will outcompete others. Growth rates can also be used to estimate the selection coefficient $s$ in population genetics. 
 
-Estimating the growth rate of a simulated cell population is remarkably difficult. The na\"ive approach simulates a population for a time ``t``, counts the number of cells ``N(t)`` and estimates the growth rate as 
+Estimating the growth rate from simulations is tricky. The naïve approach simulates a population for a time ``t``, counts the number of cells ``N(t)`` and estimates the growth rate as 
 
 `` \hat \Lambda = \frac{\log N(t)}{t} ``
 
@@ -14,15 +14,17 @@ This does not scale well -- the number of cells we need to simulate grows _expon
 
 A common alternative is to estimate the growth rate ``\Lambda`` by the mean generation time ``\overline{\tau}`` as
 
-`` \hat \Lambda = (\log 2)/\overline \tau ``
+`` \hat \Lambda = \frac{\log(2)}{\overline \tau}``
 
-We can do this by simulating a single lineage of cells, picking a random daughter cell at each division and estimating the long-term average of ``\tau``. This is implemented in Chemostats.jl via `Chemostats.Strict(1)`. Unfortunately, this is only accurate if generation times are very similar: in general, it systematically underestimates the true growth rate [1]. In other words: mean interdivision times are **not** mean doubling times. The reason is that population growth is exponential, not linear, and cells that divide faster than others disproportionately affect the growth rate. This approach also does not take into account cell death -- what happens when the tracked cell dies?
+We can do this by simulating a single lineage of cells, picking a random daughter cell at each division and estimating the long-term average of ``\tau``. This is implemented in Chemostats.jl via [`Chemostats.Strict(1)`](@ref Chemostats.Strict). Unfortunately, this is only accurate if generation times do not vary: otherwise, it systematically underestimates the true growth rate [1]. This approach also does not take into account cell death -- what happens when the tracked cell dies?
 
-Simulating an entire cell population is too slow; simulating a single lineage is not accurate. Chemostats.jl gives the best of both worlds by simulating _some_, but not _all_ cells in a population, using the algorithms [`Chemostats.Lax`](@ref) and [`Chemostats.Strict`](@ref). The accuracy is controlled by the chemostat size ``L``, the number of lineages to be simulated at once. Increasing ``L`` yields more accurate results, at the expense of longer simulation times. As shown in [2], the typical error decreases as ``1 / \sqrt{L}``, whereas the runtime increases simply as ``L``. This means we can estimate growth rates accurately in (amortised) _quadratic_ time instead of exponential! In practice, setting ``L = 10`` or ``100`` should be sufficient to get good growth rate estimates.
+In general, the mean doubling time is **less** than the mean generation length. The reason is that population growth is exponential, not linear, and cells that divide faster than others disproportionately affect the growth rate. 
+
+Simulating an entire cell population is too slow; simulating a single lineage is not accurate. Chemostats.jl gives the best of both worlds by simulating _some_, but not _all_ cells in a population, using the algorithms [`Chemostats.Lax`](@ref) and [`Chemostats.Strict`](@ref). The accuracy is controlled by the chemostat size ``L``, which sets how many cells we simulate at once. Large ``L`` yields more accurate results, at the expense of longer simulation times. As shown in [2], the typical error decreases as ``1 / \sqrt{L}``, whereas the runtime increases simply as ``L``. This means we can estimate growth rates accurately in (amortised) _quadratic_ time instead of exponential! In practice, setting ``L = 10`` or ``100`` should be sufficient to get good growth rate estimates.
 
 ## Example: Yule Process
 
-Let us see this in action by considering a very simple model of cell division: every cell lives for an exponentially distributed amount of time ``\tau \sim \mathrm{Exp}(1)``. This is the Yule process, also known as the linear birth process. A simple calculation shows that this population grows with rate ``\Lambda = 1``. We can implement this in Julia as follows (see [here](@ref decell-page)):
+Let us see this in action by considering a very simple model of cell division: every cell lives for an exponentially distributed amount of time ``\tau \sim \mathrm{Exp}(1)``. This is the Yule process, also known as the linear birth process. This population grows with rate ``\Lambda = 1``. We can implement this in Julia as follows (see [here](@ref decell-page)):
 
 ```julia
 using Chemostats
@@ -69,7 +71,7 @@ We see that longer simulations times typically result in more accurate estimates
 
 ![](assets/yule_bias.svg)
 
-Here the dashed line indicates `1 / L`. This log-log plot shows that the asymptotic error decreases in proportion to ``1 / L``, as predicted in [2]. Note that the time it takes to reach this optimum grows as ``L``, which can be seen in the first plot; the total computational effort is therefore approximately ``O(L \cdot t) = O(L^2)``.
+Here the dashed line represents `1 / L`, which matches the asymptotic error as predicted in [2]. Note in the above plot that the time it takes to reach this optimum grows as ``L``, which can be seen in the first plot; the total computational effort is therefore approximately ``O(L \cdot t) = O(L^2)``.
 
 ## Example: Cell size control
 

@@ -34,6 +34,30 @@ include("models/jumpcell.jl")
     @test all(c.int.u == u for (c, u) in zip(clones[2:end], u_before))
 end
 
+@testset "clone_cell independence (remake = true)" begin
+    ref = JumpCell(; k = 10.0, V_d = 2.0, remake = true)
+    Chemostats.init_cell!(ref)
+    clones = [ Chemostats.clone_cell(ref, 0.0) for _ in 1:5 ]
+
+    @test isnothing(ref.prob)   # remake = true cells never hold the original prob
+
+    aggs = [ jumpcell_aggregator(c.int) for c in [ref; clones] ]
+    @test allunique(objectid.(aggs))
+
+    set_V_d = SciMLBase.setp(ref.int, :V_d)
+    for (i, c) in enumerate(clones)
+        set_V_d(c.int, 2.0 + i)
+    end
+    @test [ c.int.ps[:V_d] for c in clones ] == 2.0 .+ (1:5)
+    @test allunique(objectid.([ c.int.p for c in clones ]))
+    @test ref.int.ps[:V_d] == 2.0
+
+    u_before = [ copy(c.int.u) for c in clones[2:end] ]
+    Chemostats.init_cell!(clones[1])
+    Chemostats.step!(clones[1], 0.1, nothing)
+    @test all(c.int.u == u for (c, u) in zip(clones[2:end], u_before))
+end
+
 @testset "clone_cell u independence" begin
     for ctor in (() -> ExponentialCell((; id = 1)), () -> JumpCell(; k = 20.0, V_d = 2.0))
         ref = ctor()
