@@ -1,6 +1,6 @@
 using Test
 using Random
-using Statistics
+using StatsBase
 using Chemostats
 
 include("models/exponential.jl")
