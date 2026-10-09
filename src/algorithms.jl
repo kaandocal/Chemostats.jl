@@ -91,16 +91,16 @@ update_queue!(int, alg::Strict, t) = _resize_pop_unsafe!(int, alg.L, t)
 ###
 
 """
-    Lax(L::Int, τ::Float64; tol = 2, β = 0.5)
+    Lax(L::Int, τ::Float64; tol = 2, β = 0.5, L_min = 50)
 
-Implements the relaxed chemostat algorithm, combining [`Thin`](@ref) and [`Strict`](@ref). 
-The population is kept around ``L`` by introducing a time-varying death rate ``δ`` that 
-is adapted to the current growth rate. The death rate is updated at intervals of length ``τ``. 
+Implements the relaxed chemostat algorithm, combining [`Thin`](@ref) and [`Strict`](@ref).
+The population is kept around ``L`` by introducing a time-varying death rate ``δ`` that
+is adapted to the current growth rate. The death rate is updated at intervals of length ``τ``.
 
-This algorithm trades the strict population size guarantees of [`Strict`](@ref) for better parallelisation. 
-As the population size is only approximately ``L``, runtimes may be somewhat less stable than [`Strict`](@ref). 
-In particular, if the population size hits ``0`` within an interval ``τ``, the population dies out. 
-For this reason, the algorithm sets ``δ = 0`` when it detects that ``L`` drops below 50.
+This algorithm trades the strict population size guarantees of [`Strict`](@ref) for better parallelisation.
+As the population size is only approximately ``L``, runtimes may be somewhat less stable than [`Strict`](@ref).
+In particular, if the population size hits ``0`` within an interval ``τ``, the population dies out.
+For this reason, the algorithm sets ``δ = 0`` when the population drops below ``L_{min}``.
 To reduce the chances of this happening, increase ``L`` or decrease ``τ``. We recommend ``L \\geq 50-100``.
 
 This algorithm determines ``δ`` on the fly by estimating the instantaneous growth rate of the population as 
@@ -121,15 +121,17 @@ struct Lax <: AbstractAlgorithm
     τ::Float64
     tol::Float64
     β::Float64
+    L_min::Int
 
-    function Lax(L::Int, τ; tol=2., β=0.5)
+    function Lax(L::Int, τ; tol=2., β=0.5, L_min=50)
         @argcheck tol >= 1
         @argcheck τ > 0
         @argcheck 0 <= β <= 1
+        @argcheck L_min >= 1
 
-        new(L, τ, tol, β)
-    end 
-end 
+        new(L, τ, tol, β, L_min)
+    end
+end
 
 function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     rnd = floor(Int, t / alg.τ + 1e-6)
@@ -152,22 +154,25 @@ get_δ(int, alg::Lax) = get_δ(int.chem, int.t, alg)
 get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.snaps, t, alg)
 
 function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    # Small population 
     snap = get_snapshot(snaps, t)
-    snap.N < 50 && return 0.
+
+    N = snap.N > alg.L * alg.tol ? alg.L : snap.N
+
+    # Small population
+    N < alg.L_min && return 0.
     t < alg.τ && return 0.
 
     # Estimate current growth rate
     Λ̂ = est_Λ_curr(snaps, t, alg)
     isfinite(Λ̂) || return 0.
 
-    # Expected population size after time τ is 
-    #   `length(queue) * exp((Λ - δ) * τ)` 
+    # Expected population size after time τ is
+    #   `length(queue) * exp((Λ - δ) * τ)`
     # Choose δ to make this equal to L
-    ΔlogN = log(alg.L) - log(snap.N)
+    ΔlogN = log(alg.L) - log(N)
     ret = Λ̂ - ΔlogN / alg.τ
     max(0, ret)
-end 
+end
 
 function update_algorithm!(alg::Lax, int)
     if length(int.queue) > alg.L * alg.tol

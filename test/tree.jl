@@ -2,12 +2,17 @@ using Test
 using ArgCheck
 using OrdinaryDiffEqTsit5
 using Random
+using StatsBase
 using Chemostats
 
 include("models/exponential.jl")
 
 # Only used for identity
 mk() = ExponentialCell((; id = 0))
+
+# The oldest recorded ancestor of `cell` (the founder it descends from), or
+# `cell` itself if it has no recorded ancestors.
+find_root(tree, cell) = (anc = collect(Chemostats.ancestors(tree, cell)); isempty(anc) ? cell : last(anc))
 
 @testset "PopTree construction" begin
     tree = Chemostats.PopTree{typeof(mk())}()
@@ -251,5 +256,63 @@ end
         # ever (≈ nsim); with it, it should stay close to the population size L
         @test length(chem.tree.parents) < snap.nsim ÷ 3
         @test length(chem.tree.parents) < 30 * L
+    end
+end
+
+@testset "Coalescence" begin
+    Λ_gt = 1.0
+    N = 100
+    tmax = 10 * N / Λ_gt
+
+    @testset "Strict" begin
+        Random.seed!(42)
+        chem = Chemostat(make_population(N); save_ancestors = true)
+        Chemostats.simulate!(chem, tmax, Chemostats.Strict(N))
+
+        @test length(chem.pop) == N
+        roots = [ find_root(chem.tree, cell) for cell in chem.pop ]
+        @test all(r -> r === roots[1], roots)
+    end
+
+    @testset "Lax with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+        Random.seed!(43)
+        chem = Chemostat(make_population(N); save_ancestors = true)
+        Chemostats.simulate!(chem, tmax, Chemostats.Lax(N, 0.5), ensalg)
+
+        @test !isempty(chem.pop)   # didn't go extinct
+        roots = [ find_root(chem.tree, cell) for cell in chem.pop ]
+        @test all(r -> r === roots[1], roots)
+    end
+
+    @testset "ancestral ID distribution" begin
+        N = 10
+        tmax = 10 * N / Λ_gt
+        nreps = 100
+
+        winning_ids = Vector{Int}(undef, nreps)
+        coalesced = Vector{Bool}(undef, nreps)
+
+        Threads.@threads for i in 1:nreps
+            Random.seed!(7000 + i)
+            chem = Chemostat(make_population(N))
+            Chemostats.simulate!(chem, tmax, Chemostats.Strict(N))
+
+            ids = [ cell_params(cell).id for cell in chem.pop ]
+            coalesced[i] = allequal(ids)
+            winning_ids[i] = ids[1]
+        end
+
+        @test all(coalesced)
+        
+        μ = (N + 1) / 2
+        σ2 = (N^2 - 1) / 12
+        se_mean = sqrt(σ2 / nreps)
+
+        γ2 = -6 * (N^2 + 1) / (5 * (N^2 - 1))   # excess kurtosis, discrete uniform
+        μ4 = σ2^2 * (3 + γ2)
+        se_var = sqrt((μ4 - σ2^2) / nreps)
+
+        @test abs(mean(winning_ids) - μ) < 5 * se_mean
+        @test abs(var(winning_ids) - σ2) < 5 * se_var
     end
 end

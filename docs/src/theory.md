@@ -49,7 +49,7 @@ Here the dashed line represents `1 / L`, which matches the asymptotic error as p
 
 Here we consider a simple model of cell size control [5] where each cell grows exponentially in size with rate ``1`` and divides once it hits a threshold size. The threshold size equals the birth size ``V_b`` plus a random amount ``\Delta \sim \Gamma(5, 0.2)``. When a cell divides, its daughters inherit a random fraction ``f`` of the parent's volume, where ``f \sim \Beta(1, 1)``. 
 
-We can implement this in Julia as follows (see `demo/sizecontrol.jl`):
+We can implement this in Julia as follows (see `demo/sizecontrol    .jl`):
 
 ```@eval
 using Markdown
