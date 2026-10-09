@@ -14,6 +14,16 @@ mk() = ExponentialCell((; id = 0))
 # `cell` itself if it has no recorded ancestors.
 find_root(tree, cell) = (anc = collect(Chemostats.ancestors(tree, cell)); isempty(anc) ? cell : last(anc))
 
+# The most recent common ancestor of `cells` (assumed already coalesced to one lineage).
+function population_mrca(tree, cells)
+    chain1 = collect(Chemostats.ancestors(tree, cells[1]))
+    rest_sets = [ Set(Chemostats.ancestors(tree, c)) for c in cells[2:end] ]
+    for c in chain1
+        all(s -> c in s, rest_sets) && return c
+    end
+    error("no common ancestor found")
+end
+
 @testset "PopTree construction" begin
     tree = Chemostats.PopTree{typeof(mk())}()
 
@@ -346,5 +356,27 @@ end
 
         @test abs(mean(winning_ids) - μ) < 5 * se_mean
         @test abs(var(winning_ids) - σ2) < 5 * se_var
+    end
+
+    @testset "Time to MRCA (Strict)" begin
+        N = 10
+        tmax = 50 * N / Λ_gt
+        nreps = 100
+
+        depths = Vector{Float64}(undef, nreps)
+        Threads.@threads for i in 1:nreps
+            Random.seed!(13000 + i)
+            chem = Chemostat(make_population(N); save_ancestors = true)
+            Chemostats.simulate!(chem, tmax, Chemostats.Strict(N))
+            mrca = population_mrca(chem.tree, chem.pop)
+            depths[i] = tmax - Chemostats.get_curr_t(mrca)
+        end
+
+        μ = (N^2 - 1) / (N * Λ_gt)
+        σ2 = ((N + 1) / Λ_gt)^2 * sum(1 / (k * (k - 1))^2 for k in 2:N)
+        se_mean = sqrt(σ2 / nreps)
+
+        @test abs(mean(depths) - μ) < 5 * se_mean
+        @test var(depths) < 2 * σ2   # loose sanity check; no kurtosis derivation needed
     end
 end
