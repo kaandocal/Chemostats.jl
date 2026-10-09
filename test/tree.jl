@@ -315,4 +315,36 @@ end
         @test abs(mean(winning_ids) - μ) < 5 * se_mean
         @test abs(var(winning_ids) - σ2) < 5 * se_var
     end
+
+    @testset "ancestral ID distribution (Lax)" begin
+        N = 20
+        tmax = 10 * N / Λ_gt
+        nreps = 100
+
+        winning_ids = Vector{Int}(undef, nreps)
+        coalesced = Vector{Bool}(undef, nreps)
+
+        Threads.@threads for i in 1:nreps
+            Random.seed!(8000 + i)
+            chem = Chemostat(make_population(N))
+            Chemostats.simulate!(chem, tmax, Chemostats.Lax(N, 1.0; L_min = 10), EnsembleSerial())
+
+            ids = [ cell_params(cell).id for cell in chem.pop ]
+            coalesced[i] = !isempty(ids) && allequal(ids)
+            winning_ids[i] = isempty(ids) ? 0 : ids[1]
+        end
+
+        @test all(coalesced)
+
+        μ = (N + 1) / 2
+        σ2 = (N^2 - 1) / 12
+        se_mean = sqrt(σ2 / nreps)
+
+        γ2 = -6 * (N^2 + 1) / (5 * (N^2 - 1))   # excess kurtosis, discrete uniform
+        μ4 = σ2^2 * (3 + γ2)
+        se_var = sqrt((μ4 - σ2^2) / nreps)
+
+        @test abs(mean(winning_ids) - μ) < 5 * se_mean
+        @test abs(var(winning_ids) - σ2) < 5 * se_var
+    end
 end
