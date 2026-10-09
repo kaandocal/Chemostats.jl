@@ -226,11 +226,16 @@ end
 ###
 
 """
-    DivideCallback(condition; kwargs...)
+    DivideCallback(condition; discrete=false, kwargs...)
 
-Implements a differential equation callback to check whether a cell has reached the end of its lifetime. 
-Internally, this returns a `ContinuousCallback` that calls `terminate!`. 
+Implements a differential equation callback to check whether a cell has reached the end of its lifetime.
+If `discrete=false` (default), returns a `ContinuousCallback` that calls `terminate!` once `condition` 
+equals zero. If `discrete=true`, returns a `DiscreteCallback`.  
 """
-function DivideCallback(condition; kwargs...)
-    SciMLBase.ContinuousCallback(condition, SciMLBase.terminate!; kwargs...)
+function DivideCallback(condition; discrete::Bool=false, kwargs...)
+    if discrete
+        SciMLBase.DiscreteCallback(condition, SciMLBase.terminate!; kwargs...)
+    else
+        SciMLBase.ContinuousCallback(condition, SciMLBase.terminate!; kwargs...)
+    end
 end

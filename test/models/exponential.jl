@@ -1,5 +1,6 @@
 using Random
 using OrdinaryDiffEqTsit5
+using SciMLBase
 using Chemostats
 
 f_exp(u, p, t) = -one(u)
@@ -74,6 +75,19 @@ function ThrowingCell(p, alg = Tsit5())
 end
 
 make_throwing_population(K; alg = Tsit5()) = [ ThrowingCell((; id), alg) for id in 1:K ]
+
+# Throws from a callback fired during step!
+step_error_cond(u, t, int) = t - 0.5
+step_error_affect!(int) = throw(CellError(int.p.id))
+cb_step_error = SciMLBase.ContinuousCallback(step_error_cond, step_error_affect!)
+
+function StepThrowingCell(p, alg = Tsit5())
+    u0 = randexp() + 1.0   # always survives past t=0.5, so the bad callback fires first
+    prob = ODEProblem(f_exp, u0, (0., 0.), p; callback = cb_step_error)
+    DECell(prob, alg, divide_exp)
+end
+
+make_step_throwing_population(K; alg = Tsit5()) = [ StepThrowingCell((; id), alg) for id in 1:K ]
 
 has_cause(e, ::Type{T}) where T = e isa T
 has_cause(e::CompositeException, ::Type{T}) where T = any(ex -> has_cause(ex, T), e.exceptions)

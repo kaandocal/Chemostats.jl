@@ -19,17 +19,18 @@ function Chemostats.SymbolicDivideContinuous(cond; iv=MTK.t_nounits, name=:__che
 end 
 
 function Chemostats.SymbolicDivideDiscrete(cond; iv=MTK.t_nounits, name=:__chemostat_div__)
-    event = MTK.SymbolicDiscreteCallback(cond, Chemostats.MTKDivideAffect())
+    event = MTK.SymbolicDiscreteCallback(cond => Chemostats.MTKDivideAffect())
     MTK.System(MTK.Equation[], iv; name, discrete_events = [ event ])
 end
 
 """
-    DivideCallback(eqs::MTK.Equation; kwargs...)
-    DivideCallback(eqs::AbstractVector{<:MTK.Equation}; kwargs...)
+    DivideCallback(eqs::MTK.Equation; discrete=false, kwargs...)
+    DivideCallback(eqs::AbstractVector{<:MTK.Equation}; discrete=false, kwargs...)
 
 Create a [`DivideCallback`](@ref) from one or more symbolic equalities of the form `lhs ~ rhs`.
+`discrete` determines whether to use a `DiscreteCallback` or a `ContinuousCallback` (defaults to `false`)
 """
-function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK.Equation}}; kwargs...)
+function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK.Equation}}; discrete::Bool=false, kwargs...)
     eqs = eqs isa MTK.Equation ? [eqs] : eqs
     exprs = [eq.lhs - eq.rhs for eq in eqs]
     expr = length(exprs) == 1 ? only(exprs) : exprs
@@ -38,10 +39,11 @@ function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK
 
     function condition(u, t, int)
         isnothing(getter[]) && (getter[] = MTK.getu(int, expr))
-        getter[](MTK.ProblemState(; u, p = int.p, t))
+        val = getter[](MTK.ProblemState(; u, p = int.p, t))
+        discrete ? all(iszero, val) : val
     end
 
-    Chemostats.DivideCallback(condition; kwargs...)
+    Chemostats.DivideCallback(condition; discrete, kwargs...)
 end
 
 end
