@@ -6,6 +6,9 @@ using SciMLBase
 
 const MTK = ModelingToolkitBase
 
+# MTK compilation of getu does not seem to be threadsafe, use global lock for now
+const _GETU_LOCK = ReentrantLock()
+
 function affect_terminate!(x, obs, ctx, int)
     terminate!(int)
     x
@@ -38,8 +41,11 @@ function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK
     getter = Ref{Any}(nothing)
 
     function condition(u, t, int)
-        isnothing(getter[]) && (getter[] = MTK.getu(int, expr))
-        val = getter[](MTK.ProblemState(; u, p = int.p, t))
+        g = lock(_GETU_LOCK) do
+            isnothing(getter[]) && (getter[] = MTK.getu(int, expr))
+            getter[]
+        end
+        val = g(MTK.ProblemState(; u, p = int.p, t))
         discrete ? all(iszero, val) : val
     end
 

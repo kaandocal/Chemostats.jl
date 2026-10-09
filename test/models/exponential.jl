@@ -1,3 +1,6 @@
+if !@isdefined(_MODELS_EXPONENTIAL_LOADED)
+const _MODELS_EXPONENTIAL_LOADED = true
+
 using Random
 using OrdinaryDiffEqTsit5
 using SciMLBase
@@ -102,3 +105,5 @@ end
 Chemostats.get_curr_t(c::BuggyCell) = c.t
 Chemostats.get_state(c::BuggyCell) = c.state
 Chemostats.init_cell!(::BuggyCell) = error("not a cell exception")
+
+end

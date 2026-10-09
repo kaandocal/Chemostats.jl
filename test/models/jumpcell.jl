@@ -5,6 +5,9 @@ using OrdinaryDiffEqTsit5
 using SciMLBase
 using Chemostats
 
+if !@isdefined(_MODELS_JUMPCELL_LOADED)
+const _MODELS_JUMPCELL_LOADED = true
+
 jump_rn = @reaction_network begin
     @species P(t) = 0
     @variables V(t) = 1.
@@ -40,3 +43,5 @@ function JumpCell(alg = Tsit5(); k = 1.0, V_d = 2.0, remake = false)
 end
 
 jumpcell_aggregator(int) = int.opts.callback.discrete_callbacks[1].condition
+
+end
