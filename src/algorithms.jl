@@ -79,14 +79,23 @@ For ``L \\geq 100`` we recommend [`Lax`](@ref) instead.
 """
 struct Strict <: AbstractAlgorithm
     L::Int
+    clone::Bool
 end 
 
+Strict(L::Int) = Strict(L, true)
+
 get_δ(int, ::Strict) = 0.
-init!(alg::Strict, int) = _resize_pop_unsafe!(int, alg.L, int.t)
+init!(alg::Strict, int) = update_queue!(int, alg, int.t)
 is_parallel(alg::Strict) = false
 filter_offspring(cells, ::Strict) = (cells, 0)
 update_algorithm!(::Strict, int) = nothing
-update_queue!(int, alg::Strict, t) = _resize_pop_unsafe!(int, alg.L, t)
+
+function update_queue!(int, alg::Strict, t)
+    _shrink_pop_unsafe!(int, alg.L, t)
+    alg.clone && _clone_pop_unsafe!(int, alg.L, t)
+    nothing
+end
+
 
 ###
 
@@ -176,7 +185,7 @@ end
 
 function update_algorithm!(alg::Lax, int)
     if length(int.queue) > alg.L * alg.tol
-        _resize_pop_unsafe!(int, alg.L, int.t)
+        _shrink_pop_unsafe!(int, alg.L, int.t)
     end
 
     add_tstop!(int, int.t + alg.τ)

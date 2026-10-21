@@ -252,11 +252,11 @@ end
         end
     end
 
-    @testset "pruning shrinks tree size" begin
+    @testset "pruning shrinks tree size (clone=$clone)" for clone in (true, false)
         Random.seed!(7)
         L = 100
         chem = Chemostat(make_population(L); save_ancestors = true)
-        Chemostats.simulate!(chem, 20.0, Chemostats.Strict(L), EnsembleSerial())
+        Chemostats.simulate!(chem, 20.0, Chemostats.Strict(L, clone), EnsembleSerial())
         snap = chem.snaps[end]
 
         @test snap.N == L
@@ -274,10 +274,10 @@ end
     N = 100
     tmax = 10 * N / Λ_gt
 
-    @testset "Strict" begin
+    @testset "Strict (clone=$clone)" for clone in (true, false)
         Random.seed!(42)
         chem = Chemostat(make_population(N); save_ancestors = true)
-        Chemostats.simulate!(chem, tmax, Chemostats.Strict(N))
+        Chemostats.simulate!(chem, tmax, Chemostats.Strict(N, clone))
 
         @test length(chem.pop) == N
         roots = [ find_root(chem.tree, cell) for cell in chem.pop ]
@@ -294,7 +294,7 @@ end
         @test all(r -> r === roots[1], roots)
     end
 
-    @testset "ancestral ID distribution" begin
+    @testset "ancestral ID distribution (clone=$clone)" for clone in (true, false)
         N = 10
         tmax = 10 * N / Λ_gt
         nreps = 100
@@ -305,7 +305,7 @@ end
         Threads.@threads for i in 1:nreps
             Random.seed!(7000 + i)
             chem = Chemostat(make_population(N))
-            Chemostats.simulate!(chem, tmax, Chemostats.Strict(N))
+            Chemostats.simulate!(chem, tmax, Chemostats.Strict(N, clone))
 
             ids = [ cell_params(cell).id for cell in chem.pop ]
             coalesced[i] = allequal(ids)
@@ -358,7 +358,7 @@ end
         @test abs(var(winning_ids) - σ2) < 5 * se_var
     end
 
-    @testset "Time to MRCA (Strict)" begin
+    @testset "Time to MRCA (Strict, clone=$clone)" for clone in (true, false)
         N = 10
         tmax = 50 * N / Λ_gt
         nreps = 100
@@ -367,7 +367,7 @@ end
         Threads.@threads for i in 1:nreps
             Random.seed!(13000 + i)
             chem = Chemostat(make_population(N); save_ancestors = true)
-            Chemostats.simulate!(chem, tmax, Chemostats.Strict(N))
+            Chemostats.simulate!(chem, tmax, Chemostats.Strict(N, clone))
             mrca = population_mrca(chem.tree, chem.pop)
             depths[i] = tmax - Chemostats.get_curr_t(mrca)
         end

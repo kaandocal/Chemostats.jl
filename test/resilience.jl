@@ -133,27 +133,33 @@ end
         Chemostats.Direct(),
         Chemostats.Thin(0.1),
         Chemostats.Strict(K),
+        Chemostats.Strict(K, false),
         Chemostats.Lax(K, 0.5),
     )
 
     for alg in MIXED_ALGS, ensalg in ENSALGS
         alg isa Chemostats.Strict && ensalg isa EnsembleThreads && continue
 
-        @testset "$(typeof(alg).name.name) / $ensalg" begin
+        label = alg isa Chemostats.Strict ?
+            "Strict(clone=$(alg.clone))" : "$(typeof(alg).name.name)"
+
+        @testset "$label / $ensalg" begin
             chem = Chemostat(make_stochastic_population(K))
             Chemostats.simulate!(chem, tmax, alg, ensalg; Nmax = 10_000)
             snap = chem.snaps[end]
 
+            can_go_extinct = alg isa Chemostats.Strict && !alg.clone
+
             @test snap.t == tmax
-            @test snap.N > 0
             @test length(chem.pop) == snap.N
-            @test snap.nsim >= K
+            @test snap.N > 0 || can_go_extinct
+            @test snap.nsim >= K || can_go_extinct
 
             # Neither division nor cloning ever introduces a new id
             @test all(cell -> cell_params(cell).id in 1:K, chem.pop)
 
             if alg isa Chemostats.Strict
-                @test snap.N == K
+                alg.clone ? (@test snap.N == K) : (@test snap.N <= K)
             end
         end
     end

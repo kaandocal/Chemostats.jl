@@ -46,14 +46,14 @@ end
     @test ids == 1:K
 end
 
-@testset "Strict population size" begin
+@testset "Strict population size (clone=$clone)" for clone in (true, false)
     K = 10
     chem = Chemostat(make_population(K))
     tmax = 3.0
 
-    @test_throws "parallelisation" Chemostats.simulate!(chem, tmax, Chemostats.Strict(K), EnsembleThreads())
+    @test_throws "parallelisation" Chemostats.simulate!(chem, tmax, Chemostats.Strict(K, clone), EnsembleThreads())
 
-    Chemostats.simulate!(chem, tmax, Chemostats.Strict(K))
+    Chemostats.simulate!(chem, tmax, Chemostats.Strict(K, clone))
     snap = chem.snaps[end]
 
     @test snap.t == tmax

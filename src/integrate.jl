@@ -247,13 +247,8 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
     end
 end
 
-function _resize_pop_unsafe!(int, L::Int, t)
-    if isempty(int.queue)
-        @warn "No cells left in chemostat, terminating..."
-        @atomic int.retcode = ReturnCode.Unstable
-        return
-    end
 
+function _shrink_pop_unsafe!(int, L::Int, t)
     N_start = length(int.queue)
 
     while length(int.queue) > L
@@ -261,12 +256,19 @@ function _resize_pop_unsafe!(int, L::Int, t)
         kill!(cell, t)
         @lock int.tree_lock add_leaf!(int.chem.tree, cell)
     end
-    
+
+    int.log_f += log(N_start) - log(length(int.queue))
+end
+
+function _clone_pop_unsafe!(int, L::Int, t)
+    isempty(int.queue) && return 
+
+    N_start = length(int.queue)
+
     while length(int.queue) < L
         source, clone = _clone_random!(int.queue, t)
         @lock int.tree_lock add_clone!(int.chem.tree, source, clone)
     end
 
-    int.log_f += log(N_start) - log(L)
+    int.log_f += log(N_start) - log(length(int.queue))
 end
-

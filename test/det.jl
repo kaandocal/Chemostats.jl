@@ -27,12 +27,12 @@ end
 
 tmax = 20.5 
 
-@testset "Strict($L)" for L in [ 1, 10 ]
+@testset "Strict($L, clone=$clone)" for L in [ 1, 10 ], clone in (true, false)
     chem = Chemostat([ DECell(prob, alg, divide_det) for i in 1:L ])
 
-    @test_throws "Strict does not support parallelisation" Chemostats.simulate!(chem, tmax, Chemostats.Strict(L), EnsembleThreads())
+    @test_throws "Strict does not support parallelisation" Chemostats.simulate!(chem, tmax, Chemostats.Strict(L, clone), EnsembleThreads())
 
-    Chemostats.simulate!(chem, tmax, Chemostats.Strict(L))
+    Chemostats.simulate!(chem, tmax, Chemostats.Strict(L, clone))
     snap = chem.snaps[end]
 
     @test snap.t == tmax

@@ -214,7 +214,7 @@ end
 end
 
 @testset "default_ensalg with is_parallel and nthreads" begin
-    for alg in (Chemostats.Forward(10), Chemostats.Strict(10), Chemostats.Thin(0.1), Chemostats.Lax(10, 1.0))
+    for alg in (Chemostats.Forward(10), Chemostats.Strict(10), Chemostats.Strict(10, false), Chemostats.Thin(0.1), Chemostats.Lax(10, 1.0))
         ensalg = Chemostats.default_ensalg(alg)
         expect_threaded = Chemostats.is_parallel(alg) && Threads.nthreads() > 1
         @test (ensalg isa EnsembleThreads) == expect_threaded
