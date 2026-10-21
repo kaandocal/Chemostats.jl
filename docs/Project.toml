@@ -1,6 +1,7 @@
 [deps]
 Chemostats = "0c42c343-380a-49b2-a381-bd06de99d09a"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterInterLinks = "d12716ef-a0f6-4df4-a9f1-a5a34e75c656"
 
 [sources]
 Chemostats = {path = ".."}
@@ -8,3 +9,4 @@ Chemostats = {path = ".."}
 [compat]
 Chemostats = "0.1"
 Documenter = "1.16"
+DocumenterInterLinks = "1.1"

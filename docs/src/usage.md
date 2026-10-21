@@ -22,7 +22,7 @@ Chemostats.est_logN
 
 ## The Cell API 
 
-Cells in Chemostat.jl can be of an user-defined type that implements the following functions. For models defined using [`DifferentialEquations.jl`](https://github.com/SciML/DifferentialEquations.jl), the [`DECell`](@ref decell-page) class provides a direct wrapper.
+Cells in Chemostat.jl can be of an user-defined type that implements the following functions. For models defined using [DifferentialEquations.jl](@extref DifferentialEquations :doc:`index`), the [`DECell`](@ref decell-page) class provides a direct wrapper.
 
 <!-- (Mention `step!`) -->
 
