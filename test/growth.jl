@@ -19,6 +19,35 @@ end
 
 make_bd_population(K, p_divide; alg = Tsit5()) = [ BirthDeathCell(p_divide; alg) for _ in 1:K ]
 
+mutable struct NoCloneCell
+    state::Chemostats.CellState.T
+    t::Float64
+    t_death::Float64
+    p_divide::Float64
+end
+
+NoCloneCell(p_divide, t0 = 0.0) =
+    NoCloneCell(Chemostats.CellState.Newborn, t0, t0 + randexp(), p_divide)
+
+Chemostats.get_curr_t(c::NoCloneCell) = c.t
+Chemostats.get_state(c::NoCloneCell) = c.state
+Chemostats.init_cell!(c::NoCloneCell) = (c.state = Chemostats.CellState.Alive)
+
+function Chemostats.step!(c::NoCloneCell, dt, p)
+    c.t = min(c.t + dt, c.t_death)
+    c.t >= c.t_death && (c.state = Chemostats.CellState.EndOfLife)
+end
+
+function Chemostats.get_children(c::NoCloneCell, p = nothing)
+    rand() < c.p_divide || return NoCloneCell[]
+    [ NoCloneCell(c.p_divide, c.t), NoCloneCell(c.p_divide, c.t) ]
+end
+
+Chemostats.divide!(c::NoCloneCell) = (c.state = Chemostats.CellState.Divided)
+Chemostats.die!(c::NoCloneCell) = (c.state = Chemostats.CellState.Dead)
+Chemostats.kill!(c::NoCloneCell, t = Chemostats.get_curr_t(c)) = (c.t = t; c.state = Chemostats.CellState.Killed)
+# Chemostats.clone_cell is deliberately NOT defined for NoCloneCell.
+
 rmse(Λs, Λ_gt) = sqrt(mean(abs2.(Λs .- Λ_gt)))
 
 function rmse_Λ(make_chem, alg, Λ_gt, tmax, ensalg = Chemostats.default_ensalg(alg); niter = 10, kwargs...)
@@ -57,6 +86,25 @@ end
         make_chem = () -> Chemostat(make_bd_population(L, p_divide))
         @test rmse_Λ(make_chem, Chemostats.Strict(L, clone), Λ_gt, tmax) < tol
     end
+end
+
+@testset "Strict(clone=false) never calls clone_cell" begin
+    L = 20
+    tmax = 50.0
+
+    make_chem = () -> Chemostat([ NoCloneCell(0.75) for _ in 1:L ])
+
+    # clone=true *would* need to clone (deaths repeatedly drop the population
+    # below L), and NoCloneCell has no `clone_cell` method, so it must throw
+    # -- this is what makes the clone=false check below non-vacuous.
+    Random.seed!(20260401)
+    @test_throws MethodError Chemostats.simulate!(make_chem(), tmax, Chemostats.Strict(L, true))
+
+    Random.seed!(20260401)
+    chem = make_chem()
+    Chemostats.simulate!(chem, tmax, Chemostats.Strict(L, false))
+    @test chem.status == Chemostats.ReturnCode.Success
+    @test chem.snaps[end].t == tmax
 end
 
 @testset "Size control (adder)" begin
