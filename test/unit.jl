@@ -61,6 +61,27 @@ end
     end
 end
 
+@testset "Lax falls back to nearby snapshots or sets δ = 0" begin
+    Λ_true = 0.3
+    τ = 0.5
+    N0 = 1.0e6
+    alg = Chemostats.Lax(50, τ)
+    mksnap(t) = Chemostats.Snapshot(t, round(Int, N0 * exp(Λ_true * t)), 0, 0.0)
+
+    ts = 0:τ:10
+    t = ts[end]
+
+    # Snapshot at t - τ shifted within τ/2: estimate still matches
+    snaps = [ mksnap(s) for s in ts ]
+    snaps[end-1] = mksnap(t - τ + 0.2τ)
+    @test Chemostats.est_Λ_curr(snaps, t, alg) ≈ Λ_true atol = 1e-3
+
+    # No snapshot within τ/2 of t - τ: estimate undefined, δ = 0
+    snaps = [ mksnap(s) for s in ts if s != t - τ ]
+    @test isnan(Chemostats.est_Λ_curr(snaps, t, alg))
+    @test Chemostats.get_δ(snaps, t, alg) == 0
+end
+
 @testset "die!/divide!" begin
     cell = ExponentialCell((; id = 1))
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
