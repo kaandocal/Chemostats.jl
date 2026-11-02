@@ -9,8 +9,8 @@ OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
 Chemostats = {path = ".."}
 
 [compat]
-CairoMakie = "0.15.16"
-Catalyst = "17.0.0"
+CairoMakie = "0.15"
+Catalyst = "17"
 Chemostats = "0.1"
 Distributions = "0.25"
 OrdinaryDiffEqTsit5 = "1.8, 2.1"
