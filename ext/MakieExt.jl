@@ -9,15 +9,16 @@ function Makie.plot(snaps::AbstractVector{Chemostats.Snapshot};
                     tspan=(0, snaps[end].t), Λ_gt=nothing, alg=nothing)
     fig = Figure()
 
-    ax_N = Axis(fig[1,1], xlabel="Time", ylabel="log10(N)")
-    ax_L = Axis(fig[2,1], xlabel="Time", ylabel="L")
-    ax_Λ = Axis(fig[3,1], xlabel="Time", ylabel="Λ")
+    ax_N = Axis(fig[1,1], ylabel="log₁₀ N")
+    ax_L = Axis(fig[2,1], ylabel="simulated size L")
+    ax_Λ = Axis(fig[3,1], ylabel="growth rate Λ")
     ax_δ = if alg isa Chemostats.Lax
-        Axis(fig[4,1], xlabel="Time", ylabel="δ")
-    else 
-        nothing 
+        Axis(fig[4,1], ylabel="thinning rate δ")
+    else
+        nothing
     end
 
+    (isnothing(ax_δ) ? ax_Λ : ax_δ).xlabel = "Time"
     linkxaxes!([ax_N, ax_L, ax_Λ])
     snaps = filter(snap -> tspan[1] <= snap.t <= tspan[2], snaps)
 

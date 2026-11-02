@@ -15,3 +15,4 @@ end
 @testset "Growth rates" begin include("growth.jl") end
 @testset "Reinit" begin include("reinit.jl") end
 @testset "MTK extension" begin include("mtk.jl") end
+@testset "Plotting extensions" begin include("plotting.jl") end
