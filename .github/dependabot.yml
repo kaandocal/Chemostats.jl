@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: julia
+    directories:
+      - "/"
+      - "/test"
+      - "/docs"
+      - "/demo"
+    schedule:
+      interval: weekly
+    groups:
+      julia-deps:
+        patterns:
+          - "*"
