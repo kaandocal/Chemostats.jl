@@ -1,6 +1,10 @@
 # Theory
 
-The main goal of Chemostats.jl is to estimate growth rates of cell populations. Given sufficient resources, a population of cells will grow exponentially in number as
+The main goal of Chemostats.jl is to efficiently the behaviour cell populations, with a focus on growth rates. The full theory behind the package is explained in the paper
+
+> Kaan Öcal, Lars Maas, Michael P.H. Stumpf. **"Probing bacterial fitness in virtual chemostats."** [*bioRxiv*](https://www.biorxiv.org/content/10.64898/2026.10.31.763286v1) (2026).
+
+This section provides a brief overview of the basic idea. Given sufficient resources, a population of cells will grow exponentially in number as
 
 `` N(t) \sim e^{\Lambda t} ``
 
@@ -22,9 +26,9 @@ In general, the mean doubling time is **less** than the mean generation length. 
 
 Simulating an entire cell population is too slow; simulating a single lineage is not accurate. Chemostats.jl gives the best of both worlds by simulating _some_, but not _all_ cells in a population, using the algorithms [`Chemostats.Lax`](@ref) and [`Chemostats.Strict`](@ref). The accuracy is controlled by the chemostat size ``L``, which sets how many cells we simulate at once. Large ``L`` yields more accurate results, at the expense of longer simulation times. As shown in [2], the typical error decreases as ``1 / \sqrt{L}``, whereas the runtime increases simply as ``L``. This means we can estimate growth rates accurately in (amortised) _quadratic_ time instead of exponential! In practice, setting ``L = 10`` or ``100`` should be sufficient to get good growth rate estimates.
 
-## Example: Yule Process
+## Example: Linear Birth Process
 
-Let us see this in action by considering a very simple model of cell division: every cell lives for an exponentially distributed amount of time ``\tau \sim \mathrm{Exp}(1)``. This is the Yule process, also known as the linear birth process. This population grows with rate ``\Lambda = 1``. 
+Let us see this in action by considering a very simple model of cell division: every cell lives for an exponentially distributed amount of time ``\tau \sim \mathrm{Exp}(1)``. This is the linear birth process, also known as the Yule process. This population grows with rate ``\Lambda = 1``. 
 
 We can implement this in Julia as follows (see `demo/yule.jl`):
 

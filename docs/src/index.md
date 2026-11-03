@@ -6,16 +6,19 @@ CurrentModule=Chemostats
 
 ## Introduction
 
-Chemostats.jl is a package to simulate branching populations in Julia, with a focus on cells and bacteria. It implements state-of-the-art algorithms to efficiently estimate population dynamics at sub-exponential cost. 
+Chemostats.jl is a package to simulate branching populations in Julia, with a focus on cells and bacteria. It implements state-of-the-art algorithms to efficiently estimate population dynamics at sub-exponential cost, based on the paper
 
-## Features:
+> Kaan Öcal, Lars Maas, Michael P.H. Stumpf. **"Probing bacterial fitness in virtual chemostats."** [*bioRxiv*](https://www.biorxiv.org/content/10.64898/2026.10.31.763286v1) (2026).
+
+This package is somewhat experimental - any feedback is appreciated (either by email or by opening an issue on GitHub).
+
+## Features
 
 - Efficient parallel simulation of branching processes
 - Directly compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](@extref DifferentialEquations :doc:`index`), [ModelingToolkit.jl](@extref ModelingToolkit :doc:`index`) and [Catalyst.jl](@extref Catalyst :doc:`index`)
 - Implements state-of-the-art algorithms (thinning, strict and lax cloning)
 - Support for lineage analysis
 
-This package is experimental - any feedback is appreciated (either by email or by opening an issue on GitHub).
 
 ## Example
 
