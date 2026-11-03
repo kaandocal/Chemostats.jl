@@ -17,8 +17,12 @@ concurrency:
 
 jobs:
   test:
-    name: "Julia ${{ matrix.version }} - ${{ matrix.os }}"
+    name: "${{ matrix.group }} - Julia ${{ matrix.version }} - ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
+    env:
+      GROUP: ${{ matrix.group }}
+      # Precompile packages only when loaded, so Core skips MTK/Catalyst/Makie.
+      JULIA_PKG_PRECOMPILE_AUTO: 0
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +30,9 @@ jobs:
           - '1'
         os:
           - ubuntu-latest
+        group:
+          - Core
+          - Extensions
     steps:
       - uses: actions/checkout@v7
 
