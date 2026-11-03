@@ -26,7 +26,7 @@ RecipesBaseExt = "RecipesBase"
 
 [compat]
 ArgCheck = "2.5.0"
-DataStructures = "0.18, 0.19"
+DataStructures = "0.19.4"
 EnumX = "1.0.5"
 Makie = "0.24.6"
 ModelingToolkitBase = "1"

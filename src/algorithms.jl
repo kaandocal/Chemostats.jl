@@ -100,7 +100,7 @@ end
 ###
 
 """
-    Lax(L::Int, τ::Float64; tol = 2, β = 0.5, L_min = 50)
+    Lax(L::Int, τ::Float64; tol = 2, β = 0.5, L_min = 25)
 
 Implements the relaxed chemostat algorithm, combining [`Thin`](@ref) and [`Strict`](@ref).
 The population is kept around ``L`` by introducing a time-varying death rate ``δ`` that
@@ -114,7 +114,7 @@ To reduce the chances of this happening, increase ``L`` or decrease ``τ``. We r
 
 This algorithm determines ``δ`` on the fly by estimating the instantaneous growth rate of the population as 
 
-``\\hat Λ_n = \\sum_{i=0}^\\infty \\frac {β^i} {1 - β}  \\hat \\Lambda(t_{n-i-1}, t_{n-i})``
+``\\hat Λ_n = \\frac{1 - β}{1 - β^n} \\sum_{i=0}^{n-1} β^i \\hat \\Lambda(t_{n-i-1}, t_{n-i})``
 
 and requiring the expected population size after the next interval to equal ``L``. Here
 
@@ -123,7 +123,7 @@ and requiring the expected population size after the next interval to equal ``L`
 is the growth rate in the `n-i`th interval. The parameter ``0 \\leq β \\leq 1`` controls smoothing:
 Larger ``β`` produces more stable estimates, but does not capture sudden variations in growth rate,
 whereas smaller ``β`` produces less stable estimates that can better adapt to fast fluctuations.
-If ``β = 0``, only the growth rate in the last interval is used.
+If ``β = 0``, only the growth rate in the last interval is used. The default is ``\beta = 0.5``.
 """
 struct Lax <: AbstractAlgorithm
     L::Int
@@ -132,7 +132,7 @@ struct Lax <: AbstractAlgorithm
     β::Float64
     L_min::Int
 
-    function Lax(L::Int, τ; tol=2., β=0.5, L_min=50)
+    function Lax(L::Int, τ; tol=2., β=0.5, L_min=25)
         @argcheck tol >= 1
         @argcheck τ > 0
         @argcheck 0 <= β <= 1

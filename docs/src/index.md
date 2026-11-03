@@ -17,7 +17,6 @@ This package is somewhat experimental - any feedback is appreciated (either by e
 - Efficient parallel simulation of branching processes
 - Directly compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](@extref DifferentialEquations :doc:`index`), [ModelingToolkit.jl](@extref ModelingToolkit :doc:`index`) and [Catalyst.jl](@extref Catalyst :doc:`index`)
 - Implements state-of-the-art algorithms (thinning, strict and lax cloning)
-- Support for lineage analysis
 
 
 ## Example

@@ -24,6 +24,7 @@ makedocs(
     ],
     plugins = [ links ],
     linkcheck = true,
+    linkcheck_ignore = [ r"^https://www\.biorxiv\.org/" ],  # bioRxiv blocks automated requests
     checkdocs = :public,
 )
 

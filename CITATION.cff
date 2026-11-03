@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use Chemostats.jl in your research, please cite the paper below."
+title: "Chemostats.jl"
+type: software
+authors:
+  - family-names: "Öcal"
+    given-names: "Kaan"
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/kaandocal/Chemostats.jl"
+url: "https://kaandocal.github.io/Chemostats.jl/dev"
+keywords:
+  - julia
+  - cell populations
+  - growth rate
+  - branching processes
+  - SciML
+preferred-citation:
+  type: article
+  title: "Probing bacterial fitness in virtual chemostats"
+  authors:
+    - family-names: "Öcal"
+      given-names: "Kaan"
+    - family-names: "Maas"
+      given-names: "Lars"
+    - family-names: "Stumpf"
+      given-names: "Michael P. H."
+  journal: "bioRxiv"
+  status: preprint
+  year: 2026
+  doi: "10.64898/2026.10.31.763286"
+  url: "https://www.biorxiv.org/content/10.64898/2026.10.31.763286v1"

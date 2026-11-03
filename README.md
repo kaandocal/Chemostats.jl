@@ -69,6 +69,9 @@ Chemostats.simulate!(chem, 10., Chemostats.Strict(10); saveat=0:0.1:10.)
 
 # The full population would require simulating a lot of cells!
 println("Estimated growth rate: ", Chemostats.est_Λ(chem))
+
+# Plot the estimated population size and growth rate over time
+plot(chem)
 ```
 
 ### See also
