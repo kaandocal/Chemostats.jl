@@ -4,9 +4,13 @@
 [![Run Tests](https://github.com/kaandocal/Chemostats.jl/actions/workflows/test.yml/badge.svg)](https://github.com/kaandocal/Chemostats.jl/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/kaandocal/Chemostats.jl/graph/badge.svg)](https://codecov.io/gh/kaandocal/Chemostats.jl)
 
-Chemostats.jl is a package to efficiently simulate cell populations in Julia, featuring state-of-the-art algorithms that estimate population dynamics at sub-exponential cost. It is compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) and [Catalyst.jl](https://github.com/SciML/Catalyst.jl)
+Chemostats.jl is a package to efficiently simulate cell populations in Julia, featuring state-of-the-art algorithms that estimate population dynamics at sub-exponential cost. It is compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](https://github.com/SciML/DifferentialEquations.jl), [ModelingToolkit.jl](https://github.com/SciML/ModelingToolkit.jl) and [Catalyst.jl](https://github.com/SciML/Catalyst.jl).
 
-This package is experimental - any feedback is appreciated (either by email or by opening an issue).
+The theory behind this package is explained in our paper:
+
+> Kaan Öcal, Lars Maas, Michael P.H. Stumpf. **"Probing bacterial fitness in virtual chemostats."** [*bioRxiv*](https://www.biorxiv.org/content/10.64898/2026.10.31.763286v1) (2026).
+
+This package is somewhat experimental - any feedback is appreciated (either by email or by opening an issue).
 
 ## Example
 
@@ -69,7 +73,7 @@ println("Estimated growth rate: ", Chemostats.est_Λ(chem))
 
 ### See also
 
-Chemostats.jl is designed for efficient estimation of growth rates in cell population models. If simple population simulations are required (corresponding to the `Direct` algorithm), the following packages may be relevant:
+Chemostats.jl is designed for efficient estimation of growth rates in cell population models. If simple population simulations are required (corresponding to the `Direct` algorithm), the following packages may be useful:
 * [Agents.jl](https://juliadynamics.github.io/Agents.jl/): A Julia framework for agent-based modelling.
 * [AgentBasedModeling.jl](https://github.com/pihop/AgentBasedModeling.jl): A flexible framework built directly on top of Catalyst. 
 
