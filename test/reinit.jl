@@ -1,6 +1,7 @@
 using Test
 using Random
 using SciMLBase
+using SymbolicIndexingInterface: SymbolicIndexingInterface
 using Chemostats
 
 include("models/exponential.jl")
@@ -16,7 +17,7 @@ include("models/jumpcell.jl")
     aggs = [ jumpcell_aggregator(c.int) for c in [ref; clones] ]
     @test allunique(objectid.(aggs))
 
-    set_V_d = SciMLBase.setp(ref.int, :V_d)
+    set_V_d = SymbolicIndexingInterface.setp(ref.int, :V_d)
     for (i, c) in enumerate(clones)
         set_V_d(c.int, 2.0 + i)
     end
@@ -44,7 +45,7 @@ end
     aggs = [ jumpcell_aggregator(c.int) for c in [ref; clones] ]
     @test allunique(objectid.(aggs))
 
-    set_V_d = SciMLBase.setp(ref.int, :V_d)
+    set_V_d = SymbolicIndexingInterface.setp(ref.int, :V_d)
     for (i, c) in enumerate(clones)
         set_V_d(c.int, 2.0 + i)
     end

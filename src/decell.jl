@@ -76,7 +76,7 @@ end
 function apply_reinit_overrides!(int, old_int; p, u0)
     if !isnothing(p)
         if p isa AbstractVector{<:Pair}
-            setp = SciMLBase.setp(int, first.(p))
+            setp = SymbolicIndexingInterface.setp(int, first.(p))
             setp(int, last.(p))
         else
             int.p = deepcopy(p)
@@ -87,7 +87,7 @@ function apply_reinit_overrides!(int, old_int; p, u0)
 
     if !isnothing(u0) && !isempty(u0)
         if first(u0) isa Pair
-            setu = SciMLBase.setu(int, first.(u0))
+            setu = SymbolicIndexingInterface.setu(int, first.(u0))
             setu(u, last.(u0))
         else
             u = copy(u0)

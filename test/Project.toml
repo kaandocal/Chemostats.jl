@@ -16,6 +16,7 @@ RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
+SymbolicIndexingInterface = "2efcf032-c050-4f8e-a9bb-153293bab1f5"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -37,4 +38,5 @@ RecipesBase = "1.4.0"
 SciMLBase = "2.127.0, 3.58"
 StatsBase = "0.34"
 StochasticDiffEq = "7.2.0"
+SymbolicIndexingInterface = "0.3"
 Test = "1.11"
