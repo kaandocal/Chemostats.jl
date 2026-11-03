@@ -1,12 +1,27 @@
 using Test
 using Random
 using SciMLBase
+using Catalyst
 using ModelingToolkit
 using ModelingToolkit: t_nounits as t
 using Chemostats
 
 include("models/jumpcell.jl")
 include("models/flipcell.jl")
+
+# Catalyst version of `JumpCell`'s model, for the symbolic `DivideCallback` tests.
+jump_rn = @reaction_network begin
+    @species P(t) = 0
+    @variables V(t) = 1.
+
+    @parameters k V_d
+
+    @equations begin
+        D(V) ~ V
+    end
+
+    k, 0 --> P
+end
 
 function run_to_division(cell)
     Chemostats.init_cell!(cell)

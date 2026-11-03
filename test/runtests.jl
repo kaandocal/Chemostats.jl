@@ -18,10 +18,10 @@ if GROUP in ("All", "Core")
 	@testset "Scheduler" begin include("scheduler.jl") end
 	@testset "Resilience" begin include("resilience.jl") end
 	@testset "Growth rates" begin include("growth.jl") end
+	@testset "Reinit" begin include("reinit.jl") end
 end
 
 if GROUP in ("All", "Extensions")
-	@testset "Reinit" begin include("reinit.jl") end
 	@testset "MTK extension" begin include("mtk.jl") end
 	@testset "Plotting extensions" begin include("plotting.jl") end
 end
