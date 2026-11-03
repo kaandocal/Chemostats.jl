@@ -9,6 +9,7 @@ using SciMLBase
 using SciMLBase: ReturnCode
 using SciMLBase: EnsembleAlgorithm, EnsembleSerial, EnsembleThreads
 import SciMLBase: savevalues!, step!, add_tstop!
+import SymbolicIndexingInterface
 
 include("queue.jl")
 include("worker.jl")

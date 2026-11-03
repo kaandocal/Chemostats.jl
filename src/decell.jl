@@ -41,10 +41,10 @@ end
 # `DiscreteCallback` can hold mutable state
 copy_callback(cb) = isempty(cb.discrete_callbacks) ? cb : deepcopy(cb)
 
-# Copy to avoid cases where `init` aliases `p`
+# Copy to avoid cases where `init` aliases `p` or a `JumpProblem`'s jump state
 function copy_integrator(prob, alg, t0)
-    init_kwargs = prob isa SciMLBase.AbstractJumpProblem ? (; alias_jump=false) : (;)
-    int = init(prob, alg; tspan=(t0, Inf), init_kwargs...)
+    prob = prob isa SciMLBase.AbstractJumpProblem ? deepcopy(prob) : prob
+    int = init(prob, alg; tspan=(t0, Inf))
     int.p = deepcopy(int.p)
     int
 end
@@ -76,7 +76,7 @@ end
 function apply_reinit_overrides!(int, old_int; p, u0)
     if !isnothing(p)
         if p isa AbstractVector{<:Pair}
-            setp = SciMLBase.setp(int, first.(p))
+            setp = SymbolicIndexingInterface.setp(int, first.(p))
             setp(int, last.(p))
         else
             int.p = deepcopy(p)
@@ -87,7 +87,7 @@ function apply_reinit_overrides!(int, old_int; p, u0)
 
     if !isnothing(u0) && !isempty(u0)
         if first(u0) isa Pair
-            setu = SciMLBase.setu(int, first.(u0))
+            setu = SymbolicIndexingInterface.setu(int, first.(u0))
             setu(u, last.(u0))
         else
             u = copy(u0)
