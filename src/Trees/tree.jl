@@ -29,7 +29,6 @@ end
 
 """
     Tree{C,P=Any}(; min_sweep=1024)
-    Tree{C}(; min_sweep=1024)
 
 Creates a population tree. Here `C` is the type of a cell, and `P` is the type of the data saved for each cell (at division, death or updates), `Any` if omitted. Each cell is stored in a [`Node`](@ref).
 

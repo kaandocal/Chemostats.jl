@@ -156,7 +156,7 @@ end
 """
     at_age(f, nodes, a)
 
-Returns `f(node, a)` for the nodes in `nodes` that have reached age `a`. Nodes without data, or nodes that do not reach age `a` are skipped.
+Returns `f(node, a)` for the nodes in `nodes` that have reached age `a`, as a named tuple of columns `(id, value)`. Nodes without data, or nodes that do not reach age `a`, are skipped.
 """
 function at_age(f, nodes, a)
     collect_values(nodes) do _, node
@@ -167,7 +167,7 @@ end
 """
     at_birth(f, nodes)
 
-Returns `f(node, 0)` for the nodes of the node collection `nodes`, as a named tuple `(id, value)`.
+Returns `f(node, 0)` for the nodes of the node collection `nodes`, as a named tuple of columns `(id, value)`.
 """
 at_birth(f, nodes) = at_age(f, nodes, 0)
 
@@ -175,7 +175,7 @@ at_birth(f, nodes) = at_age(f, nodes, 0)
     at_division(f, nodes)
 
 Returns `f(node, τ)` for the nodes of the node collection `nodes` that divided, where `τ` is their generation time,
-as a named tuple `(id, value)`. Requires a sorted tree.
+as a named tuple of columns `(id, value)`. Requires a sorted tree.
 """
 function at_division(f, nodes)
     ensure_sorted(nodes)
