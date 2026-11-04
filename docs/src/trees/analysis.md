@@ -8,6 +8,7 @@ We use a small random tree in which the data of each cell is a random number.
 
 ```@example analysis
 using Trees
+using Trees: cell_init!, cell_divide!, cell_die!, cell_update!
 using Random
 using Statistics
 

@@ -1,7 +1,8 @@
 using Trees
+using Trees: cell_init!, cell_divide!, cell_die!, cell_update!
 using Aqua
 using Random
-using StatsBase: mean, var, pweights
+using StatsBase: mean, var, mean_and_var, pweights
 using Test
 
 mutable struct Cell

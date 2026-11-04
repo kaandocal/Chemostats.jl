@@ -13,7 +13,7 @@ using QuadGK: quadgk
 
 # Recording
 export Tree
-export cell_init!, cell_divide!, cell_die!, cell_update!
+public cell_init!, cell_divide!, cell_die!, cell_update!
 
 # Pruning
 export mark!, prune!
@@ -23,7 +23,7 @@ export roots, living, children, alive_at, ancestors, descendants
 export has_divided, lifetime, is_alive
 
 # Statistics
-export mean_and_var, time_average, time_weights, snapshot
+export time_average, time_weights, snapshot
 export at_age, at_birth, at_division
 
 include("tree.jl")

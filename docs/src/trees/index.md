@@ -18,6 +18,7 @@ The following example constructs a small tree by hand, where each cell stores it
 
 ```@example index
 using Trees
+using Trees: cell_init!, cell_divide!, cell_die!, cell_update!
 using Statistics
 
 mutable struct Cell
