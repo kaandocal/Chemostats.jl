@@ -5,7 +5,9 @@
 
 Marks the nodes `ids` (or the node collection `nodes`) to be kept by pruning, together with their ancestors. `mark!(tree)` marks the current population, i.e. all living cells.
 """
-function mark!(tree::Tree, ids = living(tree))
+mark!(tree::Tree) = mark!(tree, living(tree))
+
+function mark!(tree::Tree, ids)
     for id in ids
         tree.nodes.marked[id] = true
     end

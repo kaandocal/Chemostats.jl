@@ -41,6 +41,8 @@ Creates a population tree. Here `C` is the type of a cell, and `P` is the type o
 `min_sweep` is a parameter used for pruning (see [`prune!`](@ref)).
 
 Every node in the tree has a unique ID, and nodes can be accessed as `tree[id]`. IDs are **not** stable, and can change when the tree is pruned or sorted.
+
+Cells are implicitly stored as pairs `id => node`, and these can be extracted using the functions [`keys`](@extref Base.keys), [`values`](@extref Base.values) and [`pairs`](@extref Base.pairs).
 """
 mutable struct Tree{C,P,V<:StructVector{Node{P}}}
     nodes::V
