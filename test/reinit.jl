@@ -40,7 +40,7 @@ end
     Chemostats.init_cell!(ref)
     clones = [ Chemostats.clone_cell(ref, 0.0) for _ in 1:5 ]
 
-    @test isnothing(ref.prob)   # remake = true cells never hold the original prob
+    @test all(c.prob === ref.prob for c in clones)   # descendants are remade from the root prob
 
     aggs = [ jumpcell_aggregator(c.int) for c in [ref; clones] ]
     @test allunique(objectid.(aggs))

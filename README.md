@@ -42,14 +42,15 @@ cb_div = Chemostats.DivideCallback(rn.V ~ rn.V_d)
 
 # This function determines what offspring a dividing cell produces.
 function divide(int)
-    rand() < 0.1 && return nothing      # Die with probability 1/10
+    rng = Chemostats.get_rng(int)       # The cell's own RNG, for reproducible simulations
+    rand(rng) < 0.1 && return nothing   # Die with probability 1/10
 
     R = round(Int, int[:R])
     V = int[:V]
 
     # Create two cells with half the volume and (roughly) half the ribosomes.
     # The model parameters are inherited from the parent cell.
-    R1 = rand(Binomial(R, 0.5))
+    R1 = rand(rng, Binomial(R, 0.5))
     R2 = R - R1
 
     [ (u0 = [:R => R1, :V => V / 2], p = nothing),

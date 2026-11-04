@@ -76,18 +76,23 @@ function extract_queue!(pop, queue::ThreadedQueue)
     end
 end
 
-function _pop_random_unsafe!(heap::MutableBinaryHeap)
-    i = rand(1:length(heap.nodes))
-    v = heap.nodes[i].value
-    delete!(heap, heap.nodes[i].handle)
-    v
+# Random choices use one key per cell from its own RNG, so they don't depend on heap layout
+draw_key(v) = rand(get_rng(v))
+
+# Removes `n` values chosen uniformly at random
+function _pop_random_unsafe!(heap::MutableBinaryHeap, n::Int)
+    keys = [ draw_key(node.value) for node in heap.nodes ]
+    nodes = heap.nodes[partialsortperm(keys, 1:n)]
+    for node in nodes
+        delete!(heap, node.handle)
+    end
+    [ node.value for node in nodes ]
 end
 
-_pop_random!(queue::ThreadedQueue) = @lock queue.lock _pop_random_unsafe!(queue.heap)
+_pop_random!(queue::ThreadedQueue, n::Int) = @lock queue.lock _pop_random_unsafe!(queue.heap, n)
 
 function _clone_random!(heap::MutableBinaryHeap, t)
-    i = rand(1:length(heap.nodes))
-    source = heap.nodes[i].value
+    source = argmin(node -> draw_key(node.value), heap.nodes).value
     cell = clone_cell(source, t)
     push!(heap, cell)
     source, cell

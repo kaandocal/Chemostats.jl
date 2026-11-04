@@ -1,14 +1,15 @@
-mutable struct DECell{I,DF,FT,P,Remake}
+mutable struct DECell{I,DF,FT,P,Remake,R<:AbstractRNG}
     int::Union{I,Nothing}
     prob::P
     sol
     divide::DF
     state::CellState.T
     tshift::FT
+    rng::R
 end
 
 """
-    DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false)
+    DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false, rng=Xoshiro(rand(UInt64)))
 
 Creates a new cell around a `SciMLBase.DEProblem`, simulated with algorithm `alg` starting at time `t0`.
 The function `divide` takes a single integrator argument `int` and returns a list of offspring as a vector of `NamedTuples` with fields `u0` and `p`.
@@ -23,28 +24,44 @@ created using `SciMLBase.reinit`, which should be faster for `ODEProblem` and `S
 
 **Note:** The problem should include a callback that calls `terminate!` when a cell reaches the end of its life.
 """
-function DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false)
+function DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false, rng=Xoshiro(rand(UInt64)))
     tshift, int = if reset_t
-        t0, copy_integrator(prob, alg, 0)
+        int = copy_integrator(prob, alg, 0, rng)
+        # Match daughters' tshift type (e.g. Int `t0` would otherwise change the cell type)
+        convert(typeof(int.t), t0), int
     else
-        nothing, copy_integrator(prob, alg, t0)
+        nothing, copy_integrator(prob, alg, t0, rng)
     end
 
-    # `reinit_remake` never reads `cell.prob`, so don't keep it alive for it.
-    stored_prob = remake ? nothing : prob
-
-    DECell{typeof(int), typeof(divide), typeof(tshift), typeof(stored_prob), remake}(
-        int, stored_prob, missing, divide, CellState.Newborn, tshift
+    DECell{typeof(int), typeof(divide), typeof(tshift), typeof(prob), remake, typeof(rng)}(
+        int, prob, missing, divide, CellState.Newborn, tshift, rng
     )
 end
 
-# `DiscreteCallback` can hold mutable state
-copy_callback(cb) = isempty(cb.discrete_callbacks) ? cb : deepcopy(cb)
+get_rng(cell::DECell) = cell.rng
+# For `divide` functions, which only see the integrator
+get_rng(int::SciMLBase.DEIntegrator) = SciMLBase.get_rng(int)
 
-# Copy to avoid cases where `init` aliases `p` or a `JumpProblem`'s jump state
-function copy_integrator(prob, alg, t0)
-    prob = prob isa SciMLBase.AbstractJumpProblem ? deepcopy(prob) : prob
-    int = init(prob, alg; tspan=(t0, Inf))
+# Independent stream of the same type for a new cell, derived deterministically from `rng`
+spawn_rng(rng) = Random.seed!(copy(rng), rand(rng, UInt64))
+# Not reproducible under multithreading; `copy` would turn it into a `Xoshiro`
+spawn_rng(rng::TaskLocalRNG) = rng
+
+# Callbacks can hold mutable state: give each cell fresh copies of `prob`'s callbacks, used exclusively
+fresh_callback_kwargs(prob) = haskey(prob.kwargs, :callback) ?
+    (; callback = deepcopy(prob.kwargs[:callback]), merge_callbacks = false) : (;)
+
+# Copy to avoid cases where `init` aliases `p`, callbacks or a `JumpProblem`'s jump state
+function copy_integrator(prob, alg, t0, rng)
+    cb_kwargs = if prob isa SciMLBase.AbstractJumpProblem
+        prob = deepcopy(prob)
+        (;)
+    else
+        fresh_callback_kwargs(prob)
+    end
+    rng_kwargs = SciMLBase.supports_solve_rng(prob, alg) ? (; rng) : (;)
+
+    int = init(prob, alg; tspan=(t0, Inf), cb_kwargs..., rng_kwargs...)
     int.p = deepcopy(int.p)
     int
 end
@@ -58,18 +75,14 @@ function finalise!(cell::DECell)
     cell.int = nothing
 end 
 
-function reinit(old_int, prob; t0, p=nothing, u0=nothing)
-    int = copy_integrator(prob, old_int.alg, t0)
+function reinit(old_int, prob; t0, rng, p=nothing, u0=nothing)
+    int = copy_integrator(prob, old_int.alg, t0, rng)
     apply_reinit_overrides!(int, old_int; p, u0)
 end
 
-function reinit_remake(old_int; t0, p=nothing, u0=nothing)
-    base_prob = SciMLBase.remake(
-        old_int.sol.prob; u0 = copy(old_int.u), p = old_int.p, tspan = (t0, Inf)
-    )
-
-    int = init(base_prob, old_int.alg; callback = copy_callback(old_int.opts.callback))
-    int.p = deepcopy(int.p)
+function reinit_remake(old_int, prob; t0, rng, p=nothing, u0=nothing)
+    base_prob = SciMLBase.remake(prob; u0 = copy(old_int.u), p = old_int.p)
+    int = copy_integrator(base_prob, old_int.alg, t0, rng)
     apply_reinit_overrides!(int, old_int; p, u0)
 end
 
@@ -99,11 +112,11 @@ function apply_reinit_overrides!(int, old_int; p, u0)
     int
 end
 
-# Dispatches on a cell's `remake` type parameter; `prob` is ignored when `remake=true`.
-reinit_dispatch(remake::Bool, old_int, prob; t0, p=nothing, u0=nothing) =
-    remake ? reinit_remake(old_int; t0, p, u0) : reinit(old_int, prob; t0, p, u0)
+# Dispatches on a cell's `remake` type parameter
+reinit_dispatch(remake::Bool, old_int, prob; t0, rng, p=nothing, u0=nothing) =
+    remake ? reinit_remake(old_int, prob; t0, rng, p, u0) : reinit(old_int, prob; t0, rng, p, u0)
 
-function get_children(parent::DECell{I,DF,FT,P,Remake}, p=nothing) where {I,DF,FT,P,Remake}
+function get_children(parent::DECell{I,DF,FT,P,Remake,R}, p=nothing) where {I,DF,FT,P,Remake,R}
     @assert !isnothing(parent.int)
 
     children = parent.divide(parent.int)
@@ -118,9 +131,10 @@ function get_children(parent::DECell{I,DF,FT,P,Remake}, p=nothing) where {I,DF,F
             t, zero(t)
         end
 
-        int = reinit_dispatch(Remake, parent.int, parent.prob; t0, u0=ch.u0, p=ch.p)
-        DECell{typeof(int), DF, typeof(tshift), P, Remake}(
-            int, parent.prob, missing, parent.divide, CellState.Newborn, tshift
+        rng = spawn_rng(parent.rng)
+        int = reinit_dispatch(Remake, parent.int, parent.prob; t0, rng, u0=ch.u0, p=ch.p)
+        DECell{typeof(int), DF, typeof(tshift), P, Remake, R}(
+            int, parent.prob, missing, parent.divide, CellState.Newborn, tshift, rng
         )
     end
 end
@@ -213,14 +227,15 @@ function step!(cell::DECell, dt, p)
     end 
 end
 
-function clone_cell(cell::DECell{I,DF,FT,P,Remake}, t) where {I,DF,FT,P,Remake}
+function clone_cell(cell::DECell{I,DF,FT,P,Remake,R}, t) where {I,DF,FT,P,Remake,R}
     @assert !isnothing(cell.int)
 
     tshift = isnothing(cell.tshift) ? zero(t) : cell.tshift
     @check cell.int.sol.t[1] <= t - tshift <= get_curr_t(cell)
 
-    int = reinit_dispatch(Remake, cell.int, cell.prob; t0=t - tshift, u0=cell.int.sol(t - tshift), p=cell.int.p)
-    DECell{typeof(int), DF, FT, P, Remake}(int, cell.prob, missing, cell.divide, CellState.Newborn, cell.tshift)
+    rng = spawn_rng(cell.rng)
+    int = reinit_dispatch(Remake, cell.int, cell.prob; t0=t - tshift, rng, u0=cell.int.sol(t - tshift), p=cell.int.p)
+    DECell{typeof(int), DF, FT, P, Remake, R}(int, cell.prob, missing, cell.divide, CellState.Newborn, cell.tshift, rng)
 end
 
 ###

@@ -53,7 +53,7 @@ end
 @testset "ThreadedQueue: _pop_random!/_clone_random! preserve the rest" begin
     q = mk_queue(1.0:10.0)
 
-    popped = Chemostats._pop_random!(q)
+    popped = only(Chemostats._pop_random!(q, 1))
     @test length(q) == 9
     remaining = Set(v.t for v in Chemostats.iter_unsafe(q))
     @test popped.t ∉ remaining

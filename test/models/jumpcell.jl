@@ -1,4 +1,5 @@
 using JumpProcesses
+using Random
 using OrdinaryDiffEqTsit5
 using SciMLBase
 using SymbolicIndexingInterface: SymbolCache
@@ -31,11 +32,11 @@ function divide_jumpcell(int)
       (u0 = [:P => P2, :V => V_half], p = [:V_d => V_half + 1.0]) ]
 end
 
-function JumpCell(alg = Tsit5(); k = 1.0, V_d = 2.0, remake = false)
+function JumpCell(alg = Tsit5(); k = 1.0, V_d = 2.0, remake = false, rng = Xoshiro(rand(UInt64)))
     f = ODEFunction(jumpcell_rhs!; sys = jumpcell_syms)
     oprob = ODEProblem(f, [0.0, 1.0], (0., Inf), [k, V_d])
     prob = JumpProblem(oprob, Direct(), jumpcell_birth; callback = cb_div_jump)
-    DECell(prob, alg, divide_jumpcell; remake)
+    DECell(prob, alg, divide_jumpcell; remake, rng)
 end
 
 jumpcell_aggregator(int) = int.opts.callback.discrete_callbacks[1].condition
