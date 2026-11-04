@@ -46,14 +46,13 @@ end
 
     @test length(tree) == 8
 
-    @test roots(tree) == sort([ n.r1, n.r2 ])
-    @test living(tree) == sort([ n.a2, n.b1, n.b2 ])
-    @test tree[n.a2].alive && !tree[n.a1].alive
+    @test keys(roots(tree)) == sort([ n.r1, n.r2 ])
+    @test keys(living(tree)) == sort([ n.a2, n.b1, n.b2 ])
     @test is_alive(tree[n.a2]) && !is_alive(tree[n.a1])
 
     @test parent(tree, n.a1) == n.a && parent(tree, n.r1) == 0
-    @test sort(collect(children(tree, n.r1))) == sort([ n.a, n.b ])
-    @test sort(collect(children(tree, n.b))) == sort([ n.b1, n.b2 ])
+    @test sort(collect(keys(children(tree, n.r1)))) == sort([ n.a, n.b ])
+    @test collect(children(tree, n.b)) == [ tree[n.b1], tree[n.b2] ] && first(living(tree)) == tree[n.a2]
     @test isempty(children(tree, n.r2)) && isempty(children(tree, n.a2))
     @test has_divided(tree, n.a) && !has_divided(tree, n.a1)
 
@@ -61,9 +60,7 @@ end
     @test lifetime(tree[n.a2]) == 1. && lifetime(tree[n.r2]) == 1.5
     @test mean(lifetime, ancestors(tree, n.a1; self=true)) ≈ 1.
 
-    @test alive_at(tree, 0.5) == sort([ n.r1, n.r2 ])
-    @test alive_at(tree, 1.) == sort([ n.r2, n.a, n.b ])
-    @test alive_at(tree, 2.7) == sort([ n.a1, n.a2, n.b1, n.b2 ])
+    @test keys(alive_at(tree, 1.)) == sort([ n.r2, n.a, n.b ])                        # born at 1, not ended at 1
     @test isempty(alive_at(tree, -1.))
 end
 
@@ -71,27 +68,34 @@ end
     tree = example_tree()
     n = node_ids(tree)
 
-    @test collect(ancestors(tree, n.a1)) == [ n.a, n.r1 ]
-    @test collect(ancestors(tree, n.a1; self=true)) == [ n.a1, n.a, n.r1 ]
-    @test collect(ancestors(tree, n.a1; self=true, tspan=(1.5, 2.5))) == [ n.a1, n.a ]
+    @test collect(keys(ancestors(tree, n.a1))) == [ n.a, n.r1 ]
+    @test collect(keys(ancestors(tree, n.a1; self=true))) == [ n.a1, n.a, n.r1 ]
+    @test collect(keys(ancestors(tree, n.a1; self=true, tspan=(1.5, 2.5)))) == [ n.a1, n.a ]
     @test isempty(ancestors(tree, n.r1))
 
-    @test collect(descendants(tree, n.a)) == sort([ n.a1, n.a2 ])
-    @test length(collect(descendants(tree, n.r1))) == 6
-    @test first(descendants(tree, n.r1; self=true)) == n.r1
-    @test sort(collect(descendants(tree, n.r1; tspan=(0., 2.2)))) == sort([ n.a, n.b, n.a1, n.a2 ])
-    @test sort(collect(descendants(tree, n.r1; tspan=(2.2, 3.)))) == sort([ n.b, n.a1, n.a2, n.b1, n.b2 ])      # skips a
+    @test collect(keys(descendants(tree, n.a))) == sort([ n.a1, n.a2 ])
+    @test first(descendants(tree, n.r1; self=true)) == tree[n.r1]
+    @test sort(collect(keys(descendants(tree, n.r1; tspan=(0., 2.2))))) == sort([ n.a, n.b, n.a1, n.a2 ])
+    @test sort(collect(keys(descendants(tree, n.r1; tspan=(2.2, 3.))))) == sort([ n.b, n.a1, n.a2, n.b1, n.b2 ])      # skips a
 
     late = filter(node -> node.t_birth >= 2, tree)
-    @test sort(late.ids) == sort([ n.a1, n.a2, n.b1, n.b2 ])
-    @test alive_at(late, 2.2) == sort([ n.a1, n.a2 ])
-    @test alive_at(ancestors(tree, n.b1; self=true), 1.2) == [ n.b ]
+    @test sort(keys(late)) == sort([ n.a1, n.a2, n.b1, n.b2 ])
+    @test keys(alive_at(late, 2.2)) == sort([ n.a1, n.a2 ])
+    @test keys(alive_at(ancestors(tree, n.b1; self=true), 1.2)) == [ n.b ]
+    @test keys(filter(node -> node.t_birth >= 1, ancestors(tree, n.a1; self=true))) == [ n.a1, n.a ]    # keeps the order
 
-    @test ids(tree) == eachindex(tree)
-    @test ids(view(tree, [ n.a, n.b ])) == [ n.a, n.b ]
-    @test collect(ids(ancestors(tree, n.a1))) == collect(ancestors(tree, n.a1))
-    @test collect(eachnode(tree)) == [ tree[i] for i in eachindex(tree) ]
-    @test collect(eachnode(ancestors(tree, n.a1))) == [ tree[n.a], tree[n.r1] ]
+    # Collections iterate over nodes, `keys` gives their ids; trees themselves are not iterable
+    @test keys(tree) == eachindex(tree) == 1:8
+    @test collect(values(tree)) == [ tree[i] for i in 1:8 ]
+    @test collect(pairs(tree)) == [ i => tree[i] for i in 1:8 ]
+    @test_throws MethodError iterate(tree)
+    @test collect(view(tree, [ n.a, n.b ])) == [ tree[n.a], tree[n.b] ]
+    @test collect(ancestors(tree, n.a1)) == [ tree[n.a], tree[n.r1] ]
+    @test collect(pairs(ancestors(tree, n.a1))) == [ n.a => tree[n.a], n.r1 => tree[n.r1] ]
+    @test eltype(collect(descendants(tree, n.a))) == Trees.Node{Float64}
+
+    @test sprint(show, living(tree)) == "TreeView(3 nodes)"
+    @test sprint(show, tree[n.a1]) == "Node{Float64}(2.0 → 3.0, data = 2.0)"
 end
 
 @testset "Ancestors of a living cell" begin
@@ -102,10 +106,9 @@ end
     cell_divide!(tree, r1, [ a, b ], 1., 0.)
     cell_divide!(tree, a, [ a1 ], 2., 1.)
 
-    by_id(cell; kwargs...) = collect(ancestors(tree, tree.living[cell]; kwargs...))
-    @test collect(ancestors(tree, a1)) == by_id(a1)
-    @test collect(ancestors(tree, a1; self=true, tspan=(1.5, 3.))) == by_id(a1; self=true, tspan=(1.5, 3.))
-    @test length(collect(ancestors(tree, a1))) == 2
+    by_id(cell; kwargs...) = collect(keys(ancestors(tree, tree.living[cell]; kwargs...)))
+    @test collect(keys(ancestors(tree, a1))) == by_id(a1)
+    @test collect(keys(ancestors(tree, a1; self=true, tspan=(1.5, 3.)))) == by_id(a1; self=true, tspan=(1.5, 3.))
 
     @test_throws ArgumentError ancestors(tree, a)            # divided
     @test_throws ArgumentError ancestors(tree, r2)           # died
@@ -114,9 +117,9 @@ end
     # Pruning renumbers nodes; cells still find their lineages
     prune!(tree)
     @test length(tree) == 4
-    @test collect(ancestors(tree, a1)) == by_id(a1)
-    @test [ tree[i].t_birth for i in ancestors(tree, a1; self=true) ] == [ 2., 1., 0. ]
-    @test collect(ancestors(tree, b)) == roots(tree)
+    @test collect(keys(ancestors(tree, a1))) == by_id(a1)
+    @test [ node.t_birth for node in ancestors(tree, a1; self=true) ] == [ 2., 1., 0. ]
+    @test collect(keys(ancestors(tree, b))) == keys(roots(tree))
 end
 
 @testset "Statistics" begin
@@ -164,10 +167,8 @@ end
     @test mean(tb, ancestors(tree, n.b1; self=true)) ≈ mean([ 2.5, 1., 0. ])
     @test mean(tb, filter(node -> node.t_birth >= 2, tree)) ≈ 2.25
 
-    @test Trees.quadgk_integral((node, a) -> a^2, nothing, 0., 2.) ≈ 8 / 3
     age(node, a) = a
     @test time_average(age, tree[n.b]) ≈ time_average(age)(tree[n.b]) ≈ 0.75
-    @test mean(time_average(age), tree, time_weight) ≈ mean(node -> time_average(age, node), tree, time_weight)
     @test time_average(age, tree[n.b]; tspan=(1.5, 2.5)) ≈ 1.                       # ages 0.5 to 1.5
     @test isnothing(time_average(age, tree[n.b]; tspan=(3., 4.)))
     @test time_average(age, tree[n.b]; integrate=(f, node, a, b) -> 3. * (b - a)) ≈ 3.
@@ -185,29 +186,31 @@ end
     abs_t(node, a) = node.data + a      # data is the birth time, so this is absolute time
 
     # Living cells have no data yet and are skipped
-    snap = snapshot(abs_t, tree, 2.7)
-    @test snap.id == [ n.a1 ] && snap.value ≈ [ 2.7 ]
+    @test snapshot(abs_t, tree, 2.7) ≈ [ 2.7 ]                                    # only a1
 
     for (cell, id) in tree.living
         cell_update!(tree, cell, 3., tree[id].t_birth)
     end
 
     snap = snapshot(abs_t, tree, 2.7)
-    @test snap.id == alive_at(tree, 2.7) && all(snap.value .≈ 2.7)
+    @test length(snap) == length(alive_at(tree, 2.7)) == 4 && all(snap .≈ 2.7)
 
-    snaps = snapshot(abs_t, tree, [ 0.5, 2.7 ])
-    @test snaps.t == [ 0.5, 0.5, 2.7, 2.7, 2.7, 2.7 ] && snaps.value ≈ snaps.t
-    @test isempty(snapshot(abs_t, tree, Float64[]).id)
+    @test snapshot(abs_t, tree, [ 0.5, 2.7 ]) ≈ [ 0.5, 0.5, 2.7, 2.7, 2.7, 2.7 ]
+    @test isempty(snapshot(abs_t, tree, Float64[]))
+
+    # On a lineage, a snapshot is the single lineage cell alive at each time
+    lineage = ancestors(tree, n.a2; self=true)                                    # a2, a, r1
+    @test snapshot(abs_t, lineage, [ 0.5, 1.5, 2.5 ]) ≈ [ 0.5, 1.5, 2.5 ]
+    @test length(at_division(abs_t, lineage)) == 2                                # a and r1
 
     # Ages: living cells only count up to their age at their last update
     rec = at_age(abs_t, tree, 0.8)
-    @test sort(rec.id) == sort([ n.r1, n.r2, n.a, n.b, n.a1, n.a2 ])
-    @test all(rec.value .≈ getindex.(Ref(tree.nodes.t_birth), rec.id) .+ 0.8)
-    @test length(at_birth(abs_t, tree).id) == 8
+    @test sort(rec) ≈ [ 0., 0., 1., 1., 2., 2. ] .+ 0.8                        # r1, r2, a, b, a1, a2
+    @test length(at_birth(abs_t, tree)) == 8
 
-    pairs = at_division((node, τ) -> (abs_t(node, 0), τ), tree).value        # birth time and generation time
-    @test sort(last.(pairs)) ≈ [ 1., 1., 1.5 ]
-    @test sort(first.(pairs) .+ last.(pairs)) ≈ [ 1., 2., 2.5 ]
+    divs = at_division((node, τ) -> (abs_t(node, 0), τ), tree)               # birth time and generation time
+    @test sort(last.(divs)) ≈ [ 1., 1., 1.5 ]
+    @test sort(first.(divs) .+ last.(divs)) ≈ [ 1., 2., 2.5 ]
 end
 
 @testset "Updates, sorting and errors" begin
@@ -260,8 +263,8 @@ end
     cell_divide!(tree, c, [ d, e ], 0., 0.)
     cell_divide!(tree, d, [ f ], 1., 0.)
     sort!(tree)
-    @test collect(children(tree, 1)) == [ 3, 4 ] && collect(descendants(tree, 1)) == [ 3, 5, 4 ]
-    @test isnothing(time_average((node, a) -> a, tree[1])) && 1 ∉ alive_at(tree, 0.)
+    @test collect(keys(children(tree, 1))) == [ 3, 4 ] && collect(keys(descendants(tree, 1))) == [ 3, 5, 4 ]
+    @test isnothing(time_average((node, a) -> a, tree[1])) && 1 ∉ keys(alive_at(tree, 0.))
 
     # Data type defaults to `Any`
     @test Tree{Cell}() isa Tree{Cell,Any}
@@ -290,7 +293,7 @@ end
     # A sorted tree stays sorted
     cell_die!(tree, c[7], 2., 0.)
     @test issorted(tree) && length(tree) == 4 && isempty(children(tree, 2))     # c3
-    @test living(tree) == [ tree.living[c[5]] ]
+    @test keys(living(tree)) == [ tree.living[c[5]] ]
 
     # Pruned trees, with frozen nodes
     function lineage(drop)
@@ -345,7 +348,12 @@ end
     end
     prune!(tree)
     @test length(tree) == 51 && Trees.n_frozen(tree) == 50
-    @test length(collect(ancestors(tree, only(living(tree))))) == 50
+    @test length(collect(ancestors(tree, only(keys(living(tree)))))) == 50
+
+    # Marked node collections are kept
+    tree = example_tree()
+    mark!(tree, alive_at(tree, 1.2))
+    @test length(alive_at(prune!(tree), 1.2)) == 3                                 # keeps r2, removed at 1.5
 end
 
 include("random_trees.jl")

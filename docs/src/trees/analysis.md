@@ -39,18 +39,19 @@ sort!(tree)
 
 Analysis functions take *node collections*:
 
-- a tree (all of its nodes),
+- a tree (all of its nodes, iterated with `values(tree)`),
 - `view(tree, ids)` or [`filter(f, nodes)`](@ref Base.filter(::Any, ::NodeCollection)) (e.g. cells born after a burn-in),
 - [`ancestors(tree, id)`](@ref ancestors), the backward lineage of a node,
 - [`descendants(tree, id)`](@ref descendants), its forward lineages.
 
 Lineages can be restricted to cells alive at some time within a time span `tspan`. None of these copy any nodes.
+Node collections iterate over nodes; `keys` returns their ids, and `pairs` returns `id => node`.
 
 ```@example analysis
-id = first(living(tree))
+id = first(keys(living(tree)))
 lineage = ancestors(tree, id; self=true, tspan=(5., 20.))
 late = filter(node -> node.t_birth >= 5, tree)
-length(collect(lineage)), length(late.ids)
+length(collect(lineage)), length(late)
 ```
 
 ## Observables and summaries
@@ -93,15 +94,15 @@ On a lineage, a snapshot is the single lineage cell alive at `t`. Population ave
 removal keeps a uniform sample of the population.
 
 ```@example analysis
-[ mean(snapshot(age, tree, t).value) for t in (10., 15.) ]
+[ mean(snapshot(age, tree, t)) for t in (10., 15.) ]
 ```
 
-Age-conditioned records return named tuples of columns (which are Tables.jl tables). Observables can return several
-values, e.g. to pair the birth and division times of each cell:
+Snapshots and age-conditioned records return vectors of values. Observables can return several values, e.g. to pair
+the birth and division times of each cell:
 
 ```@example analysis
 div = at_division((node, τ) -> (node.t_birth, node.t_birth + τ), late)     # birth and division times
-mean(last.(div.value) .- first.(div.value)), [ mean(at_age(age, late, a).value) for a in (0., 0.5) ]
+mean(last.(div) .- first.(div)), [ mean(at_age(age, late, a)) for a in (0., 0.5) ]
 ```
 
 [`at_age`](@ref) includes removed cells if they reached age `a`, and living cells up to their age at their last update.

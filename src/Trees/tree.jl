@@ -21,6 +21,12 @@ struct Node{P}
     data::Union{Nothing,P}
 end
 
+function Base.show(io::IO, node::Node{P}) where {P}
+    print(io, "Node{", P, "}(", node.t_birth, " → ", node.t_end, ", data = ")
+    show(IOContext(io, :compact => true, :limit => true), node.data)
+    print(io, ")")
+end
+
 mutable struct Shears
     min_sweep::Int
     last_sweep_size::Int        # non-frozen nodes kept by the last sweep

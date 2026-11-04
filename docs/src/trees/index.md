@@ -45,19 +45,19 @@ end
 sort!(tree)
 ```
 
-Nodes can be queried by id:
+Nodes can be queried by id, which relates cells to each other in the tree:
 
 ```@example index
-id = first(living(tree))         # 4 (a1)
-tree[id]                         # Node{Float64}(2, 2, 2.0, 3.0, true, false, 0.5)
-collect(ancestors(tree, id))     # [2, 1] (a, r)
+id = first(keys(living(tree)))      # 4 (a1)
+tree[id]                            # Node{Float64}(2.0 → 3.0, data = 0.5)
+collect(keys(ancestors(tree, id)))  # [2, 1] (a, r)
 ```
 
 We can extract population statistics of the form `f(node, a)`, where `a` is the cell age. Here, cells grow exponentially and double their volume in one time unit, so the volume of a cell at age `a` is:
 
 ```@example index
 volume(node, a) = node.data * 2^a
-snapshot(volume, tree, 1.5)                      # (id = [2, 3], value = [0.707, 2.121]), i.e. a and b
+snapshot(volume, tree, 1.5)                      # [0.707, 2.121], i.e. a and b
 ```
 
 We can also compute population statistics such as time or per-cell averages, over entire populations, descendants, or ancestral lineages.

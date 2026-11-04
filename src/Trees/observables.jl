@@ -39,11 +39,8 @@ time_weight(; tspan = (-Inf, Inf)) = node -> time_weight(node; tspan)
 # Weighted mean and weighted sum of squared deviations (`nothing` without values), total weight and number of values
 # of `f(node)` over the nodes of `nodes` with non-zero weight, skipping nodes where `f` returns `nothing` (West's algorithm)
 function weighted_moments(f, nodes, w)
-    tree, ids = tree_ids(nodes)
-
     mS, W, n = nothing, 0., 0
-    for i in ids
-        node = tree[i]
+    for node in values(nodes)
         w_i = w(node)
         iszero(w_i) && continue
 
@@ -117,70 +114,47 @@ end
 """
     snapshot(f, nodes, t)
 
-Returns `f(node, age)` for all nodes in `nodes` alive at time `t`, as a named tuple of columns `(id, value)`. Nodes without data are skipped. Requires a sorted tree.
+Returns `f(node, age)` for all nodes in `nodes` alive at time `t`. Nodes without data are skipped. Requires a sorted tree.
 """
 function snapshot(f, nodes, t)
-    tree, _ = tree_ids(nodes)
-    (; t_birth, data) = tree.nodes
-    ids = filter!(i -> !isnothing(data[i]), alive_at(nodes, t))
-    (id = ids, value = [ f(tree[i], t - t_birth[i]) for i in ids ])
+    [ f(node, t - node.t_birth) for node in alive_at(nodes, t) if !isnothing(node.data) ]
 end
 
 """
     snapshot(f, nodes, ts::AbstractVector)
 
-Returns the concatenated snapshots of the nodes in `nodes` at the times `ts`, as a named tuple of columns `(id, t, value)`. Requires a sorted tree.
+Returns the concatenated snapshots of the nodes in `nodes` at the times `ts`. Requires a sorted tree.
 """
-function snapshot(f, nodes, ts::AbstractVector)
-    snaps = [ snapshot(f, nodes, t) for t in ts ]
-    isempty(snaps) && return (id = Int[], t = eltype(ts)[], value = Any[])
-    (id = reduce(vcat, [ snap.id for snap in snaps ]),
-     t = reduce(vcat, [ fill(t, length(snap.id)) for (t, snap) in zip(ts, snaps) ]),
-     value = reduce(vcat, [ snap.value for snap in snaps ]))
-end
+snapshot(f, nodes, ts::AbstractVector) = collect(Iterators.flatten(snapshot(f, nodes, t) for t in ts))
 
 ###
 
 # Records: age-conditioned and per-cycle values over node collections. Nodes without data (e.g. living cells) are skipped.
 
-# Collects `(id, value)` for the nodes of `nodes` with data, skipping those where `g(id, node)` returns `nothing`
-function collect_values(g, nodes)
-    tree, ids = tree_ids(nodes)
-    data = tree.nodes.data
-
-    vals = [ (i, g(i, tree[i])) for i in ids if !isnothing(data[i]) ]
-    filter!(v -> !isnothing(v[2]), vals)
-    (id = [ v[1] for v in vals ], value = [ v[2] for v in vals ])
-end
-
 """
     at_age(f, nodes, a)
 
-Returns `f(node, a)` for the nodes in `nodes` that have reached age `a`, as a named tuple of columns `(id, value)`. Nodes without data, or nodes that do not reach age `a`, are skipped.
+Returns `f(node, a)` for the nodes in `nodes` that have reached age `a`. Nodes without data, or nodes that do not reach age `a`, are skipped.
 """
 function at_age(f, nodes, a)
-    collect_values(nodes) do _, node
-        lifetime(node) >= a ? f(node, a) : nothing
-    end
+    [ f(node, a) for node in values(nodes) if !isnothing(node.data) && lifetime(node) >= a ]
 end
 
 """
     at_birth(f, nodes)
 
-Returns `f(node, 0)` for the nodes of the node collection `nodes`, as a named tuple of columns `(id, value)`.
+Returns `f(node, 0)` for the nodes of the node collection `nodes`.
 """
 at_birth(f, nodes) = at_age(f, nodes, 0)
 
 """
     at_division(f, nodes)
 
-Returns `f(node, τ)` for the nodes of the node collection `nodes` that divided, where `τ` is their generation time,
-as a named tuple of columns `(id, value)`. Requires a sorted tree.
+Returns `f(node, τ)` for the nodes of the node collection `nodes` that divided, where `τ` is their generation time.
+Requires a sorted tree.
 """
 function at_division(f, nodes)
     ensure_sorted(nodes)
-    tree, _ = tree_ids(nodes)
-    collect_values(nodes) do i, node
-        has_divided(tree, i) ? f(node, lifetime(node)) : nothing
-    end
+    tree = get_tree(nodes)
+    [ f(node, lifetime(node)) for (id, node) in pairs(nodes) if !isnothing(node.data) && has_divided(tree, id) ]
 end

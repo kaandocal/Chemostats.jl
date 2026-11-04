@@ -78,44 +78,44 @@ overlaps(node, tspan) = node.t_birth <= tspan[2] && (node.alive || node.t_end > 
             push!(expected, ref.birth[p])
             p = ref.parent[p]
         end
-        @test [ tree[i].t_birth for i in ancestors(tree, tree.living[c]) ] == expected
+        @test [ node.t_birth for node in ancestors(tree, tree.living[c]) ] == expected
     end
 
     # Queries agree with brute force
     @test all(parent[i] < i for i in ids) && issorted(t_birth)
-    @test roots(tree) == findall(iszero, parent)
-    @test living(tree) == findall(alive)
-    @test all(collect(children(tree, i)) == findall(==(i), parent) for i in ids)
+    @test keys(roots(tree)) == findall(iszero, parent)
+    @test keys(living(tree)) == findall(alive)
+    @test all(collect(keys(children(tree, i))) == findall(==(i), parent) for i in ids)
     @test all(has_divided(tree, i) == (i in parent) for i in ids)
 
     for s in [ 0., 3., 7.5, 12., 29.9, rand(rng) * 30 ]
-        @test alive_at(tree, s) == [ i for i in ids if t_birth[i] <= s && (alive[i] || s < t_end[i]) ]
+        @test keys(alive_at(tree, s)) == [ i for i in ids if t_birth[i] <= s && (alive[i] || s < t_end[i]) ]
     end
 
     tspan = (5 * rand(rng), 5 + 20 * rand(rng))
-    for i in [ roots(tree); rand(rng, ids, 5) ]
+    for i in [ keys(roots(tree)); rand(rng, ids, 5) ]
         chain = Int[]
         p = parent[i]
         while p != 0
             push!(chain, p)
             p = parent[p]
         end
-        @test collect(ancestors(tree, i)) == chain
-        @test collect(ancestors(tree, i; tspan)) == filter(j -> overlaps(tree[j], tspan), chain)
+        @test collect(keys(ancestors(tree, i))) == chain
+        @test collect(keys(ancestors(tree, i; tspan))) == filter(j -> overlaps(tree[j], tspan), chain)
 
-        desc = [ j for j in ids if i in ancestors(tree, j) ]
-        pre = collect(descendants(tree, i))
+        desc = [ j for j in ids if i in keys(ancestors(tree, j)) ]
+        pre = collect(keys(descendants(tree, i)))
         @test sort(pre) == desc
         @test all(parent[j] == i || findfirst(==(parent[j]), pre) < k for (k, j) in enumerate(pre))
-        @test sort(collect(descendants(tree, i; tspan))) == filter(j -> overlaps(tree[j], tspan), desc)
+        @test sort(collect(keys(descendants(tree, i; tspan)))) == filter(j -> overlaps(tree[j], tspan), desc)
     end
 
     # Pruning keeps the ancestors of living cells and the marked population, and nothing else
-    @test sort([ pruned[i].t_birth for i in alive_at(pruned, ref.t_mark) ]) ==
-          sort([ tree[i].t_birth for i in alive_at(tree, ref.t_mark) ])
+    @test sort([ node.t_birth for node in alive_at(pruned, ref.t_mark) ]) ==
+          sort([ node.t_birth for node in alive_at(tree, ref.t_mark) ])
     for c in ref.cells
-        @test [ pruned[i].t_birth for i in ancestors(pruned, pruned.living[c]) ] ==
-              [ tree[i].t_birth for i in ancestors(tree, tree.living[c]) ]
+        @test [ node.t_birth for node in ancestors(pruned, pruned.living[c]) ] ==
+              [ node.t_birth for node in ancestors(tree, tree.living[c]) ]
     end
 
     # Sweeps are lazy; after an explicit sweep, all leaves are living or marked, and sweeping again changes nothing
@@ -133,8 +133,8 @@ overlaps(node, tspan) = node.t_birth <= tspan[2] && (node.alive || node.t_end > 
 
     s = 10 * rand(rng) + 5
     snap = snapshot((node, a) -> node.t_birth + a, tree, s)
-    @test snap.id == filter(i -> !isnothing(tree[i].data), alive_at(tree, s)) && all(snap.value .≈ s)
+    @test length(snap) == count(node -> !isnothing(node.data), alive_at(tree, s)) && all(snap .≈ s)
 
     rec = at_age((node, a) -> a, tree, 1.5)
-    @test rec.id == [ i for i in ids if !isnothing(tree[i].data) && lifetime(tree[i]) >= 1.5 ]
+    @test length(rec) == count(i -> !isnothing(tree[i].data) && lifetime(tree[i]) >= 1.5, ids) && all(==(1.5), rec)
 end

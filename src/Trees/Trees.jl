@@ -19,7 +19,7 @@ export cell_init!, cell_divide!, cell_die!, cell_update!
 export mark!, prune!
 
 # Queries
-export roots, living, children, alive_at, ancestors, descendants, ids, eachnode
+export roots, living, children, alive_at, ancestors, descendants
 export has_divided, lifetime, is_alive
 
 # Statistics
@@ -30,6 +30,7 @@ include("tree.jl")
 include("pruning.jl")
 include("iterators.jl")
 include("queries.jl")
+include("collections.jl")
 include("observables.jl")
 
 end

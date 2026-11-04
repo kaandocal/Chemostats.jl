@@ -1,5 +1,4 @@
 Base.getindex(tree::Tree, id) = tree.nodes[id]
-Base.eachindex(tree::Tree) = eachindex(tree.nodes)
 
 """
     parent(tree::Tree, id)
@@ -11,9 +10,12 @@ Base.parent(tree::Tree, id) = tree.nodes.parent[id]
 """
     children(tree::Tree, id)
 
-Returns the children of node `id` as a range of node ids. Requires a sorted tree. If a cell does not have children, this function returns an empty range.
+Returns the children of node `id` as a node collection. Requires a sorted tree.
 """
-function children(tree::Tree, id)
+children(tree::Tree, id) = view(tree, child_ids(tree, id))
+
+# Ids of the children of `id`, which are contiguous in a sorted tree
+function child_ids(tree::Tree, id)
     ensure_sorted(tree)
     (; parent, t_birth) = tree.nodes
     n = length(tree)
@@ -48,7 +50,7 @@ end
 
 Returns `true` if node `id` has children in the population tree. Note that pruning may remove unmarked children. Requires a sorted tree.
 """
-has_divided(tree::Tree, id) = !isempty(children(tree, id))
+has_divided(tree::Tree, id) = !isempty(child_ids(tree, id))
 
 """
     lifetime(node::Node)
@@ -67,22 +69,22 @@ is_alive(node::Node) = node.alive
 """
     roots(tree::Tree)
 
-Returns the ids of all root nodes.
+Returns all root nodes.
 """
-roots(tree::Tree) = findall(iszero, tree.nodes.parent)
+roots(tree::Tree) = view(tree, findall(iszero, tree.nodes.parent))
 
 """
     living(tree::Tree)
 
-Returns the ids of all living cells.
+Returns all living cells, as a node collection.
 """
-living(tree::Tree) = sort!(collect(values(tree.living)))
+living(tree::Tree) = view(tree, sort!(collect(values(tree.living))))
 
 """
     alive_at(tree::Tree, t)
     alive_at(nodes, t)
 
-Returns the id of every node in `nodes` alive at time `t`. Requires a sorted tree.
+Returns the nodes in `nodes` alive at time `t`. Requires a sorted tree.
 """
 function alive_at(tree::Tree, t)
     ensure_sorted(tree)
@@ -97,63 +99,5 @@ function alive_at(tree::Tree, t)
         t_birth[i] <= t && push!(ids, i)
     end
 
-    sort!(ids)
-end
-
-struct TreeView{T<:Tree,I}
-    tree::T
-    ids::I
-end
-
-"""
-    view(tree::Tree, ids)
-
-Returns the nodes `ids` of `tree` as a node collection, without copying.
-"""
-Base.view(tree::Tree, ids) = TreeView(tree, ids)
-
-# Node collections: all nodes of a tree, a view of a tree, or the ancestors or descendants of a node
-const NodeCollection = Union{Tree,TreeView,AncestorIterator,DescendantIterator}
-
-tree_ids(tree::Tree) = (tree, eachindex(tree))
-tree_ids(v::TreeView) = (v.tree, v.ids)
-tree_ids(iter::Union{AncestorIterator,DescendantIterator}) = (iter.tree, iter)
-
-"""
-    ids(nodes)
-
-Returns the node ids of the node collection `nodes`: all nodes of a tree, `view(tree, ids)`, or the ancestors or descendants of a node.
-"""
-ids(nodes) = last(tree_ids(nodes))
-
-"""
-    eachnode(nodes)
-
-Iterates over the [`Node`](@ref)s of the node collection `nodes`, see [`ids`](@ref).
-"""
-function eachnode(nodes)
-    tree, ids = tree_ids(nodes)
-    (tree[id] for id in ids)
-end
-
-# Functions needing time order require a sorted tree. They do not sort it themselves, which would renumber nodes.
-function ensure_sorted(nodes)
-    tree, _ = tree_ids(nodes)
-    @argcheck issorted(tree) "Tree must be sorted, call `sort!(tree)` first"
-end
-
-"""
-    filter(f, nodes)
-
-Returns the nodes of `nodes` for which `f(node)` is true, as a node collection (a view of the tree).
-"""
-function Base.filter(f, nodes::NodeCollection)
-    tree, ids = tree_ids(nodes)
-    view(tree, [ i for i in ids if f(tree[i]) ])
-end
-
-function alive_at(nodes::NodeCollection, t)
-    tree, ids = tree_ids(nodes)
-    (; t_birth, t_end, alive) = tree.nodes
-    [ i for i in ids if t_birth[i] <= t && (alive[i] || t < t_end[i]) ]
+    view(tree, sort!(ids))
 end

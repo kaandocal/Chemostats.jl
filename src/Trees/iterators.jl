@@ -8,7 +8,7 @@ end
     ancestors(tree::Tree, id; self=false, tspan = (-Inf, Inf))
     ancestors(tree::Tree, cell; self=false, tspan = (-Inf, Inf))
 
-Iterates over the ancestors of node `id` (its backward lineage), starting with its parent. If `self=true`, start with the cell itself. Only cells alive at some time in `tspan` are included. `cell` must be a living cell of the tree.
+Iterates over the ancestors (nodes) of node `id` (its backward lineage), starting with its parent. If `self=true`, start with the cell itself. Only cells alive at some time in `tspan` are included. `cell` must be a living cell of the tree. Use `keys` for their ids.
 """
 function ancestors(tree::Tree, id::Integer; self::Bool=false, tspan = (-Inf, Inf))
     AncestorIterator(tree, self ? Int(id) : tree[id].parent, Float64.(tspan))
@@ -17,7 +17,7 @@ end
 # Ancestors of a living cell
 ancestors(tree::Tree, cell; kwargs...) = ancestors(tree, living_id(tree, cell); kwargs...)
 
-function Base.iterate(iter::AncestorIterator, id=iter.start)
+function iterate_id(iter::AncestorIterator, id=iter.start)
     (; parent, t_birth, t_end, alive) = iter.tree.nodes
     tspan = iter.tspan
 
@@ -31,9 +31,6 @@ function Base.iterate(iter::AncestorIterator, id=iter.start)
     id, parent[id]
 end
 
-Base.IteratorSize(::Type{<:AncestorIterator}) = Base.SizeUnknown()
-Base.eltype(::Type{<:AncestorIterator}) = Int
-
 struct DescendantIterator{T<:Tree}
     tree::T
     root::Int
@@ -44,7 +41,7 @@ end
 """
     descendants(tree::Tree, id; self=false, tspan = (-Inf, Inf))
 
-Iterates over the descendants of node `id` (its forward lineages) in depth-first manner. If `self=true`, start with the cell itself. Only cells alive at some time in `tspan` are included. Requires a sorted tree.
+Iterates over the descendants (nodes) of node `id` (its forward lineages) in depth-first manner. If `self=true`, start with the cell itself. Only cells alive at some time in `tspan` are included. Requires a sorted tree. Use `keys` for their ids.
 """
 function descendants(tree::Tree, id; self::Bool=false, tspan = (-Inf, Inf))
     ensure_sorted(tree)
@@ -56,7 +53,7 @@ function next_descendant(iter::DescendantIterator, i)
     (; tree, root, tspan) = iter
     (; parent, t_birth) = tree.nodes
 
-    cs = children(tree, i)
+    cs = child_ids(tree, i)
     !isempty(cs) && t_birth[first(cs)] <= tspan[2] && return first(cs)
 
     while i != root
@@ -68,7 +65,7 @@ function next_descendant(iter::DescendantIterator, i)
     0
 end
 
-function Base.iterate(iter::DescendantIterator, i = iter.self ? iter.root : next_descendant(iter, iter.root))
+function iterate_id(iter::DescendantIterator, i = iter.self ? iter.root : next_descendant(iter, iter.root))
     (; t_birth, t_end, alive) = iter.tree.nodes
     tspan = iter.tspan
 
@@ -80,5 +77,19 @@ function Base.iterate(iter::DescendantIterator, i = iter.self ? iter.root : next
     nothing
 end
 
-Base.IteratorSize(::Type{<:DescendantIterator}) = Base.SizeUnknown()
-Base.eltype(::Type{<:DescendantIterator}) = Int
+###
+
+# Lineages iterate over nodes (see `NodeCollection`), and `LineageIds` over their ids
+const Lineage = Union{AncestorIterator,DescendantIterator}
+
+struct LineageIds{L<:Lineage}
+    lineage::L
+end
+
+Base.iterate(x::LineageIds, state...) = iterate_id(x.lineage, state...)
+Base.IteratorSize(::Type{<:LineageIds}) = Base.SizeUnknown()
+Base.eltype(::Type{<:LineageIds}) = Int
+
+Base.IteratorSize(::Type{<:Lineage}) = Base.SizeUnknown()
+Base.eltype(::Type{<:AncestorIterator{T}}) where {T} = node_type(T)
+Base.eltype(::Type{<:DescendantIterator{T}}) where {T} = node_type(T)
