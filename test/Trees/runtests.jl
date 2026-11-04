@@ -86,6 +86,12 @@ end
     @test sort(late.ids) == sort([ n.a1, n.a2, n.b1, n.b2 ])
     @test alive_at(late, 2.2) == sort([ n.a1, n.a2 ])
     @test alive_at(ancestors(tree, n.b1; self=true), 1.2) == [ n.b ]
+
+    @test ids(tree) == eachindex(tree)
+    @test ids(view(tree, [ n.a, n.b ])) == [ n.a, n.b ]
+    @test collect(ids(ancestors(tree, n.a1))) == collect(ancestors(tree, n.a1))
+    @test collect(eachnode(tree)) == [ tree[i] for i in eachindex(tree) ]
+    @test collect(eachnode(ancestors(tree, n.a1))) == [ tree[n.a], tree[n.r1] ]
 end
 
 @testset "Ancestors of a living cell" begin
@@ -266,6 +272,50 @@ end
 
     # Data type defaults to `Any`
     @test Tree{Cell}() isa Tree{Cell,Any}
+end
+
+@testset "Cells removed at birth" begin
+    # The tree is the same as if the removed cells had never been added
+    c = [ Cell(Symbol(:c, i)) for i in 1:9 ]
+    tree, ref = Tree{Cell,Float64}(), Tree{Cell,Float64}()
+    cell_init!(tree, c[1:3], 0.)
+    cell_init!(ref, c[2:3], 0.)
+    foreach(tr -> cell_divide!(tr, c[2], c[4:5], 1., 0.), (tree, ref))
+
+    cell_die!(tree, c[1], 0., 0.)                       # a founder, after later events
+    cell_divide!(tree, c[3], c[6:7], 2., 0.)
+    cell_die!(tree, c[6], 2., 0.)                       # not the last node
+    cell_divide!(ref, c[3], c[7:7], 2., 0.)
+
+    cell_divide!(tree, c[4], c[8:9], 3., 1.)
+    foreach(x -> cell_die!(tree, x, 3., 0.), c[8:9])    # leaves the mother without children
+    cell_die!(ref, c[4], 3., 1.)
+
+    @test tree.nodes == ref.nodes && tree.living == ref.living
+    @test sort!(tree).nodes == sort!(ref).nodes && tree.living == ref.living
+
+    # A sorted tree stays sorted
+    cell_die!(tree, c[7], 2., 0.)
+    @test issorted(tree) && length(tree) == 4 && isempty(children(tree, 2))     # c3
+    @test living(tree) == [ tree.living[c[5]] ]
+
+    # Pruned trees, with frozen nodes
+    function lineage(drop)
+        tree = Tree{Cell,Float64}(; min_sweep=1)
+        cell = Cell(:x)
+        cell_init!(tree, [ cell ], 0.)
+        for k in 1:20
+            kids = drop ? [ Cell(:y), Cell(:z) ] : [ Cell(:z) ]
+            cell_divide!(tree, cell, kids, Float64(k), 0.)
+            drop && cell_die!(tree, kids[1], Float64(k), 0.)
+            cell = last(kids)
+            prune!(tree; lazy=true)
+        end
+        tree
+    end
+
+    dropped, ref = lineage(true), lineage(false)
+    @test dropped.nodes == ref.nodes && Trees.n_frozen(dropped) == Trees.n_frozen(ref) > 0
 end
 
 @testset "Pruning edge cases" begin

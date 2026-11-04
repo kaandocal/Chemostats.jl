@@ -101,11 +101,12 @@ end
 """
     cell_die!(tree, cell, t, data)
 
-Called when `cell` dies without dividing. Here `data` is the data saved for `cell`.
+Called when `cell` dies without dividing. Here `data` is the data saved for `cell`. A cell that dies at its time of birth is removed from the tree.
 """
 function cell_die!(tree::Tree, cell, t, data)
     id = living_id(tree, cell)
-    finish_node!(tree, id, t, data)
+    # A cell removed at birth was never alive, so it is dropped
+    t == tree.nodes.t_birth[id] ? drop_node!(tree, id) : finish_node!(tree, id, t, data)
     delete!(tree.living, cell)
     nothing
 end
@@ -143,6 +144,19 @@ end
 function set_end!(tree::Tree, id, t)
     @argcheck t >= tree.nodes.t_birth[id] "Time is before the birth of the cell"
     tree.nodes.t_end[id] = t
+end
+
+# Removes the living leaf `id`, shifting later ids down. Keeps the order, so a sorted tree stays sorted.
+function drop_node!(tree::Tree, id)
+    (; nodes) = tree
+    deleteat!(nodes, id)
+    for i in id:length(nodes)
+        nodes.parent[i] > id && (nodes.parent[i] -= 1)
+    end
+
+    for (cell, i) in collect(tree.living)
+        i > id && (tree.living[cell] = i - 1)
+    end
 end
 
 function finish_node!(tree::Tree, id, t, data)

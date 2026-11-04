@@ -19,7 +19,7 @@ export cell_init!, cell_divide!, cell_die!, cell_update!
 export mark!, prune!
 
 # Queries
-export roots, living, children, alive_at, ancestors, descendants
+export roots, living, children, alive_at, ancestors, descendants, ids, eachnode
 export has_divided, lifetime, is_alive
 
 # Statistics

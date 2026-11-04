@@ -119,6 +119,23 @@ tree_ids(tree::Tree) = (tree, eachindex(tree))
 tree_ids(v::TreeView) = (v.tree, v.ids)
 tree_ids(iter::Union{AncestorIterator,DescendantIterator}) = (iter.tree, iter)
 
+"""
+    ids(nodes)
+
+Returns the node ids of the node collection `nodes`: all nodes of a tree, `view(tree, ids)`, or the ancestors or descendants of a node.
+"""
+ids(nodes) = last(tree_ids(nodes))
+
+"""
+    eachnode(nodes)
+
+Iterates over the [`Node`](@ref)s of the node collection `nodes`, see [`ids`](@ref).
+"""
+function eachnode(nodes)
+    tree, ids = tree_ids(nodes)
+    (tree[id] for id in ids)
+end
+
 # Functions needing time order require a sorted tree. They do not sort it themselves, which would renumber nodes.
 function ensure_sorted(nodes)
     tree, _ = tree_ids(nodes)
