@@ -87,7 +87,7 @@ Called when `parent` divides into `children` at time `t`. Here `data` is the dat
 function cell_divide!(tree::Tree, parent, children, t, data)
     id = living_id(tree, parent)
     @argcheck allunique(objectid, children) "Children must be distinct"
-    @argcheck all(c -> c === parent || !haskey(tree.living, c), children) "Children must not be living cells of the tree"
+    @argcheck !any(c -> haskey(tree.living, c), children) "Children must not be living cells of the tree"
     finish_node!(tree, id, t, data)
     delete!(tree.living, parent)
 

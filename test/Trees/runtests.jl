@@ -223,6 +223,7 @@ end
     d = Cell(:d)
     @test_throws ArgumentError cell_divide!(tree, cell, [ d, d ], 4., 0.)
     @test_throws ArgumentError cell_divide!(tree, cell, [ other ], 4., 0.)
+    @test_throws ArgumentError cell_divide!(tree, cell, [ cell, d ], 4., 0.)           # its own daughter
     @test_throws ArgumentError cell_divide!(tree, cell, [ d ], 0.5, 0.)               # before its birth
     @test_throws ArgumentError cell_die!(tree, cell, 0.5, 0.)
     @test_throws ArgumentError cell_update!(tree, cell, 0.5)
@@ -251,14 +252,6 @@ end
     @test length(tree) == n
     prune!(tree)
     @test length(tree) < n
-
-    # A mother can be reused as one of its daughters
-    tree = Tree{Cell,Float64}()
-    c, d = Cell(:c), Cell(:d)
-    cell_init!(tree, [ c ], 0.)
-    cell_divide!(tree, c, [ c, d ], 1., 0.)
-    sort!(tree)
-    @test living(tree) == [ 2, 3 ] && parent(tree, tree.living[c]) == 1
 
     # Divisions with zero lifetime
     tree = Tree{Cell,Float64}()
