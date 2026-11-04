@@ -48,7 +48,7 @@ is_alive
 
 ```@docs
 time_average
-time_weight
+time_weights
 StatsBase.mean(::Any, ::NodeCollection, ::Any)
 StatsBase.var(::Any, ::NodeCollection, ::Any)
 StatsBase.mean_and_var(::Any, ::NodeCollection, ::Any)

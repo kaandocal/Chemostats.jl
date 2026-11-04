@@ -72,7 +72,7 @@ Nodes without data, and nodes for which a function returns `nothing`, are skippe
 [`mean`](@ref StatsBase.mean(::Any, ::NodeCollection, ::Any)), [`var`](@ref StatsBase.var(::Any, ::NodeCollection, ::Any))
 and [`mean_and_var`](@ref StatsBase.mean_and_var(::Any, ::NodeCollection, ::Any)) average per-cell summaries over node
 collections, optionally with weights. Weights are functions of nodes, and are evaluated in a single pass without
-allocating per node. [`time_weight`](@ref) weights cells by the time they were alive
+allocating per node. [`time_weights`](@ref) weights cells by the time they were alive
 (within a time span), so that weighted means of per-cell time averages are time averages over the population.
 
 ```@example analysis
@@ -81,8 +81,8 @@ tspan = (5., 20.)
 avg_age = time_average(age; tspan)
 
 mean(avg_age, late),                                    # per cell
-mean(avg_age, tree, time_weight(; tspan)),         # time-weighted, over the population
-mean(avg_age, lineage, time_weight(; tspan))    # time-weighted, along a lineage
+mean(avg_age, tree, time_weights(; tspan)),         # time-weighted, over the population
+mean(avg_age, lineage, time_weights(; tspan))    # time-weighted, along a lineage
 ```
 
 Variances of per-cell summaries are not population variances: for the latter, use per-cell averages of `x` and `x²`.

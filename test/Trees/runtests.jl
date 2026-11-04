@@ -89,6 +89,7 @@ end
     @test collect(values(tree)) == [ tree[i] for i in 1:8 ]
     @test collect(pairs(tree)) == [ i => tree[i] for i in 1:8 ]
     @test_throws MethodError iterate(tree)
+    @test !isempty(tree) && isempty(Tree{Cell}())
     @test collect(view(tree, [ n.a, n.b ])) == [ tree[n.a], tree[n.b] ]
     @test collect(ancestors(tree, n.a1)) == [ tree[n.a], tree[n.r1] ]
     @test collect(pairs(ancestors(tree, n.a1))) == [ n.a => tree[n.a], n.r1 => tree[n.r1] ]
@@ -134,10 +135,10 @@ end
 
     # Time weights: lifetimes (living cells up to their last update), clipped to `tspan`
     w = [ tree[i].t_end - tree[i].t_birth for i in eachindex(tree) ]
-    @test time_weight.(tree.nodes) ≈ w
-    @test mean(tb, tree, time_weight) ≈ sum(w .* vals) / sum(w)
-    @test all(mean_and_var(tb, tree, time_weight) .≈ (sum(w .* vals) / sum(w), var(vals, pweights(w); corrected=true)))
-    @test time_weight(tree[n.r1]; tspan=(0.5, 1.2)) ≈ time_weight(; tspan=(0.5, 1.2))(tree[n.r1]) ≈ 0.5
+    @test time_weights.(tree.nodes) ≈ w
+    @test mean(tb, tree, time_weights) ≈ sum(w .* vals) / sum(w)
+    @test all(mean_and_var(tb, tree, time_weights) .≈ (sum(w .* vals) / sum(w), var(vals, pweights(w); corrected=true)))
+    @test time_weights(tree[n.r1]; tspan=(0.5, 1.2)) ≈ time_weights(; tspan=(0.5, 1.2))(tree[n.r1]) ≈ 0.5
 
     # Zero weights and `nothing` values are skipped
     @test mean(tb, tree, node -> node.t_end == 2.5 ? 1. : 0.) == 1.                  # only b
@@ -160,8 +161,8 @@ end
         cell = kid
     end
     sort!(chain)
-    mean(tb, chain, time_weight)
-    @test (@allocated mean(tb, chain, time_weight)) < 1000
+    mean(tb, chain, time_weights)
+    @test (@allocated mean(tb, chain, time_weights)) < 1000
 
     # Statistics over lineages and views
     @test mean(tb, ancestors(tree, n.b1; self=true)) ≈ mean([ 2.5, 1., 0. ])

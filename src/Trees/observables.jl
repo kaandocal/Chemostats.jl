@@ -27,14 +27,14 @@ time_average(f; kwargs...) = node -> time_average(f, node; kwargs...)
 ###
 
 """
-    time_weight(node::Node; tspan = (-Inf, Inf))
-    time_weight(; tspan = (-Inf, Inf))
+    time_weights(node::Node; tspan = (-Inf, Inf))
+    time_weights(; tspan = (-Inf, Inf))
 
 Weights cells by their lifetime within `tspan` (living cells up to their last update). Used to compute time averages in
-lineages and populations. `time_weight(; tspan)` returns the function `node -> time_weight(node; tspan)`.
+lineages and populations. `time_weights(; tspan)` returns the function `node -> time_weights(node; tspan)`.
 """
-time_weight(node::Node; tspan = (-Inf, Inf)) = max(0., min(node.t_end, tspan[2]) - max(node.t_birth, tspan[1]))
-time_weight(; tspan = (-Inf, Inf)) = node -> time_weight(node; tspan)
+time_weights(node::Node; tspan = (-Inf, Inf)) = max(0., min(node.t_end, tspan[2]) - max(node.t_birth, tspan[1]))
+time_weights(; tspan = (-Inf, Inf)) = node -> time_weights(node; tspan)
 
 # Weighted mean and weighted sum of squared deviations (`nothing` without values), total weight and number of values
 # of `f(node)` over the nodes of `nodes` with non-zero weight, skipping nodes where `f` returns `nothing` (West's algorithm)
@@ -66,13 +66,13 @@ end
     mean(f, nodes)
     mean(f, nodes, w)
 
-Returns the mean of `f(node)` over all nodes in `nodes`, optionally weighted by `w`. The default returns the average over cells; if `w = time_weight`, returns time averages. Ignores nodes where `f` returns `nothing`.
+Returns the mean of `f(node)` over all nodes in `nodes`, optionally weighted by `w`. The default returns the average over cells; if `w = time_weights`, returns time averages. Ignores nodes where `f` returns `nothing`.
 
 For example:
 
 ```julia
 # Time average of an observable `f(node, age)` over the population within `tspan`
-mean(time_average(f; tspan), tree, time_weight(; tspan))
+mean(time_average(f; tspan), tree, time_weights(; tspan))
 
 # Mean lifetime of the cells along the backward lineage of node `id`
 mean(lifetime, ancestors(tree, id))

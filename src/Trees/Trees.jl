@@ -23,7 +23,7 @@ export roots, living, children, alive_at, ancestors, descendants
 export has_divided, lifetime, is_alive
 
 # Statistics
-export mean_and_var, time_average, time_weight, snapshot
+export mean_and_var, time_average, time_weights, snapshot
 export at_age, at_birth, at_division
 
 include("tree.jl")

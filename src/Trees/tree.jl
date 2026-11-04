@@ -58,6 +58,7 @@ end
 Tree{C}(; kwargs...) where {C} = Tree{C,Any}(; kwargs...)
 
 Base.length(tree::Tree) = length(tree.nodes)
+Base.isempty(tree::Tree) = isempty(tree.nodes)
 
 n_frozen(tree::Tree) = tree.shears.n_frozen
 

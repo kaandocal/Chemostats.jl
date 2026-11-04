@@ -63,8 +63,8 @@ snapshot(volume, tree, 1.5)                      # [0.707, 2.121], i.e. a and b
 We can also compute population statistics such as time or per-cell averages, over entire populations, descendants, or ancestral lineages.
 
 ```@example index
-mean(time_average(volume), tree, time_weight)                        # 1.489
-mean(time_average(volume), descendants(tree, 3; self=true), time_weight)  # 2.300 (b, b1, b2)
+mean(time_average(volume), tree, time_weights)                        # 1.489
+mean(time_average(volume), descendants(tree, 3; self=true), time_weights)  # 2.300 (b, b1, b2)
 mean(node -> node.data, ancestors(tree, id; self=true))              # 0.667 (a1, a, r)
 ```
 
