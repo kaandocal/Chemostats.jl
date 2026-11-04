@@ -19,6 +19,7 @@ if GROUP in ("All", "Core")
 	@testset "Resilience" begin include("resilience.jl") end
 	@testset "Growth rates" begin include("growth.jl") end
 	@testset "Reinit" begin include("reinit.jl") end
+	@testset "RNG" begin include("rng.jl") end
 end
 
 if GROUP in ("All", "Extensions")

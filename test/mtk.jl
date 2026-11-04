@@ -66,6 +66,48 @@ end
     @test all(c -> c.int[:X] <= 1, chem.pop)   # never overshoots past the divide point
 end
 
+# Production rate ∝ V gives a variable-rate jump, which must also draw from the cell's RNG
+vr_rn = @reaction_network begin
+    @species P(t) = 0
+    @variables V(t) = 1.
+
+    @parameters k V_d
+
+    @equations begin
+        D(V) ~ V
+    end
+
+    k * V, 0 --> P
+end
+
+function divide_vr(int)
+    rng = Chemostats.get_rng(int)
+    P = round(Int, int[:P])
+    P1 = count(_ -> rand(rng) < 0.5, 1:P)
+
+    [ (u0 = [:P => P1, :V => int[:V] / 2], p = nothing),
+      (u0 = [:P => P - P1, :V => int[:V] / 2], p = nothing) ]
+end
+
+@testset "HybridProblem is seed-reproducible across ensemble algorithms" begin
+    cb = Chemostats.DivideCallback(vr_rn.V ~ vr_rn.V_d; interp_points=0, save_positions=(true, false))
+    prob = HybridProblem(vr_rn, [:P => 0, :V => 1.0], (0., Inf), [:k => 20.0, :V_d => 2.0]; callback = cb)
+
+    # The global RNG is scrambled first: results must depend only on `seed`
+    function run_vr(ensalg; seed = 1000)
+        chem = Chemostat([ DECell(prob, Tsit5(), divide_vr; rng = Xoshiro(seed + i)) for i in 1:10 ])
+        Random.seed!(rand(RandomDevice(), UInt64))
+        Chemostats.simulate!(chem, 2.5, Chemostats.Thin(0.3), ensalg; saveat = 0.5:0.5:2.5)
+        @test chem.status == Chemostats.ReturnCode.Success
+        cells = sort([ (Chemostats.get_curr_t(c), copy(c.int.u)) for c in chem.pop ])
+        cells, [ (s.t, s.N, s.nsim) for s in chem.snaps ]
+    end
+
+    ref = run_vr(EnsembleSerial())
+    @test isequal(run_vr(EnsembleThreads()), ref)
+    @test !isequal(run_vr(EnsembleSerial(); seed = 2000), ref)
+end
+
 @testset "SymbolicDivideContinuous / SymbolicDivideDiscrete" begin
     @variables X(t) = 0.0
 

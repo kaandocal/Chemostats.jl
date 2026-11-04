@@ -19,7 +19,7 @@ function init!(alg::Forward, int)
 end 
 
 is_parallel(::Forward) = true
-filter_offspring(cells, ::Forward) = ((rand(cells),), NaN)
+filter_offspring(cells, ::Forward, rng) = ((rand(rng, cells),), NaN)
 update_algorithm!(::Forward, int) = nothing
 update_queue!(queue, ::Forward, t) = nothing
 
@@ -47,7 +47,7 @@ end
 get_δ(int, alg::Thin) = alg.δ
 init!(::Thin, int) = nothing
 is_parallel(::Thin) = true
-filter_offspring(cells, ::Thin) = (cells, 0)
+filter_offspring(cells, ::Thin, rng) = (cells, 0)
 update_algorithm!(::Thin, int) = nothing
 update_queue!(int, ::Thin, t) = nothing
 
@@ -87,7 +87,7 @@ Strict(L::Int) = Strict(L, true)
 get_δ(int, ::Strict) = 0.
 init!(alg::Strict, int) = update_queue!(int, alg, int.t)
 is_parallel(alg::Strict) = false
-filter_offspring(cells, ::Strict) = (cells, 0)
+filter_offspring(cells, ::Strict, rng) = (cells, 0)
 update_algorithm!(::Strict, int) = nothing
 
 function update_queue!(int, alg::Strict, t)
@@ -203,5 +203,5 @@ function update_algorithm!(alg::Lax, int)
 end 
 
 is_parallel(::Lax) = true
-filter_offspring(cells, ::Lax) = (cells, 0)
+filter_offspring(cells, ::Lax, rng) = (cells, 0)
 update_queue!(int, ::Lax, t) = nothing

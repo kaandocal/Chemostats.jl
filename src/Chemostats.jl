@@ -26,7 +26,7 @@ public CellState, Snapshot
 public Forward, Thin, Direct, Strict, Lax
 
 public simulate!
-public get_curr_t, get_state, est_logN, est_N
+public get_curr_t, get_state, get_rng, est_logN, est_N
 
 function SymbolicDivideContinuous end
 function SymbolicDivideDiscrete end
