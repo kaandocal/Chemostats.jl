@@ -20,16 +20,16 @@ include("models/exponential.jl")
     @test Chemostats.est_N(s3) ≈ 20
 end
 
-@testset "get_snapshot" begin
+@testset "_get_snapshot" begin
     snaps = [
         Chemostats.Snapshot(0.0, 10, 10, 0.0),
         Chemostats.Snapshot(1.0, 10, 10, 0.0),
         Chemostats.Snapshot(1.0, 15, 15, 0.0),
     ]
 
-    @test_throws ArgumentError Chemostats.get_snapshot(snaps, 5.0)
-    @test Chemostats.get_snapshot(snaps, 1.0).N == 15
-    @test Chemostats.get_snapshot(snaps).t == 1.0
+    @test_throws ArgumentError Chemostats._get_snapshot(snaps, 5.0)
+    @test Chemostats._get_snapshot(snaps, 1.0).N == 15
+    @test Chemostats._get_snapshot(snaps).t == 1.0
 end
 
 @testset "Lax constructor" begin
@@ -103,7 +103,7 @@ end
 
     Chemostats.kill!(cell1, Chemostats.get_curr_t(cell1))
     @test Chemostats.get_state(cell1) == Chemostats.CellState.Killed
-    @test isnothing(cell1.int)   # properly finalized
+    @test SciMLBase.done(cell1.int)   # integrator terminated
 
     prob2 = ODEProblem(f_exp, 0.1, (0., 0.), (; id = 2); callback = cb_exp)
     cell2 = DECell(prob2, Tsit5(), divide_exp)
@@ -113,7 +113,7 @@ end
 
     Chemostats.kill!(cell2, Chemostats.get_curr_t(cell2))
     @test Chemostats.get_state(cell2) == Chemostats.CellState.Killed
-    @test isnothing(cell2.int)
+    @test SciMLBase.done(cell2.int)
 end
 
 @testset "clone independence" begin

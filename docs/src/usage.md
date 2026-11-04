@@ -7,7 +7,6 @@ Chemostats.jl simulates individual cells in a [`Chemostat`](@ref) object.
 ```@docs
 Chemostat
 Chemostats.simulate!
-Chemostats.get_snapshot
 Chemostats.CellException
 ```
 
@@ -35,5 +34,6 @@ Chemostats.kill!
 Chemostats.get_children
 Chemostats.clone_cell
 Chemostats.get_rng
+Chemostats.get_data
 Chemostats.CellState
 ```

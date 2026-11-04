@@ -93,7 +93,8 @@ end
 
     @test snap.log_f ≈ δ*tmax
 
-    N_dead = length(chem.tree.leaves)
+    tree = chem.tree
+    N_dead = count(id -> !Chemostats.is_alive(tree[id]) && isempty(Chemostats.children(tree, id)), eachindex(tree))
     @test snap.nsim == 2*(snap.N + N_dead) - K
     @test N_dead > 0   # sanity: δ=0.3 over tmax=2 should cull at least a few
 end

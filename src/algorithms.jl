@@ -155,7 +155,7 @@ function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     # Snapshots at t - kτ for k = 1, …, rnd; a missing one makes the estimate undefined
     snap_lag = [ get_snapshot_near(snaps, t - k * alg.τ, alg.τ) for k in 1:rnd ]
     any(isnothing, snap_lag) && return NaN
-    snap_now = get_snapshot(snaps, t)
+    snap_now = _get_snapshot(snaps, t)
 
     ret = sum(0:rnd-1) do d
         snap_1 = snap_lag[d + 1]
@@ -174,7 +174,7 @@ get_δ(int, alg::Lax) = get_δ(int.chem, int.t, alg)
 get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.snaps, t, alg)
 
 function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    snap = get_snapshot(snaps, t)
+    snap = _get_snapshot(snaps, t)
 
     N = snap.N > alg.L * alg.tol ? alg.L : snap.N
 

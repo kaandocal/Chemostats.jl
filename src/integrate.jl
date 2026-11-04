@@ -3,6 +3,7 @@ mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: Thre
     alg::A
     queue::QT
     tstops::Vector{Float64}
+    saveat::Vector{Float64}     # populations are marked in the tree at these times
     t0::Float64
     t::Float64
     t_next::Float64
@@ -28,7 +29,7 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
 
     queue = ThreadedQueue(chem.pop) 
     
-    PopIntegrator(chem, alg, queue, Float64.(tstops), t0, t0, t0,
+    PopIntegrator(chem, alg, queue, Float64.(tstops), Float64.(tstops), t0, t0, t0,
                   chem.snaps[end].nsim, chem.snaps[end].log_f,
                   SciMLBase.ReturnCode.Default, ReentrantLock())
 end 
@@ -54,14 +55,23 @@ The default `ensalg` is `EnsembleThreads()` for multithreaded algorithms, or `En
 
 If the population size exceeds `Nmax`, the simulation exits (useful for `Direct` and `Lax`).
 
+If a population tree is recorded, cells alive at times `saveat` are saved together with their 
+ancestors.
+
 If `throw_on_error` is `true`, exceptions that occur while simulating a cell will stop the simulation. 
 If it is `false`, the exception will be caught and the cell will be removed from the population.
 """
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
                    ensalg::EnsembleAlgorithm = default_ensalg(alg); saveat=[ tmax ], throw_on_error::Bool=false, kwargs...)
     int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
-    init!(int.alg, int)
-    simulate!(int, tmax, ensalg; throw_on_error, kwargs...)
+    try
+        init!(int.alg, int)
+        int.t0 in saveat && mark_tree!(chem)
+        simulate!(int, tmax, ensalg; throw_on_error, kwargs...)
+    finally
+        # Also after early termination or an exception
+        update_tree!(chem.tree)
+    end
     chem.status = int.retcode
     chem
 end
@@ -72,7 +82,7 @@ function simulate!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm = default
         int.retcode == ReturnCode.Default || break
         step!(int, tmax, ensalg; save=true, throw_on_error, kwargs...)
 
-        simplify!(int.chem.tree, iter_unsafe(int.queue))
+        prune_tree!(int.chem)
     end
 
     empty!(int.chem.pop)
@@ -136,6 +146,8 @@ function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7)
         else
             showerror(stderr, e, catch_backtrace())
             flush(stderr)
+            # The cell is dropped from the population
+            @lock int.tree_lock record_drop!(int.chem.tree, cell)
         end
     end
 end
@@ -172,6 +184,7 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
     if int.retcode == ReturnCode.Default
         int.t = int.t_next
         int.queue = out
+        int.t in int.saveat && mark_tree!(chem)
     else
         int.t = isempty(queue) ? int.t_next : get_curr_t(first(queue))
 
@@ -200,7 +213,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
     @check get_state(cell) != CellState.Alive || t > tb "Cell simulation did not increase time"
 
     if get_state(cell) == CellState.Killed 
-        @lock int.tree_lock add_leaf!(int.chem.tree, cell)
+        @lock int.tree_lock record_end!(int.chem.tree, cell, t, get_data(cell))
         return
     end 
 
@@ -209,8 +222,9 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
         t_kill = tb + randexp(get_rng(cell)) / δ
 
         if t_kill < t
+            data = get_data(cell)
             kill!(cell, t_kill)
-            @lock int.tree_lock add_leaf!(int.chem.tree, cell)
+            @lock int.tree_lock record_end!(int.chem.tree, cell, t_kill, data)
             return
         end
     end
@@ -230,15 +244,18 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
         throw(CellException(e))
     end
 
+    t, data = get_curr_t(cell), get_data(cell)
+
     if isempty(children)
         die!(cell)
-        @lock int.tree_lock add_leaf!(int.chem.tree, cell)
+        @lock int.tree_lock record_end!(int.chem.tree, cell, t, data)
         return 
     end 
 
     children_filtered, Δlog_f = filter_offspring(children, int.alg, get_rng(cell))
     divide!(cell)
-    @lock int.tree_lock add_offspring!(int.chem.tree, cell, Tuple(children_filtered))
+    # Before the children are queued, so their own events come after their birth
+    @lock int.tree_lock record_division!(int.chem.tree, cell, children_filtered, t, data)
 
     lock(int.queue) do 
         @debug "Appending $(length(children_filtered))/$(length(children)) cells..."
@@ -253,8 +270,9 @@ function _shrink_pop_unsafe!(int, L::Int, t)
     N_start > L || return
 
     for cell in _pop_random!(int.queue, N_start - L)
+        data = get_data(cell)
         kill!(cell, t)
-        @lock int.tree_lock add_leaf!(int.chem.tree, cell)
+        @lock int.tree_lock record_end!(int.chem.tree, cell, t, data)
     end
 
     int.log_f += log(N_start) - log(length(int.queue))
@@ -264,10 +282,13 @@ function _clone_pop_unsafe!(int, L::Int, t)
     isempty(int.queue) && return 
 
     N_start = length(int.queue)
+    N_start < L || return
+    # Trees cannot represent clones
+    isnothing(int.chem.tree) || throw(ArgumentError(
+        "Cannot record a population tree when cloning cells, use `Strict(L, false)`, `Lax` or `save_ancestors=false`"))
 
     while length(int.queue) < L
-        source, clone = _clone_random!(int.queue, t)
-        @lock int.tree_lock add_clone!(int.chem.tree, source, clone)
+        _clone_random!(int.queue, t)
     end
 
     int.log_f += log(N_start) - log(length(int.queue))

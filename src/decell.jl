@@ -1,7 +1,6 @@
 mutable struct DECell{I,DF,FT,P,Remake,R<:AbstractRNG}
-    int::Union{I,Nothing}
+    int::I
     prob::P
-    sol
     divide::DF
     state::CellState.T
     tshift::FT
@@ -22,6 +21,9 @@ If `remake` is `true`, descendants will be created using `SciMLBase.remake`, whi
 a copy of the underlying `AbstractProblem` (safest). Otherwise, descendants will be 
 created using `SciMLBase.reinit`, which should be faster for `ODEProblem` and `SDEProblem` types.
 
+If a population tree is recorded, the solution `int.sol` of each cell is saved for each cell.
+This can be changed by overriding [`Chemostats.get_data`](@ref).
+
 **Note:** The problem should include a callback that calls `terminate!` when a cell reaches the end of its life.
 """
 function DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false, rng=Xoshiro(rand(UInt64)))
@@ -34,11 +36,12 @@ function DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false, r
     end
 
     DECell{typeof(int), typeof(divide), typeof(tshift), typeof(prob), remake, typeof(rng)}(
-        int, prob, missing, divide, CellState.Newborn, tshift, rng
+        int, prob, divide, CellState.Newborn, tshift, rng
     )
 end
 
 get_rng(cell::DECell) = cell.rng
+get_data(cell::DECell) = cell.int.sol
 # For `divide` functions, which only see the integrator
 get_rng(int::SciMLBase.DEIntegrator) = SciMLBase.get_rng(int)
 
@@ -65,15 +68,6 @@ function copy_integrator(prob, alg, t0, rng)
     int.p = deepcopy(int.p)
     int
 end
-
-process_int(int) = int.sol
-
-function finalise!(cell::DECell)
-    isnothing(cell.int) && return 
-
-    cell.sol = process_int(cell.int)
-    cell.int = nothing
-end 
 
 function reinit(old_int, prob; t0, rng, p=nothing, u0=nothing)
     int = copy_integrator(prob, old_int.alg, t0, rng)
@@ -117,8 +111,6 @@ reinit_dispatch(remake::Bool, old_int, prob; t0, rng, p=nothing, u0=nothing) =
     remake ? reinit_remake(old_int, prob; t0, rng, p, u0) : reinit(old_int, prob; t0, rng, p, u0)
 
 function get_children(parent::DECell{I,DF,FT,P,Remake,R}, p=nothing) where {I,DF,FT,P,Remake,R}
-    @assert !isnothing(parent.int)
-
     children = parent.divide(parent.int)
     isnothing(children) && return typeof(parent)[]
 
@@ -134,17 +126,13 @@ function get_children(parent::DECell{I,DF,FT,P,Remake,R}, p=nothing) where {I,DF
         rng = spawn_rng(parent.rng)
         int = reinit_dispatch(Remake, parent.int, parent.prob; t0, rng, u0=ch.u0, p=ch.p)
         DECell{typeof(int), DF, typeof(tshift), P, Remake, R}(
-            int, parent.prob, missing, parent.divide, CellState.Newborn, tshift, rng
+            int, parent.prob, parent.divide, CellState.Newborn, tshift, rng
         )
     end
 end
 
 function get_curr_t(cell::DECell) 
-    ret = if !isnothing(cell.int)
-        cell.int.t 
-    else 
-        last(cell.sol.t)
-    end 
+    ret = cell.int.t
 
     if !isnothing(cell.tshift)
         ret += cell.tshift 
@@ -169,43 +157,31 @@ function init_cell!(cell::DECell)
 end
 
 function kill!(cell::DECell, t=get_curr_t(cell))
-    @assert !isnothing(cell.int)
-
     cell.state = CellState.Killed
-
     SciMLBase.done(cell.int) || terminate!(cell.int)
-    finalise!(cell)
 end
 
 function die!(cell::DECell)
-    @assert !isnothing(cell.int)
-
     if get_state(cell) != CellState.EndOfLife
         @warn "Called `die!` on cell in state $(get_state(cell))"
         return 
     end 
 
     set_state!(cell, CellState.Dead)
-    finalise!(cell)
 end 
 
 function divide!(cell::DECell)
-    @assert !isnothing(cell.int)
-
     if get_state(cell) != CellState.EndOfLife
         @warn "Cell in state $(get_state(cell)) tried to divide"
         return 
     end 
 
     set_state!(cell, CellState.Divided)
-    finalise!(cell)
 end
 
 savevalues!(cell::DECell) = savevalues!(cell.int)
 
 function step!(cell::DECell, dt, p)
-    @assert !isnothing(cell.int)
-
     isnothing(p) || @warn "Parameter arguments to DECell are ignored" maxlog=1
 
     if get_state(cell) != CellState.Alive
@@ -220,7 +196,6 @@ function step!(cell::DECell, dt, p)
         if !SciMLBase.successful_retcode(cell.int.sol)
             @warn "Cell solver errored, removing cell..."
             set_state!(cell, CellState.Killed)
-            finalise!(cell)
         else 
             set_state!(cell, CellState.EndOfLife)
         end
@@ -228,14 +203,12 @@ function step!(cell::DECell, dt, p)
 end
 
 function clone_cell(cell::DECell{I,DF,FT,P,Remake,R}, t) where {I,DF,FT,P,Remake,R}
-    @assert !isnothing(cell.int)
-
     tshift = isnothing(cell.tshift) ? zero(t) : cell.tshift
     @check cell.int.sol.t[1] <= t - tshift <= get_curr_t(cell)
 
     rng = spawn_rng(cell.rng)
     int = reinit_dispatch(Remake, cell.int, cell.prob; t0=t - tshift, rng, u0=cell.int.sol(t - tshift), p=cell.int.p)
-    DECell{typeof(int), DF, FT, P, Remake, R}(int, cell.prob, missing, cell.divide, CellState.Newborn, cell.tshift, rng)
+    DECell{typeof(int), DF, FT, P, Remake, R}(int, cell.prob, cell.divide, CellState.Newborn, cell.tshift, rng)
 end
 
 ###
