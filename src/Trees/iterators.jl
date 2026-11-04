@@ -6,12 +6,16 @@ end
 
 """
     ancestors(tree::Tree, id; self=false, tspan = (-Inf, Inf))
+    ancestors(tree::Tree, cell; self=false, tspan = (-Inf, Inf))
 
-Iterates over the ancestors of node `id` (its backward lineage), starting with its parent. If `self=true`, start with the cell itself. Only cells alive at some time in `tspan` are included.
+Iterates over the ancestors of node `id` (its backward lineage), starting with its parent. If `self=true`, start with the cell itself. Only cells alive at some time in `tspan` are included. `cell` must be a living cell of the tree.
 """
-function ancestors(tree::Tree, id; self::Bool=false, tspan = (-Inf, Inf))
+function ancestors(tree::Tree, id::Integer; self::Bool=false, tspan = (-Inf, Inf))
     AncestorIterator(tree, self ? Int(id) : tree[id].parent, Float64.(tspan))
 end
+
+# Ancestors of a living cell
+ancestors(tree::Tree, cell; kwargs...) = ancestors(tree, living_id(tree, cell); kwargs...)
 
 function Base.iterate(iter::AncestorIterator, id=iter.start)
     (; parent, t_birth, t_end, alive) = iter.tree.nodes

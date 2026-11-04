@@ -88,6 +88,31 @@ end
     @test alive_at(ancestors(tree, n.b1; self=true), 1.2) == [ n.b ]
 end
 
+@testset "Ancestors of a living cell" begin
+    r1, r2, a, b, a1 = Cell(:r1), Cell(:r2), Cell(:a), Cell(:b), Cell(:a1)
+    tree = Tree{Cell,Float64}()
+    cell_init!(tree, [ r1, r2 ], 0.)
+    cell_die!(tree, r2, 0.5, 0.)
+    cell_divide!(tree, r1, [ a, b ], 1., 0.)
+    cell_divide!(tree, a, [ a1 ], 2., 1.)
+
+    by_id(cell; kwargs...) = collect(ancestors(tree, tree.living[cell]; kwargs...))
+    @test collect(ancestors(tree, a1)) == by_id(a1)
+    @test collect(ancestors(tree, a1; self=true, tspan=(1.5, 3.))) == by_id(a1; self=true, tspan=(1.5, 3.))
+    @test length(collect(ancestors(tree, a1))) == 2
+
+    @test_throws ArgumentError ancestors(tree, a)            # divided
+    @test_throws ArgumentError ancestors(tree, r2)           # died
+    @test_throws ArgumentError ancestors(tree, Cell(:x))     # never in the tree
+
+    # Pruning renumbers nodes; cells still find their lineages
+    prune!(tree)
+    @test length(tree) == 4
+    @test collect(ancestors(tree, a1)) == by_id(a1)
+    @test [ tree[i].t_birth for i in ancestors(tree, a1; self=true) ] == [ 2., 1., 0. ]
+    @test collect(ancestors(tree, b)) == roots(tree)
+end
+
 @testset "Statistics" begin
     tree = example_tree()
     n = node_ids(tree)
