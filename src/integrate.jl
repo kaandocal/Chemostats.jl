@@ -47,6 +47,17 @@ function add_tstop!(int::PopIntegrator, t)
 end 
 
 """
+    simulate(cells, tmax, alg, ensalg = EnsembleThreads(); kwargs...)
+
+Utility function that creates a [`Chemostat`](@ref) with initial population `cells`
+and runs [`simulate!`](@ref). Returns the created `Chemostat` object.
+"""
+function simulate(cells, args...; p=nothing, copy=false, save_mode::Symbol=:none, kwargs...)
+    chem = Chemostat(cells; p, copy, save_mode)
+    simulate!(chem, args...; kwargs...)
+end 
+
+"""
     simulate!(chem, tmax, alg, ensalg = EnsembleThreads(); saveat = [], Nmax = 1e7, throw_on_error = false)
 
 Simulates the chemostat until time `tmax` with algorithm `alg` (see [Simulation Algorithms](@ref) for a list of algorithms).
@@ -285,7 +296,7 @@ function _clone_pop_unsafe!(int, L::Int, t)
     N_start < L || return
     # Trees cannot represent clones
     isnothing(int.chem.tree) || throw(ArgumentError(
-        "Cannot record a population tree when cloning cells, use `Strict(L, false)`, `Lax` or `save_ancestors=false`"))
+        "Cannot record a population tree when cloning cells, use `Strict(L, false)`, `Lax` or `save_mode=:none`"))
 
     while length(int.queue) < L
         _clone_random!(int.queue, t)

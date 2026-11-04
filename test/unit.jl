@@ -6,6 +6,7 @@ using SciMLBase
 using Chemostats
 
 include("models/exponential.jl")
+include("models/jumpcell.jl")
 
 @testset "Snapshot math" begin
     s1 = Chemostats.Snapshot(0.0, 10, 10, 0.0)
@@ -160,6 +161,15 @@ end
 
     @test chem.snaps[end].t == tmax
     @test all(c -> Chemostats.get_curr_t(c) == tmax, chem.pop)
+end
+
+# Regression: an integer start time used to specialise a `JumpProblem`'s functions on `Int` time
+@testset "Integer start times with a JumpProblem (reset_t=$reset_t)" for reset_t in (true, false)
+    chem = Chemostat([ JumpCell(; k = 5.0, reset_t, t0 = 0) for _ in 1:3 ])
+    Chemostats.simulate!(chem, 3.0, Chemostats.Direct())
+
+    @test chem.status == SciMLBase.ReturnCode.Success
+    @test all(c -> Chemostats.get_curr_t(c) == 3.0, chem.pop)
 end
 
 @testset "Chemostat option copy" begin

@@ -64,7 +64,9 @@ function copy_integrator(prob, alg, t0, rng)
     end
     rng_kwargs = SciMLBase.supports_solve_rng(prob, alg) ? (; rng) : (;)
 
-    int = init(prob, alg; tspan=(t0, Inf), cb_kwargs..., rng_kwargs...)
+    # A non-float `t0` (e.g. `reset_t` starts at 0) would specialise the problem's functions on the wrong time type
+    t0 = float(t0)
+    int = init(prob, alg; tspan=(t0, oftype(t0, Inf)), cb_kwargs..., rng_kwargs...)
     int.p = deepcopy(int.p)
     int
 end

@@ -83,7 +83,7 @@ end
     K = 30
     δ = 0.3
     tmax = 2.0
-    chem = Chemostat(make_population(K); save_leaves = true)
+    chem = Chemostat(make_population(K); save_mode = :full)
 
     Chemostats.simulate!(chem, tmax, Chemostats.Thin(δ), ensalg)
     snap = chem.snaps[end]

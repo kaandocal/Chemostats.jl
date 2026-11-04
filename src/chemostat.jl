@@ -93,8 +93,9 @@ end
 Chemostat object. The field `pop` contains the current population of cells.
 The field `p` can be a user-defined parameter object (defaults to `nothing`).
 `snaps` contains a list of `Snapshot`s saved at different times. `tree`
-contains the population tree (used if `save_ancestors=true` or `save_leaves=true`), 
-and `status` the status code.
+contains the population tree, depending on `save_mode`: `:none` (default) records no tree,
+`:ancestors` keeps the ancestors of the living cells and of the populations at the `saveat` times
+of [`simulate!`](@ref), and `:full` keeps every cell. `status` contains the status code.
 """
 mutable struct Chemostat{C,P,T}
     pop::Vector{C}
@@ -105,15 +106,16 @@ mutable struct Chemostat{C,P,T}
     status::ReturnCode.T
 end
 
-function Chemostat(cells, p=nothing; copy=false, save_ancestors=false, save_leaves=false)
+function Chemostat(cells; p=nothing, copy=false, save_mode::Symbol=:none)
+    @argcheck save_mode in (:none, :ancestors, :full) "Unknown save_mode $save_mode, use :none, :ancestors or :full"
+
     snaps = [ Snapshot(0., length(cells), 0, 0.) ]
     cells = copy ? deepcopy(cells) : cells
 
-    # Saving leaves means keeping every node, so it implies recording and disables pruning
-    tree = save_ancestors || save_leaves ? Tree{eltype(cells)}() : nothing
+    tree = save_mode == :none ? nothing : Tree{eltype(cells)}()
     record_init!(tree, cells)
 
-    Chemostat(cells, p, snaps, tree, !save_leaves, ReturnCode.Default)
+    Chemostat(cells, p, snaps, tree, save_mode == :ancestors, ReturnCode.Default)
 end
 
 function Base.show(io::IO, chem::Chemostat)

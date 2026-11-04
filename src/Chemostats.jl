@@ -11,8 +11,8 @@ using SciMLBase: EnsembleAlgorithm, EnsembleSerial, EnsembleThreads
 import SciMLBase: savevalues!, step!, add_tstop!
 import SymbolicIndexingInterface
 
-using Trees: Trees, Tree, ancestors, descendants, children, alive_at, living, lifetime,
-             time_average, time_weight, snapshot, at_age, at_birth, at_division
+using Trees: Trees, Tree, ancestors, descendants, children, roots, has_divided, alive_at, living, lifetime,
+             time_average, time_weights, snapshot, at_age, at_birth, at_division
 import Trees: is_alive
 
 include("queue.jl")
