@@ -7,6 +7,7 @@ JumpProcesses = "ccbc3e58-028d-4f4c-8cd5-9ae44345cda5"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [sources]
 Chemostats = {path = ".."}
@@ -17,3 +18,4 @@ Catalyst = "17"
 Chemostats = "0.1"
 Distributions = "0.25"
 OrdinaryDiffEqTsit5 = "1.8, 2.1"
+StatsBase = "0.34"
