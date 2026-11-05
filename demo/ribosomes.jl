@@ -23,7 +23,7 @@ cb_div = Chemostats.DivideCallback(rn.V ~ rn.V_d)
 
 # This function determines what offspring a dividing cell produces.
 function divide(int)
-    rng = Chemostats.get_rng(int)       # The cell's own RNG, for reproducible simulations
+    rng = SciMLBase.get_rng(int)        # The cell's own RNG, for reproducible simulations
     rand(rng) < 0.1 && return nothing   # Die with probability 1/10
 
     R = round(Int, int[:R])

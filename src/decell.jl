@@ -40,7 +40,7 @@ function DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false, r
     )
 end
 
-get_rng(cell::DECell) = cell.rng
+get_cell_rng(cell::DECell) = cell.rng
 get_data(cell::DECell) = cell.int.sol
 # For `divide` functions, which only see the integrator
 get_rng(int::SciMLBase.DEIntegrator) = SciMLBase.get_rng(int)

@@ -77,7 +77,7 @@ function extract_queue!(pop, queue::ThreadedQueue)
 end
 
 # Random choices use one key per cell from its own RNG, so they don't depend on heap layout
-draw_key(v) = rand(get_rng(v))
+draw_key(v) = rand(get_cell_rng(v))
 
 # Removes `n` values chosen uniformly at random
 function _pop_random_unsafe!(heap::MutableBinaryHeap, n::Int)

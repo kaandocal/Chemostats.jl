@@ -18,7 +18,7 @@ include("models/rngcell.jl")
 
     @test length(children) == 2
     @test all(c -> typeof(c) == typeof(cell), [clone; children])
-    @test allunique([ Chemostats.get_rng(c) for c in [cell; clone; children] ])   # compares states
+    @test allunique([ Chemostats.get_cell_rng(c) for c in [cell; clone; children] ])   # compares states
 end
 
 # Minimal cell for the queue's random selection
@@ -29,7 +29,7 @@ struct KeyCell
 end
 
 Chemostats.get_curr_t(c::KeyCell) = c.t
-Chemostats.get_rng(c::KeyCell) = c.rng
+Chemostats.get_cell_rng(c::KeyCell) = c.rng
 Chemostats.clone_cell(c::KeyCell, t) = KeyCell(t, c.id, Xoshiro(rand(c.rng, UInt64)))
 
 # All at the same time, as at a tstop, so heap order alone can't break ties

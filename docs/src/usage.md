@@ -32,7 +32,7 @@ Chemostats.die!
 Chemostats.kill!
 Chemostats.get_children
 Chemostats.clone_cell
-Chemostats.get_rng
+Chemostats.get_cell_rng
 Chemostats.get_data
 Chemostats.CellState
 ```
