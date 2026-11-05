@@ -32,5 +32,6 @@ include("iterators.jl")
 include("queries.jl")
 include("collections.jl")
 include("observables.jl")
+include("newick.jl")
 
 end

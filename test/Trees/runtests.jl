@@ -358,6 +358,49 @@ end
     @test length(alive_at(prune!(tree), 1.2)) == 3                                 # keeps r2, removed at 1.5
 end
 
+@testset "Newick" begin
+    tree = example_tree()
+    n = node_ids(tree)
+
+    @test newick(tree) == "(($(n.a1):1.0,$(n.a2):1.0)$(n.a):1.0,($(n.b1):0.5,$(n.b2):0.5)$(n.b):1.5)$(n.r1):1.0;\n" *
+                          "$(n.r2):1.5;\n"
+    @test sprint(newick, tree) == newick(tree)
+    @test newick(descendants(tree, n.b; self=true)) == "($(n.b1):0.5,$(n.b2):0.5)$(n.b):1.5;\n"
+    @test newick(ancestors(tree, n.a1; self=true)) == "(($(n.a1):1.0)$(n.a):1.0)$(n.r1):1.0;\n"
+    @test newick(view(tree, [ n.r1, n.a1, n.b ])) == "($(n.b):1.5)$(n.r1):1.0;\n$(n.a1):1.0;\n"     # a1 without its parent
+    @test newick(view(tree, Int[])) == ""
+
+    # Polytomies, with a middle child missing from the collection
+    poly = Tree{Cell,Float64}()
+    cell, kids = Cell(:c), [ Cell(:k) for _ in 1:3 ]
+    cell_init!(poly, [ cell ], 0.)
+    cell_divide!(poly, cell, kids, 1., 0.)
+    foreach(kid -> cell_update!(poly, kid, 2.), kids)
+    sort!(poly)
+    @test newick(poly) == "(2:1.0,3:1.0,4:1.0)1:1.0;\n"
+    @test newick(view(poly, [ 1, 2, 4 ])) == "(2:1.0,4:1.0)1:1.0;\n"
+
+    # Labels are quoted if needed, and annotations are written after labels
+    r2 = view(tree, [ n.r2 ])
+    @test newick(r2; label = node -> "it's (x)", annotate = node -> (t = node.t_birth, alive = node.alive, s = :x)) ==
+          "'it''s (x)'[&t=0.0,alive=false,s=\"x\"]:1.5;\n"
+    @test newick(r2; label = Returns(nothing), annotate = Returns(nothing)) == ":1.5;\n"
+    @test newick(r2; label = node -> "x_1", annotate = Returns((;))) == "x_1:1.5;\n"
+
+    # Deep lineages do not overflow the stack
+    chain = Tree{Cell,Float64}()
+    cell = Cell(:x)
+    cell_init!(chain, [ cell ], 0.)
+    for k in 1:100_000
+        kid = Cell(:y)
+        cell_divide!(chain, cell, [ kid ], Float64(k), 0.)
+        cell = kid
+    end
+    @test_throws ArgumentError newick(chain)                                        # unsorted
+    s = newick(sort!(chain))
+    @test count(==('('), s) == 100_000 && endswith(s, ")1:1.0;\n")
+end
+
 include("random_trees.jl")
 
 @testset "Aqua" begin

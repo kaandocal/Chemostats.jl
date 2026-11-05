@@ -56,6 +56,30 @@ function replay(events; rng=nothing, prune=false, kwargs...)
     sort!(tree)
 end
 
+# Parses Newick output with plain labels into `label => (parent label, branch length)`
+function parse_newick(s)
+    nodes = Dict{String,Tuple{String,Float64}}()
+    for line in eachsplit(s, '\n'; keepempty=false)
+        open, closed = Vector{String}[], String[]
+        for m in eachmatch(r"[(),;]|[^(),;]+", line)
+            tok = m.match
+            if tok == "("
+                push!(open, String[])
+            elseif tok == ")"
+                closed = pop!(open)
+            elseif tok != "," && tok != ";"
+                name, len = split(tok, ':')
+                nodes[name] = ("", parse(Float64, len))
+                foreach(c -> nodes[c] = (name, nodes[c][2]), closed)
+                closed = String[]
+                isempty(open) || push!(open[end], name)
+            end
+        end
+    end
+
+    nodes
+end
+
 overlaps(node, tspan) = node.t_birth <= tspan[2] && (node.alive || node.t_end > tspan[1])
 
 @testset "Random trees (seed $seed)" for seed in 1:parse(Int, get(ENV, "TREES_SEEDS", "10"))
@@ -137,4 +161,12 @@ overlaps(node, tspan) = node.t_birth <= tspan[2] && (node.alive || node.t_end > 
 
     rec = at_age((node, a) -> a, tree, 1.5)
     @test length(rec) == count(i -> !isnothing(tree[i].data) && lifetime(tree[i]) >= 1.5, ids) && all(==(1.5), rec)
+
+    # Newick export keeps the parents (within the collection) and lifetimes of all nodes
+    for (tr, nodes) in ((tree, tree), (pruned, pruned), (tree, view(tree, unique!(sort!(rand(rng, ids, 10))))),
+                        (tree, descendants(tree, rand(rng, ids); self=true)))
+        ks = Set(keys(nodes))
+        expected = Dict(string(i) => (tr[i].parent in ks ? string(tr[i].parent) : "", lifetime(tr[i])) for i in ks)
+        @test parse_newick(newick(nodes)) == expected
+    end
 end

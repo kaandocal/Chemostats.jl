@@ -62,3 +62,9 @@ at_age
 at_birth
 at_division
 ```
+
+## Export
+
+```@docs
+newick
+```
