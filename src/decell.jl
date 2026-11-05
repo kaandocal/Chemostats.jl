@@ -38,9 +38,7 @@ function DECell(prob, alg, divide; t0 = 0., reset_t=false, remake::Bool=false, r
     )
 end
 
-get_rng(cell::DECell) = cell.rng
-# For `divide` functions, which only see the integrator
-get_rng(int::SciMLBase.DEIntegrator) = SciMLBase.get_rng(int)
+get_cell_rng(cell::DECell) = cell.rng
 
 # Independent stream of the same type for a new cell, derived deterministically from `rng`
 spawn_rng(rng) = Random.seed!(copy(rng), rand(rng, UInt64))

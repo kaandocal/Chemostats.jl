@@ -79,8 +79,8 @@ a constant population size.
 function clone_cell end
 
 """
-    get_rng(cell)
+    get_cell_rng(cell)
 
 Returns the random number generator owned by `cell`.
 """
-get_rng(cell) = Random.default_rng() 
+get_cell_rng(cell) = Random.default_rng() 

@@ -206,7 +206,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
 
     # Cells are culled with rate δ
     if δ > 0 
-        t_kill = tb + randexp(get_rng(cell)) / δ
+        t_kill = tb + randexp(get_cell_rng(cell)) / δ
 
         if t_kill < t
             kill!(cell, t_kill)
@@ -236,7 +236,7 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
         return 
     end 
 
-    children_filtered, Δlog_f = filter_offspring(children, int.alg, get_rng(cell))
+    children_filtered, Δlog_f = filter_offspring(children, int.alg, get_cell_rng(cell))
     divide!(cell)
     @lock int.tree_lock add_offspring!(int.chem.tree, cell, Tuple(children_filtered))
 

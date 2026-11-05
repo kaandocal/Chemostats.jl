@@ -34,7 +34,7 @@ A plain function takes the integrator at the point of division and returns the d
 
 ```julia
 function divide(int)
-    rng = Chemostats.get_rng(int)       # The cell's own RNG, for reproducible simulations
+    rng = SciMLBase.get_rng(int)        # The cell's own RNG, for reproducible simulations
     rand(rng) < 0.1 && return nothing   # Die with probability 1/10
 
     R = round(Int, int[:R])
@@ -49,7 +49,7 @@ function divide(int)
 end
 ```
 
-Each daughter is a `NamedTuple` with `u0` and `p`; `p = nothing` means the daughter inherits the parent's parameters unchanged. Returning `nothing` instead of an array kills the cell instead - here with probability 1/10, standing in for whatever death condition your model needs. Draw random numbers from the cell's own generator, `Chemostats.get_rng(int)`, rather than the global one: this makes simulations reproducible from a seed, also with multithreading.
+Each daughter is a `NamedTuple` with `u0` and `p`; `p = nothing` means the daughter inherits the parent's parameters unchanged. Returning `nothing` instead of an array kills the cell instead - here with probability 1/10, standing in for whatever death condition your model needs. Draw random numbers from the cell's own generator, `SciMLBase.get_rng(int)`, rather than the global one: this makes simulations reproducible from a seed, also with multithreading.
 
 ## 3. Wrap it up
 

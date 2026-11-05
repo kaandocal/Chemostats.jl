@@ -81,7 +81,7 @@ vr_rn = @reaction_network begin
 end
 
 function divide_vr(int)
-    rng = Chemostats.get_rng(int)
+    rng = SciMLBase.get_rng(int)
     P = round(Int, int[:P])
     P1 = count(_ -> rand(rng) < 0.5, 1:P)
 
