@@ -1,5 +1,5 @@
 using Trees
-using Trees: cell_init!, cell_divide!, cell_die!, cell_update!
+using Trees: cell_init!, cell_divide!, cell_die!, cell_update!, newick
 using Aqua
 using Random
 using StatsBase: mean, var, mean_and_var, pweights
@@ -359,33 +359,47 @@ end
 end
 
 @testset "Newick" begin
+    # Ids in the sorted example tree: r1 = 1, r2 = 2, a = 3, b = 4, a1 = 5, a2 = 6, b1 = 7, b2 = 8
     tree = example_tree()
-    n = node_ids(tree)
 
-    @test newick(tree) == "(($(n.a1):1.0,$(n.a2):1.0)$(n.a):1.0,($(n.b1):0.5,$(n.b2):0.5)$(n.b):1.5)$(n.r1):1.0;\n" *
-                          "$(n.r2):1.5;\n"
+    @test newick(tree) == "((5:1.0,6:1.0)3:1.0,(7:0.5,8:0.5)4:1.5)1:1.0;\n2:1.5;\n"
     @test sprint(newick, tree) == newick(tree)
-    @test newick(descendants(tree, n.b; self=true)) == "($(n.b1):0.5,$(n.b2):0.5)$(n.b):1.5;\n"
-    @test newick(ancestors(tree, n.a1; self=true)) == "(($(n.a1):1.0)$(n.a):1.0)$(n.r1):1.0;\n"
-    @test newick(view(tree, [ n.r1, n.a1, n.b ])) == "($(n.b):1.5)$(n.r1):1.0;\n$(n.a1):1.0;\n"     # a1 without its parent
+    @test newick(roots(tree)) == "1:1.0;\n2:1.5;\n"
+    @test newick(living(tree)) == "6:1.0;\n7:0.5;\n8:0.5;\n"
+    @test newick(descendants(tree, 4; self=true)) == "(7:0.5,8:0.5)4:1.5;\n"
+    @test newick(descendants(tree, 1)) == "(5:1.0,6:1.0)3:1.0;\n(7:0.5,8:0.5)4:1.5;\n"           # without the root
+    @test newick(ancestors(tree, 5; self=true)) == "((5:1.0)3:1.0)1:1.0;\n"
+    @test newick(view(tree, [ 1, 5, 4 ])) == "(4:1.5)1:1.0;\n5:1.0;\n"                          # 5 without its parent
     @test newick(view(tree, Int[])) == ""
+
+    # Labels, with nodes without labels (living cells have no data)
+    b = descendants(tree, 4; self=true)
+    @test newick(b; label = node -> node.data) == "(:0.5,:0.5)1.0:1.5;\n"
+    @test newick(b; label = node -> node.alive ? "alive" : "x_1") == "(alive:0.5,alive:0.5)x_1:1.5;\n"
+    @test newick(view(tree, [ 2 ]); label = node -> "it's (r2)") == "'it''s (r2)':1.5;\n"
+    @test newick(view(tree, [ 2 ]); label = Returns("a b,c")) == "'a b,c':1.5;\n"
+
+    # Annotations follow labels; non-numbers are quoted
+    @test newick(b; annotate = node -> (gen = node.generation, t = node.t_birth)) ==
+          "(7[&gen=2,t=2.5]:0.5,8[&gen=2,t=2.5]:0.5)4[&gen=1,t=1.0]:1.5;\n"
+    @test newick(view(tree, [ 2 ]); label = Returns("r2"), annotate = node -> (alive = node.alive, s = :x)) ==
+          "r2[&alive=false,s=\"x\"]:1.5;\n"
+    @test newick(b; annotate = node -> node.alive ? nothing : (;)) == "(7:0.5,8:0.5)4:1.5;\n"
 
     # Polytomies, with a middle child missing from the collection
     poly = Tree{Cell,Float64}()
     cell, kids = Cell(:c), [ Cell(:k) for _ in 1:3 ]
     cell_init!(poly, [ cell ], 0.)
     cell_divide!(poly, cell, kids, 1., 0.)
-    foreach(kid -> cell_update!(poly, kid, 2.), kids)
+    foreach(kid -> cell_update!(poly, kid, 2.5), kids)
     sort!(poly)
-    @test newick(poly) == "(2:1.0,3:1.0,4:1.0)1:1.0;\n"
-    @test newick(view(poly, [ 1, 2, 4 ])) == "(2:1.0,4:1.0)1:1.0;\n"
+    @test newick(poly) == "(2:1.5,3:1.5,4:1.5)1:1.0;\n"
+    @test newick(view(poly, [ 1, 2, 4 ])) == "(2:1.5,4:1.5)1:1.0;\n"
 
-    # Labels are quoted if needed, and annotations are written after labels
-    r2 = view(tree, [ n.r2 ])
-    @test newick(r2; label = node -> "it's (x)", annotate = node -> (t = node.t_birth, alive = node.alive, s = :x)) ==
-          "'it''s (x)'[&t=0.0,alive=false,s=\"x\"]:1.5;\n"
-    @test newick(r2; label = Returns(nothing), annotate = Returns(nothing)) == ":1.5;\n"
-    @test newick(r2; label = node -> "x_1", annotate = Returns((;))) == "x_1:1.5;\n"
+    # Unsorted trees are rejected
+    cell_divide!(poly, kids[1], [ Cell(:y) ], 3., 0.)
+    @test_throws ArgumentError newick(poly)
+    @test newick(sort!(poly)) == "((5:0.0)2:2.0,3:1.5,4:1.5)1:1.0;\n"
 
     # Deep lineages do not overflow the stack
     chain = Tree{Cell,Float64}()
@@ -396,9 +410,7 @@ end
         cell_divide!(chain, cell, [ kid ], Float64(k), 0.)
         cell = kid
     end
-    @test_throws ArgumentError newick(chain)                                        # unsorted
-    s = newick(sort!(chain))
-    @test count(==('('), s) == 100_000 && endswith(s, ")1:1.0;\n")
+    @test newick(sort!(chain)) == "("^100_000 * "100001:0.0" * prod(")$(100_001 - k):1.0" for k in 1:100_000) * ";\n"
 end
 
 include("random_trees.jl")

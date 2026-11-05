@@ -19,12 +19,15 @@ public cell_init!, cell_divide!, cell_die!, cell_update!
 export mark!, prune!
 
 # Queries
-export roots, living, children, alive_at, ancestors, descendants
+export roots, living, children, alive_at, alive_during, ancestors, descendants
 export has_divided, lifetime, is_alive
 
 # Statistics
 export time_average, time_weights, snapshot
 export at_age, at_birth, at_division
+
+# Export
+public newick
 
 include("tree.jl")
 include("pruning.jl")

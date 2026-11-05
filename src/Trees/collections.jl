@@ -1,6 +1,3 @@
-# Node collections: all nodes of a tree, a view of a tree, or the ancestors or descendants of a node.
-# `keys` returns their ids, `values` their nodes, and `pairs` returns `id => node`. Trees are not iterable themselves.
-
 struct TreeView{T<:Tree,I}
     tree::T
     ids::I
@@ -9,7 +6,7 @@ end
 """
     view(tree::Tree, ids)
 
-Returns the nodes `ids` of `tree` as a node collection, without copying.
+Returns the nodes `ids` of `tree`, without copying.
 """
 Base.view(tree::Tree, ids) = TreeView(tree, ids)
 
@@ -43,14 +40,28 @@ end
 """
     filter(f, nodes)
 
-Returns the nodes of `nodes` for which `f(node)` is true, as a node collection (a view of the tree).
+Returns the nodes of `nodes` for which `f(node)` is true.
 """
 function Base.filter(f, nodes::NodeCollection)
     view(get_tree(nodes), [ id for (id, node) in pairs(nodes) if f(node) ])
 end
 
+"""
+    alive_during(nodes, tspan)
+
+Returns nodes alive at time `t`.
+"""
 function alive_at(nodes::NodeCollection, t)
     filter(node -> node.t_birth <= t && (node.alive || t < node.t_end), nodes)
+end
+
+"""
+    alive_during(nodes, tspan)
+
+Returns nodes alive at some time in `tspan`.
+"""
+function alive_during(nodes::NodeCollection, tspan)
+    filter(node -> node.t_birth <= tspan[2] && (node.alive || node.t_end > tspan[1]), nodes)
 end
 
 # Marks the nodes of a node collection, e.g. `mark!(tree, alive_at(tree, t))`
