@@ -73,6 +73,8 @@ end
 
 function reinit(old_int, prob; t0, rng, p=nothing, u0=nothing)
     int = copy_integrator(prob, old_int.alg, t0, rng)
+    # Parameters come from the parent, as with `reinit_remake`
+    int.p = deepcopy(old_int.p)
     apply_reinit_overrides!(int, old_int; p, u0)
 end
 

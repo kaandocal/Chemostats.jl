@@ -6,6 +6,7 @@ Chemostats.jl simulates individual cells in a [`Chemostat`](@ref) object.
 
 ```@docs
 Chemostat
+Chemostats.simulate
 Chemostats.simulate!
 Chemostats.CellException
 ```

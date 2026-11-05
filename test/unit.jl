@@ -62,6 +62,17 @@ end
     end
 end
 
+@testset "Lax and est_Λ count time from the first snapshot" begin
+    Λ_true = 0.3
+    τ = 0.5
+    ts = 5:τ:15
+    snaps = [ Chemostats.Snapshot(t, round(Int, 1.0e6 * exp(Λ_true * t)), 0, 0.0) for t in ts ]
+
+    @test Chemostats.est_Λ(snaps) ≈ Λ_true atol = 1e-6
+    @test Chemostats.est_Λ_curr(snaps, ts[end], Chemostats.Lax(50, τ)) ≈ Λ_true atol = 1e-6
+    @test Chemostats.get_δ(snaps, ts[1], Chemostats.Lax(50, τ)) == 0          # less than τ after the start
+end
+
 @testset "Lax falls back to nearby snapshots or sets δ = 0" begin
     Λ_true = 0.3
     τ = 0.5
@@ -170,6 +181,15 @@ end
 
     @test chem.status == SciMLBase.ReturnCode.Success
     @test all(c -> Chemostats.get_curr_t(c) == 3.0, chem.pop)
+end
+
+@testset "Chemostat start time" begin
+    cell(t0) = DECell(ODEProblem(f_exp, 1.0, (0., 0.), (; id = 1); callback = cb_exp), Tsit5(), divide_exp; t0)
+
+    chem = Chemostat([ cell(5.) for _ in 1:3 ])
+    @test Chemostats.get_curr_t(chem) == 5. && only(chem.snaps).t == 5.
+    @test_throws ArgumentError Chemostat([ cell(0.), cell(5.) ])
+    @test_throws ArgumentError Chemostat(DECell[])
 end
 
 @testset "Chemostat option copy" begin

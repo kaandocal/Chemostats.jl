@@ -29,7 +29,7 @@ export Chemostat, DECell, est_Λ, CellException
 public CellState, Snapshot
 public Forward, Thin, Direct, Strict, Lax
 
-public simulate!
+public simulate, simulate!, DivideCallback
 public get_curr_t, get_state, get_rng, get_data, est_logN, est_N
 
 function SymbolicDivideContinuous end
