@@ -36,7 +36,10 @@ hybrid_prob(callback) = HybridProblem(jump_rn, [:P => 0, :V => 1.0], (0., Inf), 
 @testset "DivideCallback with MTK equations" begin
     ref = run_to_division(JumpCell())
 
-    for cond in (jump_rn.V ~ jump_rn.V_d, [ jump_rn.V ~ jump_rn.V_d ])
+    # The extra equations never hold before t = log(2)
+    for cond in (jump_rn.V ~ jump_rn.V_d, [ jump_rn.V ~ jump_rn.V_d ],
+                 [ jump_rn.V ~ jump_rn.V_d, jump_rn.V ~ 10 * jump_rn.V_d ],
+                 [ jump_rn.V ~ 10 * jump_rn.V_d, jump_rn.V ~ jump_rn.V_d ])
         cb_eq = Chemostats.DivideCallback(cond; interp_points=0, save_positions=(true, false))
         cell = run_to_division(hybrid_prob(cb_eq))
 
@@ -64,6 +67,8 @@ end
     @test chem.status == Chemostats.ReturnCode.Success
     @test length(chem.pop) > 20   # population grew via repeated division
     @test all(c -> c.int[:X] <= 1, chem.pop)   # never overshoots past the divide point
+
+    @test_throws ArgumentError Chemostats.DivideCallback([ flip_rn.X ~ 1.0 ]; discrete = true)
 end
 
 # Production rate ∝ V gives a variable-rate jump, which must also draw from the cell's RNG

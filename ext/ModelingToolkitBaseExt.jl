@@ -42,6 +42,7 @@ Create a [`DivideCallback`](@ref) from one or more symbolic equalities of the fo
 `discrete` determines whether to use a `DiscreteCallback` or a `ContinuousCallback` (defaults to `false`)
 """
 function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK.Equation}}; discrete::Bool=false, kwargs...)
+    discrete && eqs isa AbstractVector && throw(ArgumentError("Discrete DivideCallback takes a single equation"))
     eqs = eqs isa MTK.Equation ? [eqs] : eqs
     exprs = [eq.lhs - eq.rhs for eq in eqs]
     expr = length(exprs) == 1 ? only(exprs) : exprs
@@ -57,11 +58,18 @@ function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK
                 @atomic getter.getter
             end
         end
-        val = g(MTK.ProblemState(; u, p = int.p, t))
-        discrete ? all(iszero, val) : val
+        g(MTK.ProblemState(; u, p = int.p, t))
     end
 
-    Chemostats.DivideCallback(condition; discrete, kwargs...)
+    if discrete
+        Chemostats.DivideCallback((u, t, int) -> iszero(condition(u, t, int)); discrete, kwargs...)
+    elseif length(exprs) == 1
+        Chemostats.DivideCallback(condition; kwargs...)
+    else
+        # Divide once any of the equations holds
+        condition!(out, u, t, int) = (out .= condition(u, t, int))
+        SciMLBase.VectorContinuousCallback(condition!, (int, _) -> terminate!(int), length(exprs); kwargs...)
+    end
 end
 
 end
