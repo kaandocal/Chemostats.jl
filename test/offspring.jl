@@ -96,31 +96,3 @@ end
     @test all(v -> sort(v) == [0., 4.], volumes)
     @test mean(v -> v[1] == 4, volumes) ≈ 0.8 atol = 0.03
 end
-
-@testset "Division of a DECell" begin
-    # The volume grows exponentially, and the cell divides once it has doubled
-    grow!(du, u, p, t) = (du[1] = u[1])
-    cb = Chemostats.DivideCallback((u, t, int) -> u[1] - 2.0)
-    prob = ODEProblem(grow!, [1.0], (0., Inf); callback = cb)
-
-    function children(divide; seed = 1)
-        cell = DECell(prob, Tsit5(), divide; rng = Xoshiro(seed))
-        Chemostats.init_cell!(cell)
-        Chemostats.step!(cell, 10.0, nothing)
-        Chemostats.get_children(cell)
-    end
-    volume(cell) = cell.int.u[1]
-
-    kids = children(Offspring(2, iV => ExactPartition()))
-    @test length(kids) == 2
-    @test all(k -> isapprox(volume(k), 1; atol = 1e-6), kids)
-
-    @test length(children(int -> Offspring(3, iV => ExactPartition()))) == 3
-    @test isempty(children(int -> nothing))
-    @test isempty(children(Offspring(0)))
-
-    # Random rules use the RNG of the dividing cell
-    sample(seed) = volume.(children(Offspring(2, iV => Uniform(0.5, 1.5)); seed))
-    @test sample(1) == sample(1)
-    @test sample(1) != sample(2)
-end

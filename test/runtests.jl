@@ -18,15 +18,14 @@ if GROUP in ("All", "Core")
 	end
 
 	@testset "Queue" begin include("queue.jl") end
-	@testset "Deterministic" begin include("det.jl") end
-	@testset "Unit" begin include("unit.jl") end
-	@testset "Tree" begin include("tree.jl") end
-	@testset "Scheduler" begin include("scheduler.jl") end
+	@testset "Chemostat" begin include("chemostat.jl") end
+	@testset "Algorithms" begin include("algorithms.jl") end
+	@testset "DECell" begin include("decell.jl") end
+	@testset "Offspring" begin include("offspring.jl") end
+	@testset "Recording" begin include("recording.jl") end
 	@testset "Resilience" begin include("resilience.jl") end
 	@testset "Growth rates" begin include("growth.jl") end
-	@testset "Reinit" begin include("reinit.jl") end
 	@testset "RNG" begin include("rng.jl") end
-	@testset "Offspring" begin include("offspring.jl") end
 end
 
 if GROUP in ("All", "Extensions")

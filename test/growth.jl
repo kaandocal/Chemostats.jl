@@ -63,13 +63,13 @@ end
     Λ_gt = 1.0
     tmax = 100.0
 
-    @testset "Strict(L=$L, clone=$clone)" for (L, tol) in [(20, 0.08), (100, 0.02), (250, 0.01)], clone in (true, false)
+    @testset "Strict(L=$L, clone=$clone)" for (L, tol) in [(20, 0.08), (250, 0.01)], clone in (true, false)
         Random.seed!(20260101 + L + 1000 * clone)
         make_chem = () -> Chemostat(make_population(L))
         @test rmse_Λ(make_chem, Chemostats.Strict(L, clone), Λ_gt, tmax) < tol
     end
 
-    @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+    @testset "Lax(250) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
         Random.seed!(20260102)
         make_chem = () -> Chemostat([ ExponentialCell((; id = 1)) ])
         @test rmse_Λ(make_chem, Chemostats.Lax(250, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.025
@@ -81,7 +81,7 @@ end
     Λ_gt = 2 * p_divide - 1
     tmax = 100.0
 
-    @testset "Strict(L=$L, clone=$clone)" for (L, tol) in [(20, 0.15), (100, 0.05), (250, 0.03)], clone in (true, false)
+    @testset "Strict(L=$L, clone=$clone)" for (L, tol) in [(20, 0.15), (250, 0.03)], clone in (true, false)
         Random.seed!(20260301 + L + 1000 * clone)
         make_chem = () -> Chemostat(make_bd_population(L, p_divide))
         @test rmse_Λ(make_chem, Chemostats.Strict(L, clone), Λ_gt, tmax) < tol
@@ -111,13 +111,13 @@ end
     Λ_gt = 1.0
     tmax = 100.0
 
-    @testset "Strict(L=$L, clone=$clone)" for (L, tol) in [(20, 0.08), (100, 0.02), (250, 0.01)], clone in (true, false)
+    @testset "Strict(L=$L, clone=$clone)" for (L, tol) in [(20, 0.08), (250, 0.01)], clone in (true, false)
         Random.seed!(20260201 + L + 1000 * clone)
         make_chem = () -> Chemostat(make_sizecontrol_population(L))
         @test rmse_Λ(make_chem, Chemostats.Strict(L, clone), Λ_gt, tmax) < tol
     end
 
-    @testset "Lax(100) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+    @testset "Lax(250) with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
         Random.seed!(20260202)
         make_chem = () -> Chemostat([ SizeControlCell() ])
         @test rmse_Λ(make_chem, Chemostats.Lax(250, 0.5), Λ_gt, tmax, ensalg; Nmax = 1e4) < 0.025

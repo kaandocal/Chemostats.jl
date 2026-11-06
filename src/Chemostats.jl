@@ -20,7 +20,7 @@ import .Trees: is_alive
 include("queue.jl")
 include("worker.jl")
 include("cell.jl")
-include("tree.jl")
+include("recording.jl")
 include("chemostat.jl")
 include("algorithms.jl")
 
@@ -36,8 +36,5 @@ public simulate, simulate!, DivideCallback
 public Offspring, ExactPartition, BinomialPartition, AllOrNothingPartition
 public get_curr_t, get_state, get_cell_rng, get_data, est_logN, est_N
 
-function SymbolicDivideContinuous end
-function SymbolicDivideDiscrete end
-function MTKDivideAffect end
 
 end 

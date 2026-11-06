@@ -3,96 +3,15 @@ using ArgCheck
 using OrdinaryDiffEqTsit5
 using Random
 using SciMLBase
+using SymbolicIndexingInterface: SymbolicIndexingInterface
+using Distributions: Uniform
 using Chemostats
+using Chemostats: Offspring, ExactPartition
 
 include("models/exponential.jl")
 include("models/jumpcell.jl")
 
-@testset "Snapshot math" begin
-    s1 = Chemostats.Snapshot(0.0, 10, 10, 0.0)
-    s2 = Chemostats.Snapshot(1.0, 20, 20, 0.0)
-
-    @test Chemostats.est_logN(s1) == log(10)
-    @test Chemostats.est_N(s1) ≈ 10
-    @test Chemostats.est_Λ(s1, s2) ≈ log(2)
-    @test isnan(Chemostats.est_Λ(s2, s1))
-
-    s3 = Chemostats.Snapshot(0.0, 10, 10, log(2))
-    @test Chemostats.est_N(s3) ≈ 20
-end
-
-@testset "_get_snapshot" begin
-    snaps = [
-        Chemostats.Snapshot(0.0, 10, 10, 0.0),
-        Chemostats.Snapshot(1.0, 10, 10, 0.0),
-        Chemostats.Snapshot(1.0, 15, 15, 0.0),
-    ]
-
-    @test_throws ArgumentError Chemostats._get_snapshot(snaps, 5.0)
-    @test Chemostats._get_snapshot(snaps, 1.0).N == 15
-    @test Chemostats._get_snapshot(snaps).t == 1.0
-end
-
-@testset "Lax constructor" begin
-    @test_throws ArgumentError Chemostats.Lax(10, 1.0; tol = 0.5)
-    @test_throws ArgumentError Chemostats.Lax(10, 1.0; β = 1.5)
-    @test_throws ArgumentError Chemostats.Lax(10, 1.0; β = -0.1)
-    @test_throws ArgumentError Chemostats.Lax(10, -1.0)
-    @test Chemostats.Lax(10, 1.0) isa Chemostats.Lax
-end
-
-@testset "Lax est_Λ_curr matches a known growth rate across β" begin
-    Λ_true = 0.3
-    τ = 0.5
-    N0 = 1.0e6   # large, so rounding N to an Int is negligible
-
-    ts = 0:τ:10
-    snaps = [ Chemostats.Snapshot(t, round(Int, N0 * exp(Λ_true * t)), 0, 0.0) for t in ts ]
-    t = ts[end]
-
-    Λ_direct = Chemostats.est_Λ(snaps[1], snaps[end])
-    @test Λ_direct ≈ Λ_true atol = 1e-6
-
-    for β in (0.0, 0.3, 0.5, 0.8, 1.0)
-        alg = Chemostats.Lax(50, τ; β)
-        Λ_curr = Chemostats.est_Λ_curr(snaps, t, alg)
-
-        @test Λ_curr ≈ Λ_true atol = 1e-6
-        @test Λ_curr ≈ Λ_direct atol = 1e-6
-    end
-end
-
-@testset "Lax and est_Λ count time from the first snapshot" begin
-    Λ_true = 0.3
-    τ = 0.5
-    ts = 5:τ:15
-    snaps = [ Chemostats.Snapshot(t, round(Int, 1.0e6 * exp(Λ_true * t)), 0, 0.0) for t in ts ]
-
-    @test Chemostats.est_Λ(snaps) ≈ Λ_true atol = 1e-6
-    @test Chemostats.est_Λ_curr(snaps, ts[end], Chemostats.Lax(50, τ)) ≈ Λ_true atol = 1e-6
-    @test Chemostats.get_δ(snaps, ts[1], Chemostats.Lax(50, τ)) == 0          # less than τ after the start
-end
-
-@testset "Lax falls back to nearby snapshots or sets δ = 0" begin
-    Λ_true = 0.3
-    τ = 0.5
-    N0 = 1.0e6
-    alg = Chemostats.Lax(50, τ)
-    mksnap(t) = Chemostats.Snapshot(t, round(Int, N0 * exp(Λ_true * t)), 0, 0.0)
-
-    ts = 0:τ:10
-    t = ts[end]
-
-    # Snapshot at t - τ shifted within τ/2: estimate still matches
-    snaps = [ mksnap(s) for s in ts ]
-    snaps[end-1] = mksnap(t - τ + 0.2τ)
-    @test Chemostats.est_Λ_curr(snaps, t, alg) ≈ Λ_true atol = 1e-3
-
-    # No snapshot within τ/2 of t - τ: estimate undefined, δ = 0
-    snaps = [ mksnap(s) for s in ts if s != t - τ ]
-    @test isnan(Chemostats.est_Λ_curr(snaps, t, alg))
-    @test Chemostats.get_δ(snaps, t, alg) == 0
-end
+const iV = CartesianIndex(1)
 
 @testset "die!/divide!" begin
     cell = ExponentialCell((; id = 1))
@@ -174,31 +93,12 @@ end
     @test all(c -> Chemostats.get_curr_t(c) == tmax, chem.pop)
 end
 
-# Regression: an integer start time used to specialise a `JumpProblem`'s functions on `Int` time
 @testset "Integer start times with a JumpProblem (reset_t=$reset_t)" for reset_t in (true, false)
     chem = Chemostat([ JumpCell(; k = 5.0, reset_t, t0 = 0) for _ in 1:3 ])
     Chemostats.simulate!(chem, 3.0, Chemostats.Direct())
 
     @test chem.status == SciMLBase.ReturnCode.Success
     @test all(c -> Chemostats.get_curr_t(c) == 3.0, chem.pop)
-end
-
-@testset "Chemostat start time" begin
-    cell(t0) = DECell(ODEProblem(f_exp, 1.0, (0., 0.), (; id = 1); callback = cb_exp), Tsit5(), divide_exp; t0)
-
-    chem = Chemostat([ cell(5.) for _ in 1:3 ])
-    @test Chemostats.get_curr_t(chem) == 5. && only(chem.snaps).t == 5.
-    @test_throws ArgumentError Chemostat([ cell(0.), cell(5.) ])
-    @test_throws ArgumentError Chemostat(DECell[])
-end
-
-@testset "Chemostat option copy" begin
-    cells = make_population(3)
-    chem_shared = Chemostat(cells)             # default: copy=false
-    chem_copied = Chemostat(cells; copy = true)
-
-    @test chem_shared.pop === cells
-    @test chem_copied.pop !== cells
 end
 
 @testset "Offspring count edge cases" begin
@@ -212,27 +112,6 @@ end
     end
 end
 
-@testset "Snapshot/Chemostat show methods" begin
-    snap = Chemostats.Snapshot(1.5, 20, 25, 0.1)
-    str = sprint(show, snap)
-    @test occursin("t=1.5", str)
-    @test occursin("N=20", str)
-    @test occursin("nsim=25", str)
-
-    chem = Chemostat(make_population(4))
-    chem_str = sprint(show, chem)
-    @test occursin("Chemostat(", chem_str)
-    @test occursin("t=0.0", chem_str)
-end
-
-@testset "est_logN(chem) matches the Snapshot-based version" begin
-    chem = Chemostat(make_population(4))
-    chem.snaps[1] = Chemostats.Snapshot(0.0, 4, 4, log(2))   # pretend partial sampling
-
-    @test Chemostats.est_logN(chem) ≈ Chemostats.est_logN(chem.snaps[end])
-    @test Chemostats.est_logN(chem) ≈ log(4) + log(2)
-end
-
 @testset "step! warns and no-ops on a non-alive cell" begin
     cell = ExponentialCell((; id = 1))
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
@@ -241,15 +120,6 @@ end
     # leave the cell untouched, not error.
     @test_logs (:warn, r"Tried to simulate cell in state") Chemostats.step!(cell, 1.0, nothing)
     @test Chemostats.get_state(cell) == Chemostats.CellState.Newborn
-end
-
-@testset "step! rejects unsupported ensemble algorithms" begin
-    chem = Chemostat(make_population(4))
-    alg = Chemostats.Direct()
-    int = Chemostats.PopIntegrator(chem, alg, EnsembleSerial())
-    Chemostats.init!(alg, int)
-
-    @test_throws "not supported" Chemostats.step!(int, 5.0, SciMLBase.EnsembleDistributed())
 end
 
 @testset "step! error kills the cell" begin
@@ -264,10 +134,114 @@ end
     @test Chemostats.get_state(cell) == Chemostats.CellState.Killed
 end
 
-@testset "default_ensalg with is_parallel and nthreads" begin
-    for alg in (Chemostats.Forward(10), Chemostats.Strict(10), Chemostats.Strict(10, false), Chemostats.Thin(0.1), Chemostats.Lax(10, 1.0))
-        ensalg = Chemostats.default_ensalg(alg)
-        expect_threaded = Chemostats.is_parallel(alg) && Threads.nthreads() > 1
-        @test (ensalg isa EnsembleThreads) == expect_threaded
+@testset "clone_cell independence (remake = $remake)" for remake in (false, true)
+    ref = JumpCell(; k = 10.0, V_d = 2.0, remake)
+    Chemostats.init_cell!(ref)
+    clones = [ Chemostats.clone_cell(ref, 0.0) for _ in 1:5 ]
+
+    @test all(c.prob === ref.prob for c in clones)   # cloning is cheap: prob is shared
+
+    aggs = [ jumpcell_aggregator(c.int) for c in [ref; clones] ]
+    @test allunique(objectid.(aggs))
+
+    set_V_d = SymbolicIndexingInterface.setp(ref.int, :V_d)
+    for (i, c) in enumerate(clones)
+        set_V_d(c.int, 2.0 + i)
     end
+    @test [ c.int.ps[:V_d] for c in clones ] == 2.0 .+ (1:5)
+    @test allunique(objectid.([ c.int.p for c in clones ]))
+    @test ref.int.ps[:V_d] == 2.0   # mutating clones must never touch ref
+
+    # A clone made after its siblings were mutated must still see ref's original value.
+    late_clone = Chemostats.clone_cell(ref, 0.0)
+    @test late_clone.int.ps[:V_d] == 2.0
+
+    u_before = [ copy(c.int.u) for c in clones[2:end] ]
+    Chemostats.init_cell!(clones[1])
+    Chemostats.step!(clones[1], 0.1, nothing)
+    @test all(c.int.u == u for (c, u) in zip(clones[2:end], u_before))
+end
+
+@testset "clone_cell u independence" begin
+    for ctor in (() -> ExponentialCell((; id = 1)), () -> JumpCell(; k = 20.0, V_d = 2.0))
+        ref = ctor()
+        Chemostats.init_cell!(ref)
+        clone1 = Chemostats.clone_cell(ref, 0.0)
+        clone2 = Chemostats.clone_cell(ref, 0.0)
+
+        u2_before = copy(clone2.int.u)
+        Chemostats.init_cell!(clone1)
+        Chemostats.step!(clone1, 0.1, nothing)
+
+        @test clone2.int.u == u2_before
+        @test clone2.int.t == 0.0
+    end
+end
+
+@testset "get_children aliasing" begin
+    for ctor in (() -> ExponentialCell((; id = 1)), () -> JumpCell(; k = 20.0, V_d = 2.0))
+        cell = ctor()
+        Chemostats.init_cell!(cell)
+        Chemostats.step!(cell, 20.0, nothing)
+        @test Chemostats.get_state(cell) == Chemostats.CellState.EndOfLife
+
+        children = Chemostats.get_children(cell)
+        @test length(children) == 2
+        d1, d2 = children
+
+        u2_before = copy(d2.int.u)
+        if !(d1.int.p isa Union{NamedTuple, Number})
+            @test d1.int.p !== d2.int.p
+        end
+
+        # Regression check: `reinit` used to alias `old_int.u` (the
+        # *parent's* live state array) as the base for each child's `u0`.
+        Chemostats.init_cell!(d1)
+        Chemostats.step!(d1, 0.1, nothing)
+        @test d2.int.u == u2_before
+    end
+end
+
+@testset "get_children independence" begin
+    cell = JumpCell(; k = 50.0, V_d = 2.0)
+    Chemostats.init_cell!(cell)
+    Chemostats.step!(cell, 20.0, nothing)
+    @test Chemostats.get_state(cell) == Chemostats.CellState.EndOfLife
+
+    for daughter in Chemostats.get_children(cell)
+        Chemostats.init_cell!(daughter)
+        Chemostats.step!(daughter, 20.0, nothing)
+        # Regression check: cells produced via `get_children`/`reinit` on a
+        # `JumpProblem` used to silently lose their jump schedule and callback.
+        @test Chemostats.get_state(daughter) == Chemostats.CellState.EndOfLife
+        @test daughter.int[:P] >= 0
+    end
+end
+
+@testset "Division of a DECell" begin
+    # The volume grows exponentially, and the cell divides once it has doubled
+    grow!(du, u, p, t) = (du[1] = u[1])
+    cb = Chemostats.DivideCallback((u, t, int) -> u[1] - 2.0)
+    prob = ODEProblem(grow!, [1.0], (0., Inf); callback = cb)
+
+    function children(divide; seed = 1)
+        cell = DECell(prob, Tsit5(), divide; rng = Xoshiro(seed))
+        Chemostats.init_cell!(cell)
+        Chemostats.step!(cell, 10.0, nothing)
+        Chemostats.get_children(cell)
+    end
+    volume(cell) = cell.int.u[1]
+
+    kids = children(Offspring(2, iV => ExactPartition()))
+    @test length(kids) == 2
+    @test all(k -> isapprox(volume(k), 1; atol = 1e-6), kids)
+
+    @test length(children(int -> Offspring(3, iV => ExactPartition()))) == 3
+    @test isempty(children(int -> nothing))
+    @test isempty(children(Offspring(0)))
+
+    # Random rules use the RNG of the dividing cell
+    sample(seed) = volume.(children(Offspring(2, iV => Uniform(0.5, 1.5)); seed))
+    @test sample(1) == sample(1)
+    @test sample(1) != sample(2)
 end

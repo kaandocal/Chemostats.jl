@@ -1,4 +1,4 @@
-# Chemostats.jl Documentation
+# Chemostats.jl
 
 ```@meta
 CurrentModule=Chemostats

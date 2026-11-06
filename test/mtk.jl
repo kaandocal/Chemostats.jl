@@ -120,3 +120,9 @@ end
     @test isequal(only(devs).conditions, X >= 1)
     @test only(devs).affect isa ModelingToolkit.ImperativeAffect
 end
+
+# Cells deepcopy their callbacks: copies must share the compiled accessor, not compile their own
+@testset "DivideCallback accessor is shared by copies" begin
+    cb = Chemostats.DivideCallback(vr_rn.V ~ vr_rn.V_d)
+    @test deepcopy(cb).condition.getter === cb.condition.getter
+end

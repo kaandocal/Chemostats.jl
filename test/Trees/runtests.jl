@@ -82,6 +82,13 @@ end
     @test sort(keys(late)) == sort([ n.a1, n.a2, n.b1, n.b2 ])
     @test keys(alive_at(late, 2.2)) == sort([ n.a1, n.a2 ])
     @test keys(alive_at(ancestors(tree, n.b1; self=true), 1.2)) == [ n.b ]
+
+    # Cells alive at some time in `tspan`
+    @test keys(alive_during(tree, (1.2, 1.4))) == sort([ n.r2, n.a, n.b ])          # r1 ended at 1
+    @test keys(alive_during(tree, (2.6, 10.))) == sort([ n.a1, n.a2, n.b1, n.b2 ])  # living cells and a1
+    @test isempty(alive_during(tree, (-2., -1.)))
+    @test all(t -> keys(alive_during(tree, (t, t))) == keys(alive_at(tree, t)), (0.5, 1., 2.5))
+    @test sort(keys(alive_during(ancestors(tree, n.b1; self=true), (0.5, 1.2)))) == sort([ n.r1, n.b ])
     @test keys(filter(node -> node.t_birth >= 1, ancestors(tree, n.a1; self=true))) == [ n.a1, n.a ]    # keeps the order
 
     # Collections iterate over nodes, `keys` gives their ids; trees themselves are not iterable

@@ -209,3 +209,36 @@ end
 is_parallel(::Lax) = true
 filter_offspring(cells, ::Lax, rng) = (cells, 0)
 update_queue!(int, ::Lax, t) = nothing
+
+###
+
+# Population control, used by `Strict` and `Lax`
+
+function _shrink_pop_unsafe!(int, L::Int, t)
+    N_start = length(int.queue)
+    N_start > L || return
+
+    for cell in _pop_random!(int.queue, N_start - L)
+        data = get_data(cell)
+        kill!(cell, t)
+        @lock int.tree_lock record_end!(int.chem.tree, cell, t, data)
+    end
+
+    int.log_f += log(N_start) - log(length(int.queue))
+end
+
+function _clone_pop_unsafe!(int, L::Int, t)
+    isempty(int.queue) && return 
+
+    N_start = length(int.queue)
+    N_start < L || return
+    # Trees cannot represent clones
+    isnothing(int.chem.tree) || throw(ArgumentError(
+        "Cannot record a population tree when cloning cells, use `Strict(L, false)`, `Lax` or `save_mode=:none`"))
+
+    while length(int.queue) < L
+        _clone_random!(int.queue, t)
+    end
+
+    int.log_f += log(N_start) - log(length(int.queue))
+end
