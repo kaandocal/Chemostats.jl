@@ -15,4 +15,8 @@ When a cell reaches the end of its life, the `divide` function is called to dete
 ```@docs
 Chemostats.DECell
 Chemostats.DivideCallback
+Chemostats.Offspring
+Chemostats.ExactPartition
+Chemostats.BinomialPartition
+Chemostats.AllOrNothingPartition
 ```

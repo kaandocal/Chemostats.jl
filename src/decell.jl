@@ -116,7 +116,8 @@ reinit_dispatch(remake::Bool, old_int, prob; t0, rng, p=nothing, u0=nothing) =
 
 function get_children(parent::DECell{I,DF,FT,P,Remake,R}, p=nothing) where {I,DF,FT,P,Remake,R}
     children = parent.divide(parent.int)
-    isnothing(children) && return typeof(parent)[]
+    children isa Offspring && (children = offspring_states(children, parent.int, parent.rng))
+    (isnothing(children) || isempty(children)) && return typeof(parent)[]
 
     t = get_curr_t(parent)
 
