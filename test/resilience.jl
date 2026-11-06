@@ -116,6 +116,21 @@ end
         @test chem.snaps[end].t == tmax
     end
 
+    # Dropped cells are replaced at the time they failed, which all other cells have reached
+    @testset "throw_on_error = false with Strict cloning" begin
+        Random.seed!(20261106)
+        cells = [ make_throwing_population(K ÷ 2); make_population(K ÷ 2) ]
+        chem = Chemostat(cells)
+
+        quietly() do
+            Chemostats.simulate!(chem, tmax, Chemostats.Strict(K, true))
+        end
+
+        @test chem.status == Chemostats.ReturnCode.Success
+        @test length(chem.pop) == K
+        @test chem.snaps[end].t == tmax
+    end
+
     @testset "throw_on_error = false retcode ($ensalg)" for ensalg in ENSALGS
         chem = Chemostat(make_throwing_population(K))
         alg = Chemostats.Direct()

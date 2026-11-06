@@ -133,6 +133,7 @@ function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
 end 
 
 function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7), δ=0., throw_on_error::Bool=false, kwargs...)
+    t_start = get_curr_t(cell)
     try
         if int.retcode != ReturnCode.Default
             push!(int.queue, cell)
@@ -177,6 +178,8 @@ function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7)
         else
             showerror(stderr, e, catch_backtrace())
             flush(stderr)
+            # Replace the cell when it was taken from the queue, before any other cell moved on
+            update_queue!(int, int.alg, t_start)
         end
     end
 end
