@@ -214,8 +214,6 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
         rethrow()
     end
 
-    int.log_f += δ * (int.t_next - t0)
-
     if int.retcode == ReturnCode.Default
         int.t = int.t_next
         int.queue = out
@@ -224,6 +222,9 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
         int.t = isempty(queue) ? int.t_next : get_curr_t(first(queue))
         merge_queues!(int, out)
     end
+
+    # Only up to the time reached, which is earlier on early termination
+    int.log_f += δ * (int.t - t0)
 
     save && savevalues!(int)
 

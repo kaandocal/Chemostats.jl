@@ -26,6 +26,21 @@ ENSALGS = (EnsembleSerial(), EnsembleThreads())
     @test length(chem.pop) > 0
 end
 
+# Aborts mid-step, as saveat = [tmax] makes the whole run one step
+@testset "Thin log_f after Nmax abort" for ensalg in ENSALGS
+    δ = 0.3
+    chem = Chemostat(make_population(10))
+    snap0 = chem.snaps[end]
+    quietly() do
+        Chemostats.simulate!(chem, 20.0, Chemostats.Thin(δ), ensalg; Nmax = 50)
+    end
+    snap = chem.snaps[end]
+
+    @test chem.status == Chemostats.ReturnCode.MaxIters
+    @test snap.t < 20.0
+    @test snap.log_f - snap0.log_f ≈ δ * (snap.t - snap0.t)
+end
+
 @testset "Population extinction" begin
     EXTINCTION_ALGS = (
         Chemostats.Direct(),
