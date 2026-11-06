@@ -57,6 +57,11 @@ end
     @test [ d.u0 for d in daughters(Offspring(2, CartesianIndex() => ExactPartition()), scalar) ] == [2., 2.]
     @test_throws ArgumentError daughters(Offspring(2, iV => 1.0), scalar)
 
+    # Integer states can't be divided exactly
+    intstate = (; u = [4, 100, 1])
+    @test_throws ArgumentError daughters(Offspring(2, iP => ExactPartition()), intstate)
+    @test sum(d.u0[2] for d in daughters(Offspring(2, iP => BinomialPartition()), intstate)) == 100
+
     # Symbols give pairs, which `DECell` applies to the integrator
     ds = daughters(Offspring(:V => 1.0, :P => [3, 4]), int)
     @test ds[1].u0 == [ :V => 1.0, :P => 3 ]

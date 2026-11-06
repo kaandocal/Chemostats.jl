@@ -145,6 +145,7 @@ function offspring_states(offspring::Offspring, int, rng)
     (; n, rules) = offspring
     values = map(rules) do (var, rule)
         x = rule isa Partition ? parent_value(int, var) : nothing
+        @argcheck !(rule isa ExactPartition && x isa Integer) "Cannot divide integer $var exactly, use BinomialPartition instead"
         var => rule_values(rule, x, n, rng)
     end
 
