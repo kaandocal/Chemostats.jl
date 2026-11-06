@@ -49,7 +49,7 @@ u0 = [ :R => 0., :V => 1. ]
 p = [ :σ => 10., :λ => 1., :V_d => 2. ]
 prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div)
 
-cells = DECell[ DECell(prob, Tsit5(), divide) ];
+cells = [ DECell(prob, Tsit5(), divide) ];
 
 # We simulate the full population in a [`Chemostat`](@ref) until time 2, using the [`Direct`](@ref) algorithm. Since
 # `simulate` modifies the cells, we pass `copy = true` to reuse `cells` below:
@@ -58,7 +58,7 @@ chem = Chemostats.simulate(cells, 2., Chemostats.Direct(); copy = true);
 
 # We can then view the cells that are currently alive using `chem.pop`:
 
-length(chem.pop)
+length(chem.pop) #md
 
 #-
 
@@ -66,14 +66,24 @@ length(chem.pop)
 
 # We can also estimate the growth rate of the population using [`Chemostats.est_Λ`](@ref):
 
-Chemostats.est_Λ(chem)
+Chemostats.est_Λ(chem) #md
+Chemostats.est_Λ(chem)                              # growth rate estimate #jl
 
 # Note that our population grows exponentially, which makes long-term simulations difficult. To avoid this, we can
 # use the [`Strict`](@ref) or [`Lax`](@ref) simulation algorithms, which maintain a (roughly) constant population
 # size. For example, we can simulate a population consisting of at most 20 cells for ~100 generations:
 
-chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true)
-length(chem.pop), Chemostats.est_Λ(chem)
+chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true) #md
+length(chem.pop), Chemostats.est_Λ(chem) #md
+
+#-
+
+## Simulating exponentially growing populations is slow. #jl
+## We can subsample and simulate 20 cells at one time using `Strict`. #jl
+cells = [ DECell(prob, Tsit5(), divide) for _ in 1:20 ]; #jl
+chem = Chemostats.simulate(cells, 100., Chemostats.Strict(20)) #jl
+
+Chemostats.est_Λ(chem)                              # much better growth rate estimate #jl
 
 # This allows us to compute much better estimates of population quantities like the growth rate. See
 # [Simulation Algorithms](@ref) for the available algorithms.
@@ -81,7 +91,7 @@ length(chem.pop), Chemostats.est_Λ(chem)
 # Chemostats can also record the lineage tree during a simulation, using `save_mode = :ancestors` or
 # `save_mode = :full`:
 
-chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true, save_mode = :ancestors);
+chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true, save_mode = :ancestors); #md
 
 # The resulting population tree is stored in `chem.tree` and can be analysed using the [Tree API](../trees/index.md).
 # See the [examples](growth_protein.md) for how to do this.

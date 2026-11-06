@@ -37,7 +37,7 @@ end
     chem = Chemostat([ cell(5.) for _ in 1:3 ])
     @test Chemostats.get_curr_t(chem) == 5. && only(chem.snaps).t == 5.
     @test_throws ArgumentError Chemostat([ cell(0.), cell(5.) ])
-    @test_throws ArgumentError Chemostat(DECell[])
+    @test_throws ArgumentError Chemostat([])
 end
 
 @testset "Chemostat option copy" begin

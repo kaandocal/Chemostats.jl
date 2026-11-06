@@ -45,20 +45,19 @@ u0 = [ :R => 0., :V => 1. ]
 p = [ :σ => 10., :λ => 1., :V_d => 2. ]
 prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div)
 
-cells = DECell[ DECell(prob, Tsit5(), divide) ];
-
+cells = [ DECell(prob, Tsit5(), divide) ];
 chem = Chemostats.simulate(cells, 2., Chemostats.Direct(); copy = true);
-
-length(chem.pop)
 
 [ cell.int[:V] for cell in first(chem.pop, 5) ]     # volumes of the first five cells
 
-Chemostats.est_Λ(chem)
+Chemostats.est_Λ(chem)                              # growth rate estimate
 
-chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true)
-length(chem.pop), Chemostats.est_Λ(chem)
+# Simulating exponentially growing populations is slow. 
+# We can subsample and simulate 20 cells at one time using `Strict`.
+cells = [ DECell(prob, Tsit5(), divide) for _ in 1:20 ];
+chem = Chemostats.simulate(cells, 100., Chemostats.Strict(20))
 
-chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true, save_mode = :ancestors);
+Chemostats.est_Λ(chem)                              # much better growth rate estimate      
 ```
 <!-- END demo/ribosomes.jl -->
 
