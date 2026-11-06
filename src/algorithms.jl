@@ -146,10 +146,15 @@ struct Lax <: AbstractAlgorithm
     end
 end
 
-# Snapshot closest to `t`, if it lies within `τ/2` of `t`
-function get_snapshot_near(snaps::AbstractVector{Snapshot}, t, τ)
-    dist, i = findmin(snap -> abs(snap.t - t), snaps)
-    dist <= τ / 2 ? snaps[i] : nothing
+# Snapshot closest to `t` if within `τ/2`, searching back from index `i`. Also returns
+# the index to continue from, so decreasing times take a single pass
+function get_snapshot_near(snaps::AbstractVector{Snapshot}, t, τ, i = lastindex(snaps))
+    # Last snapshot before `t`, then the closer of it and the next one
+    while i > firstindex(snaps) && snaps[i].t > t
+        i -= 1
+    end
+    j = i < lastindex(snaps) && snaps[i + 1].t - t < t - snaps[i].t ? i + 1 : i
+    (abs(snaps[j].t - t) <= τ / 2 ? snaps[j] : nothing), i
 end
 
 function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
@@ -157,20 +162,19 @@ function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     rnd <= 0 && return NaN
 
     # Snapshots at t - kτ for k = 1, …, rnd; a missing one makes the estimate undefined
-    snap_lag = [ get_snapshot_near(snaps, t - k * alg.τ, alg.τ) for k in 1:rnd ]
-    any(isnothing, snap_lag) && return NaN
-    snap_now = _get_snapshot(snaps, t)
-
-    ret = sum(0:rnd-1) do d
-        snap_1 = snap_lag[d + 1]
-        snap_2 = d == 0 ? snap_now : snap_lag[d]
-        Λ_est = est_Λ(snap_1, snap_2)
-        (d > 0 ? alg.β^d : one(alg.β)) * Λ_est
-    end 
+    snap_2 = _get_snapshot(snaps, t)
+    i = lastindex(snaps)
+    ret = 0.0
+    for d in 0:rnd-1
+        snap_1, i = get_snapshot_near(snaps, t - (d + 1) * alg.τ, alg.τ, i)
+        isnothing(snap_1) && return NaN
+        ret += (d > 0 ? alg.β^d : one(alg.β)) * est_Λ(snap_1, snap_2)
+        snap_2 = snap_1
+    end
 
     norm = alg.β < 1 ? ((1 - alg.β^rnd) / (1 - alg.β)) : rnd * alg.β
     ret / norm
-end 
+end
 
 init!(alg::Lax, int) = update_algorithm!(alg, int)
 

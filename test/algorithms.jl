@@ -217,6 +217,25 @@ end
     @test Chemostats.get_δ(snaps, t, alg) == 0
 end
 
+@testset "Lax snapshot lookup matches a brute-force search" begin
+    τ = 0.5
+    # Irregular times, as with `saveat` between Lax's tstops
+    ts = sort!(vcat(0:τ:10, 0.13:0.71:10))
+    snaps = [ Chemostats.Snapshot(t, i, 0, 0.0) for (i, t) in enumerate(ts) ]
+
+    function near_ref(t)
+        dist, i = findmin(snap -> abs(snap.t - t), snaps)
+        dist <= τ / 2 ? snaps[i] : nothing
+    end
+
+    # Decreasing targets, continuing from the previous index
+    i = lastindex(snaps)
+    for t in [ 11.0; 10.9:-0.37:0.1; -1.0 ]
+        snap, i = Chemostats.get_snapshot_near(snaps, t, τ, i)
+        @test snap == near_ref(t)
+    end
+end
+
 @testset "step! rejects unsupported ensemble algorithms" begin
     chem = Chemostat(make_population(4))
     alg = Chemostats.Direct()
