@@ -68,6 +68,11 @@ end
         @test !isnothing(caught)
         @test has_cause(caught, CellError)
         @test has_cause(caught, CellException)   # the divide error is wrapped, not raw
+
+        # The population is kept, without the cells that threw (at most one per thread)
+        @test chem.status == Chemostats.ReturnCode.Failure
+        @test K - Threads.nthreads() <= length(chem.pop) < K
+        @test allunique(cell_params(cell).id for cell in chem.pop)
     end
 
     @testset "error from the cell's own step!, not divide ($ensalg)" for ensalg in ENSALGS

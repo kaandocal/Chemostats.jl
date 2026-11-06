@@ -37,6 +37,14 @@ end
 Snapshot(int::PopIntegrator) = Snapshot(int.t, length(int.queue), int.nsim, int.log_f)
 savevalues!(int::PopIntegrator) = push!(int.chem.snaps, Snapshot(int))
 
+# Moves the cells in `out` back into `int.queue`, e.g. after early termination
+function merge_queues!(int::PopIntegrator, out::ThreadedQueue)
+    merged = empty(int.chem.pop)
+    extract_queue!(merged, int.queue)
+    extract_queue!(merged, out)
+    int.queue = ThreadedQueue(merged)
+end
+
 function add_tstop!(int::PopIntegrator, t)
     @argcheck t >= int.t_next "Cannot add tstop at time $t: middle of simulation"
 
@@ -79,6 +87,12 @@ function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
         init!(int.alg, int)
         int.t0 in saveat && mark_tree!(chem)
         simulate!(int, tmax, ensalg; throw_on_error, kwargs...)
+    catch
+        # Keep the cells simulated so far
+        empty!(chem.pop)
+        extract_queue!(chem.pop, int.queue)
+        chem.status = ReturnCode.Failure
+        rethrow()
     finally
         # Also after early termination or an exception
         update_tree!(chem.tree)
@@ -151,14 +165,18 @@ function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7)
         # We assume this is threadsafe (`Strict` does not support multithreading)
         update_queue!(int, int.alg, get_curr_t(cell))
     catch e
+        if e isa CellException
+            # The cell is removed from the population
+            kill!(cell)
+            @lock int.tree_lock record_drop!(int.chem.tree, cell)
+        end
+
         if throw_on_error || !(e isa CellException)
             @atomicreplace int.retcode ReturnCode.Default => ReturnCode.Failure
             rethrow()
         else
             showerror(stderr, e, catch_backtrace())
             flush(stderr)
-            # The cell is dropped from the population
-            @lock int.tree_lock record_drop!(int.chem.tree, cell)
         end
     end
 end
@@ -178,16 +196,22 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
 
     wp = WorkerPool(queue)
 
-    if ensalg isa EnsembleSerial
-        run!(wp) do cell
-            worker_task(int, cell, out; δ, kwargs...)
-        end
-    elseif ensalg isa EnsembleThreads
-        @sync for i in 1:Threads.nthreads()
-            Threads.@spawn run!(wp) do cell
+    try
+        if ensalg isa EnsembleSerial
+            run!(wp) do cell
                 worker_task(int, cell, out; δ, kwargs...)
             end
+        elseif ensalg isa EnsembleThreads
+            @sync for i in 1:Threads.nthreads()
+                Threads.@spawn run!(wp) do cell
+                    worker_task(int, cell, out; δ, kwargs...)
+                end
+            end
         end
+    catch
+        # Cells in `out` would otherwise be lost
+        merge_queues!(int, out)
+        rethrow()
     end
 
     int.log_f += δ * (int.t_next - t0)
@@ -198,11 +222,7 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
         int.t in int.saveat && mark_tree!(chem)
     else
         int.t = isempty(queue) ? int.t_next : get_curr_t(first(queue))
-
-        merged = empty(chem.pop)
-        extract_queue!(merged, queue)
-        extract_queue!(merged, out)
-        int.queue = ThreadedQueue(merged)
+        merge_queues!(int, out)
     end
 
     save && savevalues!(int)
