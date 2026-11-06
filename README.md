@@ -16,15 +16,10 @@ This package is somewhat experimental - any feedback is appreciated (either by e
 
 A simple model of cell division, featuring volume growth coupled to ribosome production.
 
+<!-- BEGIN demo/ribosomes.jl -->
 ```julia
-using Catalyst
-using Chemostats
-using Distributions
-using OrdinaryDiffEqTsit5
-using CairoMakie
+using Catalyst, OrdinaryDiffEqTsit5, Chemostats
 
-# Define a reaction network in which ribosomes are produced in a volume-dependent manner.
-# Time is measured in arbitrary units.
 rn = @reaction_network begin
     @species R(t) = 0.
     @variables V(t) = 1.
@@ -35,45 +30,37 @@ rn = @reaction_network begin
     @equations begin
         D(V) ~ λ * R
     end
-end
+end;
 
-# A cell divides once it doubles its initial volume.
-cb_div = Chemostats.DivideCallback(rn.V ~ rn.V_d)
+cb_div = Chemostats.DivideCallback(rn.V ~ rn.V_d);
 
-# This function determines what offspring a dividing cell produces.
 function divide(int)
-    rng = Chemostats.get_rng(int)       # The cell's own RNG, for reproducible simulations
-    rand(rng) < 0.1 && return nothing   # Die with probability 1/10
+    rand() < 0.1 && return nothing
 
-    R = round(Int, int[:R])
-    V = int[:V]
-
-    # Create two cells with half the volume and (roughly) half the ribosomes.
-    # The model parameters are inherited from the parent cell.
-    R1 = rand(rng, Binomial(R, 0.5))
-    R2 = R - R1
-
-    [ (u0 = [:R => R1, :V => V / 2], p = nothing),
-      (u0 = [:R => R2, :V => V / 2], p = nothing) ]
-end
+    Chemostats.Offspring(2, :R => Chemostats.BinomialPartition(),
+                            :V => Chemostats.ExactPartition())
+end;
 
 u0 = [ :R => 0., :V => 1. ]
 p = [ :σ => 10., :λ => 1., :V_d => 2. ]
 prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div)
 
-# Need a DECell array for type instability reasons (to be fixed)
-cells = DECell[ DECell(prob, Tsit5(), divide) ] 
-chem = Chemostat(cells)
+cells = DECell[ DECell(prob, Tsit5(), divide) ];
 
-# Simulate population for 10 time units
-Chemostats.simulate!(chem, 10., Chemostats.Strict(10); saveat=0:0.1:10.)
+chem = Chemostats.simulate(cells, 2., Chemostats.Direct(); copy = true);
 
-# The full population would require simulating a lot of cells!
-println("Estimated growth rate: ", Chemostats.est_Λ(chem))
+length(chem.pop)
 
-# Plot the estimated population size and growth rate over time
-plot(chem)
+[ cell.int[:V] for cell in first(chem.pop, 5) ]     # volumes of the first five cells
+
+Chemostats.est_Λ(chem)
+
+chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true)
+length(chem.pop), Chemostats.est_Λ(chem)
+
+chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true, save_mode = :ancestors);
 ```
+<!-- END demo/ribosomes.jl -->
 
 ### See also
 
@@ -86,4 +73,4 @@ Chemostats.jl is designed for efficient estimation of growth rates in cell popul
 * Lecomte & Tailleur. "A numerical approach to large deviations in continuous time," J. Stat. Mech.: Theory Exp. 2007(3), 2007
 
 ### Acknowledgments
-* Thanks to [Chris Rackaukas](https://www.chrisrackauckas.com), [Aayush Sabharwal](https://github.com/AayushSabharwal), [Sam Isaacson](https://www.samisaacson.com), and the SciML community for their help and support (and their work on the SciML ecosystem!).
+* Thanks to [Chris Rackauckas](https://www.chrisrackauckas.com), [Aayush Sabharwal](https://github.com/AayushSabharwal), [Sam Isaacson](https://www.samisaacson.com), and the SciML community for their help and support (and their work on the SciML ecosystem!).

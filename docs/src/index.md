@@ -31,4 +31,4 @@ Chemostats.jl is designed for efficient estimation of growth rates in cell popul
 * Lecomte & Tailleur. "A numerical approach to large deviations in continuous time," J. Stat. Mech.: Theory Exp. 2007(3), 2007
 
 ### Acknowledgments
-* Thanks to [Chris Rackauckas](https://www.chrisrackauckas.com), [Aayush Sabharwal](https://github.com/AayushSabharwal), [Sam Isaacson](https://www.samisaacson.com), and the SciML community for their help and support (and their work on the SciML ecosystem!).
+* Thanks to [Chris Rackauckas](https://www.chrisrackauckas.com), [Aayush Sabharwal](https://github.com/AayushSabharwal), [Sam Isaacson](https://www.samisaacson.com), [Torkel Loman](https://github.com/TorkelE) and the SciML community for their help and support (and their work on the SciML ecosystem!).
