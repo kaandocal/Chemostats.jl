@@ -67,7 +67,7 @@ end;
 # We simulate `L` lineages using [`Chemostats.Forward`](@ref) for three choices of rates, and compute the
 # noise in the birth size.
 
-using Statistics
+using StatsBase
 
 regimes = [ "timer-like" => (ν = 80.0, μ = 44.0, λ = 0.01),
             "adder-like" => (ν = 2.0, μ = 98.0, λ = 0.01),

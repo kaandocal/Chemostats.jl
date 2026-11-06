@@ -1,6 +1,6 @@
 using Test
 using Random
-using Statistics
+using StatsBase
 using Distributions: Uniform
 using OrdinaryDiffEqTsit5
 using SciMLBase

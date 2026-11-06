@@ -11,7 +11,6 @@ Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 NewickTree = "b0a14db8-6308-4ebc-8917-f72cd81f5094"
 OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [sources]
@@ -30,5 +29,4 @@ Literate = "2"
 NewickTree = "0.4"
 OrdinaryDiffEqTsit5 = "1.8, 2.1"
 Random = "1"
-Statistics = "1"
 StatsBase = "0.34"

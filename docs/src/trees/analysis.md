@@ -10,7 +10,7 @@ We use a small random tree in which the data of each cell is a random number.
 using Chemostats.Trees
 using Chemostats.Trees: cell_init!, cell_divide!, cell_die!, cell_update!
 using Random
-using Statistics
+using StatsBase
 
 mutable struct Cell end
 

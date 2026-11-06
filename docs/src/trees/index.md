@@ -19,7 +19,7 @@ The following example constructs a small tree by hand, where each cell stores it
 ```@example index
 using Chemostats.Trees
 using Chemostats.Trees: cell_init!, cell_divide!, cell_die!, cell_update!
-using Statistics
+using StatsBase
 
 mutable struct Cell
     v_birth::Float64
