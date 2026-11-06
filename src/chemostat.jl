@@ -21,15 +21,16 @@ struct Snapshot
 end 
 
 get_curr_t(snaps::AbstractVector{Snapshot}) = snaps[end].t 
+get_start_t(snaps::AbstractVector{Snapshot}) = snaps[1].t
 
 """
-    get_snapshot(chem::Chemostat, t = chem.t)
-    get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t)
+    _get_snapshot(chem::Chemostat, t = chem.t)
+    _get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t)
 
 Searches and returns for a population snapshot saved at time `t`. Errors if no snapshots are found.
 If multiple snapshots at time `t` exist, this function returns the last one. 
 """
-function get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t; atol=1e-6)
+function _get_snapshot(snaps::AbstractVector{Snapshot}, t = snaps[end].t; atol=1e-6)
     #@assert issorted(snaps; by = snap -> snap.t)
     i = searchsortedlast(map(snap -> snap.t, snaps), t + atol)
     if i < 1 || snaps[i].t < t - atol
@@ -82,32 +83,47 @@ end
 ### 
 
 """
-    struct Chemostat{C,P}
+    struct Chemostat{C,P,T}
         pop::Vector{C}
         p::P
         snaps::Vector{Snapshot}
-        tree::PopTree{C}
+        tree::T
+        prune::Bool
         status::ReturnCode.T
     end
 
 Chemostat object. The field `pop` contains the current population of cells.
 The field `p` can be a user-defined parameter object (defaults to `nothing`).
 `snaps` contains a list of `Snapshot`s saved at different times. `tree`
-contains the ancestry tree (used if `save_ancestors=true`), and `status`
-the status code.
+contains the population tree, depending on `save_mode`: `:none` (default) records no tree,
+`:ancestors` keeps the ancestors of the living cells and of the populations at the `saveat` times
+of [`simulate!`](@ref), and `:full` keeps every cell. `prune` is `true` if the tree is pruned during simulations
+(`save_mode = :ancestors`). `status` contains the status code.
 """
-mutable struct Chemostat{C,P}
+mutable struct Chemostat{C,P,T}
     pop::Vector{C}
     p::P
     snaps::Vector{Snapshot}
-    tree::PopTree{C}
+    tree::T
+    prune::Bool
     status::ReturnCode.T
 end
 
-function Chemostat(cells, p=nothing; copy=false, save_ancestors=false, save_leaves=false)
-    snaps = [ Snapshot(0., length(cells), 0, 0.) ]
+function Chemostat(cells; p=nothing, copy=false, save_mode::Symbol=:none)
+    @argcheck save_mode in (:none, :ancestors, :full) "Unknown save_mode $save_mode, use :none, :ancestors or :full"
+
+    @argcheck !isempty(cells) "The initial population must not be empty"
+    t0 = get_curr_t(first(cells))
+    # Approximate, as cells with `reset_t` accumulate their time in two parts
+    @argcheck all(cell -> get_curr_t(cell) ≈ t0, cells) "All cells must start at the same time"
+
+    snaps = [ Snapshot(t0, length(cells), 0, 0.) ]
     cells = copy ? deepcopy(cells) : cells
-    Chemostat(cells, p, snaps, PopTree{eltype(cells)}(; save_ancestors, save_leaves), ReturnCode.Default)
+
+    tree = save_mode == :none ? nothing : Tree{eltype(cells)}()
+    record_init!(tree, cells)
+
+    Chemostat(cells, p, snaps, tree, save_mode == :ancestors, ReturnCode.Default)
 end
 
 function Base.show(io::IO, chem::Chemostat)
@@ -116,23 +132,25 @@ function Base.show(io::IO, chem::Chemostat)
 end
 
 get_curr_t(chem::Chemostat) = get_curr_t(chem.snaps)
-get_snapshot(chem::Chemostat, args...) = get_snapshot(chem.snaps, args...)
+get_start_t(chem::Chemostat) = get_start_t(chem.snaps)
+_get_snapshot(chem::Chemostat, args...) = _get_snapshot(chem.snaps, args...)
 
 const SnapshotVec = Union{AbstractVector{Snapshot}, Chemostat}
 
 """
     est_logN(snaps::AbstractVector{Snapshot}, t)
 
-Estimates the log-size of a population at time `t` by combining [`get_snapshot`](@ref) and [`est_logN`](@ref).
+Estimates the log-size of a population at time `t` from the snapshot saved at time `t`, see [`est_logN`](@ref).
+Errors if no snapshot was saved at time `t` (see `saveat` in [`simulate!`](@ref)).
 `snaps` can alternatively be a `Chemostat` instance.
 """
-est_logN(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_logN(get_snapshot(snaps, t))
+est_logN(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_logN(_get_snapshot(snaps, t))
 
 """
-    est_Λ(snaps::AbstractVector{Snapshot}, t1 = 0., t2)
+    est_Λ(snaps::AbstractVector{Snapshot}, t1 = first(snaps).t, t2)
 
-Estimates the growth rate of a population between times t1 and t2 
-by combining [`get_snapshot`](@ref) and [`est_Λ`](@ref). `snaps` can alternatively be a `Chemostat` instance.
+Estimates the growth rate of a population between times t1 and t2 from the snapshots saved at these times,
+see [`est_Λ`](@ref). Errors if no snapshots were saved at these times. `snaps` can alternatively be a `Chemostat` instance.
 """
-est_Λ(snaps::SnapshotVec, t0, t) = est_Λ(get_snapshot(snaps, t0), get_snapshot(snaps, t))
-est_Λ(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_Λ(snaps, zero(t), t)
+est_Λ(snaps::SnapshotVec, t0, t) = est_Λ(_get_snapshot(snaps, t0), _get_snapshot(snaps, t))
+est_Λ(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_Λ(snaps, get_start_t(snaps), t)

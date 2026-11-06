@@ -6,6 +6,7 @@ using SciMLBase
 using Chemostats
 
 include("models/exponential.jl")
+include("models/jumpcell.jl")
 
 @testset "Snapshot math" begin
     s1 = Chemostats.Snapshot(0.0, 10, 10, 0.0)
@@ -20,16 +21,16 @@ include("models/exponential.jl")
     @test Chemostats.est_N(s3) ≈ 20
 end
 
-@testset "get_snapshot" begin
+@testset "_get_snapshot" begin
     snaps = [
         Chemostats.Snapshot(0.0, 10, 10, 0.0),
         Chemostats.Snapshot(1.0, 10, 10, 0.0),
         Chemostats.Snapshot(1.0, 15, 15, 0.0),
     ]
 
-    @test_throws ArgumentError Chemostats.get_snapshot(snaps, 5.0)
-    @test Chemostats.get_snapshot(snaps, 1.0).N == 15
-    @test Chemostats.get_snapshot(snaps).t == 1.0
+    @test_throws ArgumentError Chemostats._get_snapshot(snaps, 5.0)
+    @test Chemostats._get_snapshot(snaps, 1.0).N == 15
+    @test Chemostats._get_snapshot(snaps).t == 1.0
 end
 
 @testset "Lax constructor" begin
@@ -59,6 +60,17 @@ end
         @test Λ_curr ≈ Λ_true atol = 1e-6
         @test Λ_curr ≈ Λ_direct atol = 1e-6
     end
+end
+
+@testset "Lax and est_Λ count time from the first snapshot" begin
+    Λ_true = 0.3
+    τ = 0.5
+    ts = 5:τ:15
+    snaps = [ Chemostats.Snapshot(t, round(Int, 1.0e6 * exp(Λ_true * t)), 0, 0.0) for t in ts ]
+
+    @test Chemostats.est_Λ(snaps) ≈ Λ_true atol = 1e-6
+    @test Chemostats.est_Λ_curr(snaps, ts[end], Chemostats.Lax(50, τ)) ≈ Λ_true atol = 1e-6
+    @test Chemostats.get_δ(snaps, ts[1], Chemostats.Lax(50, τ)) == 0          # less than τ after the start
 end
 
 @testset "Lax falls back to nearby snapshots or sets δ = 0" begin
@@ -103,7 +115,7 @@ end
 
     Chemostats.kill!(cell1, Chemostats.get_curr_t(cell1))
     @test Chemostats.get_state(cell1) == Chemostats.CellState.Killed
-    @test isnothing(cell1.int)   # properly finalized
+    @test SciMLBase.done(cell1.int)   # integrator terminated
 
     prob2 = ODEProblem(f_exp, 0.1, (0., 0.), (; id = 2); callback = cb_exp)
     cell2 = DECell(prob2, Tsit5(), divide_exp)
@@ -113,7 +125,7 @@ end
 
     Chemostats.kill!(cell2, Chemostats.get_curr_t(cell2))
     @test Chemostats.get_state(cell2) == Chemostats.CellState.Killed
-    @test isnothing(cell2.int)
+    @test SciMLBase.done(cell2.int)
 end
 
 @testset "clone independence" begin
@@ -162,6 +174,24 @@ end
     @test all(c -> Chemostats.get_curr_t(c) == tmax, chem.pop)
 end
 
+# Regression: an integer start time used to specialise a `JumpProblem`'s functions on `Int` time
+@testset "Integer start times with a JumpProblem (reset_t=$reset_t)" for reset_t in (true, false)
+    chem = Chemostat([ JumpCell(; k = 5.0, reset_t, t0 = 0) for _ in 1:3 ])
+    Chemostats.simulate!(chem, 3.0, Chemostats.Direct())
+
+    @test chem.status == SciMLBase.ReturnCode.Success
+    @test all(c -> Chemostats.get_curr_t(c) == 3.0, chem.pop)
+end
+
+@testset "Chemostat start time" begin
+    cell(t0) = DECell(ODEProblem(f_exp, 1.0, (0., 0.), (; id = 1); callback = cb_exp), Tsit5(), divide_exp; t0)
+
+    chem = Chemostat([ cell(5.) for _ in 1:3 ])
+    @test Chemostats.get_curr_t(chem) == 5. && only(chem.snaps).t == 5.
+    @test_throws ArgumentError Chemostat([ cell(0.), cell(5.) ])
+    @test_throws ArgumentError Chemostat(DECell[])
+end
+
 @testset "Chemostat option copy" begin
     cells = make_population(3)
     chem_shared = Chemostat(cells)             # default: copy=false
@@ -173,7 +203,7 @@ end
 
 @testset "Offspring count edge cases" begin
     @testset "one child" begin
-        divide_single(int) = [ (u0 = randexp(), p = int.p) ]
+        divide_single = Chemostats.Offspring(1, CartesianIndex() => Exponential())
         prob = ODEProblem(f_exp, randexp(), (0., 0.), (; id = 1); callback = cb_exp)
         chem = Chemostat([ DECell(prob, Tsit5(), divide_single) ])
 

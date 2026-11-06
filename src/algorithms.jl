@@ -67,15 +67,19 @@ Direct() = Thin(0)
 """
     Strict(L::Int)
 
-Implements the cloning algorithm of Giardinà *et al.* (2006) and Lecomte & Tailleur (2007). 
+Implements the strict chemostat, similar to the cloning algorithm of Giardinà *et al.* (2006) and Lecomte & Tailleur (2007). 
 Simulates a population of exactly ``L`` cells. When a cell divides in two, one of the resulting
 ``L+1`` cells is discarded at random; when a cell dies, another is cloned into its place. 
 
-Since the population size is kept constant, it has stable simulation times. Introduces an error of order 
+Since the population size is kept constant, this algorithm has stable simulation times. Introduces an error of order 
 ``1 / L`` into growth rate estimates. For many problems, ``L = 10-100`` should be enough to obtain good estimates.
 For ``L \\geq 100`` we recommend [`Lax`](@ref) instead.
 
+If `clone = false`, dead cells are not replaced by clones, so the population can shrink below L. 
+
 **Note:** This algorithm does not support parallelisation.
+
+**Note 2:** Lineage recording currently does not support clones.
 """
 struct Strict <: AbstractAlgorithm
     L::Int
@@ -123,7 +127,7 @@ and requiring the expected population size after the next interval to equal ``L`
 is the growth rate in the `n-i`th interval. The parameter ``0 \\leq β \\leq 1`` controls smoothing:
 Larger ``β`` produces more stable estimates, but does not capture sudden variations in growth rate,
 whereas smaller ``β`` produces less stable estimates that can better adapt to fast fluctuations.
-If ``β = 0``, only the growth rate in the last interval is used. The default is ``\beta = 0.5``.
+If ``β = 0``, only the growth rate in the last interval is used. The default is ``\\beta = 0.5``.
 """
 struct Lax <: AbstractAlgorithm
     L::Int
@@ -149,13 +153,13 @@ function get_snapshot_near(snaps::AbstractVector{Snapshot}, t, τ)
 end
 
 function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    rnd = floor(Int, t / alg.τ + 1e-6)
+    rnd = floor(Int, (t - get_start_t(snaps)) / alg.τ + 1e-6)
     rnd <= 0 && return NaN
 
     # Snapshots at t - kτ for k = 1, …, rnd; a missing one makes the estimate undefined
     snap_lag = [ get_snapshot_near(snaps, t - k * alg.τ, alg.τ) for k in 1:rnd ]
     any(isnothing, snap_lag) && return NaN
-    snap_now = get_snapshot(snaps, t)
+    snap_now = _get_snapshot(snaps, t)
 
     ret = sum(0:rnd-1) do d
         snap_1 = snap_lag[d + 1]
@@ -174,13 +178,13 @@ get_δ(int, alg::Lax) = get_δ(int.chem, int.t, alg)
 get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.snaps, t, alg)
 
 function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    snap = get_snapshot(snaps, t)
+    snap = _get_snapshot(snaps, t)
 
     N = snap.N > alg.L * alg.tol ? alg.L : snap.N
 
     # Small population
     N < alg.L_min && return 0.
-    t < alg.τ && return 0.
+    t - get_start_t(snaps) < alg.τ && return 0.
 
     # Estimate current growth rate
     Λ̂ = est_Λ_curr(snaps, t, alg)

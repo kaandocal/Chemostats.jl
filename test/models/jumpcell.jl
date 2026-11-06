@@ -25,18 +25,14 @@ cb_div_jump = Chemostats.DivideCallback(cb_cond_jump; interp_points=0, save_posi
 function divide_jumpcell(int)
     P = round(Int, int[:P])
     V_half = int[:V] / 2
-    P1 = P ÷ 2
-    P2 = P - P1
-
-    [ (u0 = [:P => P1, :V => V_half], p = [:V_d => V_half + 1.0]),
-      (u0 = [:P => P2, :V => V_half], p = [:V_d => V_half + 1.0]) ]
+    Chemostats.Offspring(:P => [P ÷ 2, P - P ÷ 2], :V => Chemostats.ExactPartition(), :V_d => V_half + 1.0)
 end
 
-function JumpCell(alg = Tsit5(); k = 1.0, V_d = 2.0, remake = false, rng = Xoshiro(rand(UInt64)))
+function JumpCell(alg = Tsit5(); k = 1.0, V_d = 2.0, remake = false, reset_t = false, t0 = 0., rng = Xoshiro(rand(UInt64)))
     f = ODEFunction(jumpcell_rhs!; sys = jumpcell_syms)
     oprob = ODEProblem(f, [0.0, 1.0], (0., Inf), [k, V_d])
     prob = JumpProblem(oprob, Direct(), jumpcell_birth; callback = cb_div_jump)
-    DECell(prob, alg, divide_jumpcell; remake, rng)
+    DECell(prob, alg, divide_jumpcell; remake, reset_t, t0, rng)
 end
 
 jumpcell_aggregator(int) = int.opts.callback.discrete_callbacks[1].condition

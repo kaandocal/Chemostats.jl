@@ -1,12 +1,32 @@
 [deps]
+BasicTreePlots = "523fa316-3eda-45c7-ad2f-0d13a1dc3d77"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Catalyst = "479239e8-5488-4da2-87a7-35f2df7eef83"
 Chemostats = "0c42c343-380a-49b2-a381-bd06de99d09a"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterInterLinks = "d12716ef-a0f6-4df4-a9f1-a5a34e75c656"
+JumpProcesses = "ccbc3e58-028d-4f4c-8cd5-9ae44345cda5"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+NewickTree = "b0a14db8-6308-4ebc-8917-f72cd81f5094"
+OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [sources]
 Chemostats = {path = ".."}
 
 [compat]
+BasicTreePlots = "0.2"
+CairoMakie = "0.15"
+Catalyst = "17"
 Chemostats = "0.1"
+Distributions = "0.25"
 Documenter = "1.16"
 DocumenterInterLinks = "1.1"
+JumpProcesses = "10"
+Literate = "2"
+NewickTree = "0.4"
+OrdinaryDiffEqTsit5 = "1.8, 2.1"
+Random = "1"
+StatsBase = "0.34"

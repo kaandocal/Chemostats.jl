@@ -1,5 +1,6 @@
 Manifest.toml
 docs/build
+.vscode
 
 # Code coverage artifacts from local `--code-coverage=user` test runs
 *.jl.cov

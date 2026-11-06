@@ -8,7 +8,7 @@ Chemostats.jl simulates cells independently of each other - direct cell-to-cell 
 
 ![Illustration of various algorithms](assets/alg.svg)
 
-# Supported algorithms 
+## Supported algorithms 
 ```@docs
 Chemostats.Direct
 Chemostats.Thin

@@ -1,297 +1,230 @@
 using Test
-using ArgCheck
-using OrdinaryDiffEqTsit5
 using Random
 using StatsBase
+using SciMLBase
 using Chemostats
 
 include("models/exponential.jl")
+include("models/rngcell.jl")
 
-# Only used for identity
-mk() = ExponentialCell((; id = 0))
+ENSALGS = (EnsembleSerial(), EnsembleThreads())
 
-# The oldest recorded ancestor of `cell` (the founder it descends from), or
-# `cell` itself if it has no recorded ancestors.
-find_root(tree, cell) = (anc = collect(Chemostats.ancestors(tree, cell)); isempty(anc) ? cell : last(anc))
+node_of(tree, cell) = tree[tree.living[cell]]
 
-# The most recent common ancestor of `cells` (assumed already coalesced to one lineage).
-function population_mrca(tree, cells)
-    chain1 = collect(Chemostats.ancestors(tree, cells[1]))
-    rest_sets = [ Set(Chemostats.ancestors(tree, c)) for c in cells[2:end] ]
-    for c in chain1
-        all(s -> c in s, rest_sets) && return c
-    end
-    error("no common ancestor found")
-end
-
-@testset "PopTree construction" begin
-    tree = Chemostats.PopTree{typeof(mk())}()
-
-    @test isempty(tree.parents)
-    @test isempty(tree.leaves)
-    @test tree.save_ancestors == false
-    @test tree.save_leaves == false
-    @test tree.last_sweep_size == 0
-
-    tree2 = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true, save_leaves = true)
-    @test tree2.save_ancestors
-    @test tree2.save_leaves
-end
-
-@testset "parent / set_parent!" begin
-    tree = Chemostats.PopTree{typeof(mk())}()
-    a, b, c = mk(), mk(), mk()
-
-    @test Chemostats.parent(tree, a) === missing
-
-    Chemostats.set_parent!(tree, a, b)
-    @test Chemostats.parent(tree, a) == b
-    @test tree.parents[a] == b
-
-    @test_throws ArgCheck.CheckError Chemostats.set_parent!(tree, a, c)
-    @test tree.parents[a] == b   # unchanged after the rejected attempt
-end
-
-@testset "add_offspring! respects save_ancestors" begin
-    p = mk()
-    c1, c2 = mk(), mk()
-
-    tree_on = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-    Chemostats.add_offspring!(tree_on, p, (c1, c2))
-    @test tree_on.parents[c1] == p
-    @test tree_on.parents[c2] == p
-
-    tree_off = Chemostats.PopTree{typeof(mk())}(; save_ancestors = false)
-    Chemostats.add_offspring!(tree_off, p, (c1, c2))
-    @test isempty(tree_off.parents)
-
-    tree_single = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-    c3 = mk()
-    Chemostats.add_offspring!(tree_single, p, (c3,))
-    @test tree_single.parents[c3] == p
-
-    tree_empty = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-    Chemostats.add_offspring!(tree_empty, p, ())
-    @test isempty(tree_empty.parents)
-end
-
-@testset "add_clone! inherits parent" begin
-    tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-    root, source = mk(), mk()
-    Chemostats.set_parent!(tree, source, root)
-
-    clone = mk()
-    Chemostats.add_clone!(tree, source, clone)
-    @test Chemostats.parent(tree, clone) == root
-    @test Chemostats.parent(tree, source) == root   # source itself is untouched
-
-    # A clone of a root (no recorded parent) stays rootless too.
-    tree_root = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-    founder, clone_of_founder = mk(), mk()
-    Chemostats.add_clone!(tree_root, founder, clone_of_founder)
-    @test Chemostats.parent(tree_root, clone_of_founder) === missing
-
-    tree_off = Chemostats.PopTree{typeof(mk())}(; save_ancestors = false)
-    Chemostats.add_clone!(tree_off, source, mk())
-    @test isempty(tree_off.parents)
-end
-
-@testset "add_leaf! respects save_leaves" begin
-    cell = mk()
-
-    tree_on = Chemostats.PopTree{typeof(mk())}(; save_leaves = true)
-    Chemostats.add_leaf!(tree_on, cell)
-    @test tree_on.leaves == [cell]
-
-    tree_off = Chemostats.PopTree{typeof(mk())}(; save_leaves = false)
-    Chemostats.add_leaf!(tree_off, cell)
-    @test isempty(tree_off.leaves)
-end
-
-@testset "ancestors()" begin
-    tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-    root, a, b = mk(), mk(), mk()
-    Chemostats.set_parent!(tree, a, root)
-    Chemostats.set_parent!(tree, b, a)
-
-    @test collect(Chemostats.ancestors(tree, b)) == [a, root]
-    @test collect(Chemostats.ancestors(tree, a)) == [root]
-    @test collect(Chemostats.ancestors(tree, root)) == [] 
-
-    @test collect(Chemostats.ancestors(tree, mk())) == []
-end
-
-@testset "prune!" begin
-    @testset "keeps exactly the ancestry samples need" begin
-        tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-
-        root = mk()
-        a, b = mk(), mk()
-        a1, a2 = mk(), mk()
-        b1 = mk()           
-
-        Chemostats.set_parent!(tree, a, root)
-        Chemostats.set_parent!(tree, b, root)
-        Chemostats.set_parent!(tree, a1, a)
-        Chemostats.set_parent!(tree, a2, a)
-        Chemostats.set_parent!(tree, b1, b)
-        @test length(tree.parents) == 5
-
-        Chemostats.prune!(tree, [a1, b1])
-
-        @test Set(keys(tree.parents)) == Set([a1, b1, a, b])
-        @test tree.parents[a1] == a
-        @test tree.parents[a] == root
-        @test tree.parents[b1] == b
-        @test tree.parents[b] == root
-        @test !haskey(tree.parents, a2)
-        @test tree.last_sweep_size == length(tree.parents) == 4
-
-        # ancestors() still walks all the way to the (unkeyed) root.
-        @test collect(Chemostats.ancestors(tree, a1)) == [a, root]
-    end
-
-    @testset "no-op on root" begin
-        tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-        root, a = mk(), mk()
-        Chemostats.set_parent!(tree, a, root)
-
-        Chemostats.prune!(tree, [root])
-        @test isempty(tree.parents)
-    end
-
-    @testset "empty sample set drops everything" begin
-        tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-        Chemostats.set_parent!(tree, mk(), mk())
-
-        Chemostats.prune!(tree, typeof(mk())[])
-        @test isempty(tree.parents)
-        @test tree.last_sweep_size == 0
-    end
-
-    @testset "is idempotent" begin
-        tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-        root, a, b = mk(), mk(), mk()
-        Chemostats.set_parent!(tree, a, root)
-        Chemostats.set_parent!(tree, b, root)
-
-        Chemostats.prune!(tree, [a])             # b's branch dropped
-        snapshot = copy(tree.parents)
-        Chemostats.prune!(tree, [a])             # nothing left to discard
-        @test tree.parents == snapshot
-    end
-
-    @testset "shared ancestry is only walked once" begin
-        # Not a timing test -- just confirms the early-stop-on-shared-path
-        # logic doesn't change the *result* vs. walking each sample fully.
-        tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-        root = mk()
-        mid = mk()
-        Chemostats.set_parent!(tree, mid, root)
-        leaves = [mk() for _ in 1:5]
-        for l in leaves
-            Chemostats.set_parent!(tree, l, mid)
-        end
-
-        Chemostats.prune!(tree, leaves)
-        @test Set(keys(tree.parents)) == Set(vcat(leaves, [mid]))
-        @test all(l -> tree.parents[l] == mid, leaves)
-        @test tree.parents[mid] == root
+# Living nodes reflect their cells' current state, and the tree is ready for analysis
+function up_to_date(tree)
+    issorted(tree) && all(tree.living) do (cell, id)
+        tree[id].t_end == Chemostats.get_curr_t(cell) && tree[id].data === Chemostats.get_data(cell)
     end
 end
 
-@testset "simplify!" begin
-    @testset "only prunes once tree has doubled" begin
-        tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = true)
-        root, a = mk(), mk()
-        Chemostats.set_parent!(tree, a, root)
-        tree.last_sweep_size = 10   # pretend a prior prune settled at size 10
+# Most recent common ancestor of the living cells
+function mrca(tree, cells)
+    chain = collect(keys(Chemostats.ancestors(tree, first(cells))))
+    others = [ Set(keys(Chemostats.ancestors(tree, c))) for c in cells[2:end] ]
+    chain[findfirst(id -> all(s -> id in s, others), chain)]
+end
 
-        Chemostats.simplify!(tree, [a])   # 1 <= 2*10, must not fire
-        @test length(tree.parents) == 1    # untouched -- prune! would replace the dict
-        @test tree.last_sweep_size == 10   # untouched -- only prune! updates this
+@testset "No tree unless requested" begin
+    chem = Chemostat(make_population(5))
+    Chemostats.simulate!(chem, 1.0, Chemostats.Direct())
+    @test isnothing(chem.tree)
+end
 
-        tree.last_sweep_size = 0   # now 1 > 2*0, must fire
-        Chemostats.simplify!(tree, [a])
-        @test tree.last_sweep_size == 1    # prune! ran and updated it
+@testset "Tree records the simulation ($ensalg)" for ensalg in ENSALGS
+    K, tmax = 5, 3.0
+    founders = make_population(K)
+    chem = Chemostat(copy(founders); save_mode = :full)
+    Chemostats.simulate!(chem, tmax, Chemostats.Direct(), ensalg)
+    tree, snap = chem.tree, chem.snaps[end]
+
+    @test up_to_date(tree)
+    @test length(tree) == snap.nsim
+    @test length(Chemostats.living(tree)) == length(chem.pop) == snap.N
+    @test count(iszero, tree.nodes.parent) == K
+
+    for cell in chem.pop
+        node = node_of(tree, cell)
+        @test node.t_end == tmax
+        @test node.data === cell.int.sol
+
+        lineage = collect(Chemostats.ancestors(tree, cell; self = true))
+        @test first(lineage) == node
+        @test length(lineage) == node.generation + 1
+        @test iszero(last(lineage).parent)
     end
 
-    @testset "save_ancestors = false makes this a no-op" begin
-        tree = Chemostats.PopTree{typeof(mk())}(; save_ancestors = false)
+    # No deaths: every finished cell divided in two, at the end of its solution
+    for id in eachindex(tree)
+        node = tree[id]
+        Chemostats.is_alive(node) && continue
+        cs = Chemostats.children(tree, id)
+        @test length(cs) == 2
+        @test all(c -> c.t_birth == node.t_end, cs)
+        @test last(node.data.t) == node.t_end
+    end
 
-        never_iterate = Iterators.map(_ -> error("samples should not be touched"), 1:1)
-        Chemostats.simplify!(tree, never_iterate)
+    # `ancestors` with a cell needs a living cell of the tree
+    @test_throws ArgumentError Chemostats.ancestors(tree, first(c for c in founders if !haskey(tree.living, c)))
+    @test_throws ArgumentError Chemostats.ancestors(tree, ExponentialCell((; id = 0)))
+end
+
+@testset "Killed cells are recorded ($ensalg)" for ensalg in ENSALGS
+    tmax = 2.0
+    chem = Chemostat(make_population(30); save_mode = :full)
+    Chemostats.simulate!(chem, tmax, Chemostats.Thin(0.3), ensalg)
+    tree = chem.tree
+
+    killed = [ id for id in eachindex(tree) if !Chemostats.is_alive(tree[id]) && isempty(Chemostats.children(tree, id)) ]
+    @test !isempty(killed)
+    @test all(id -> tree[id].t_birth <= tree[id].t_end < tmax, killed)
+    @test all(id -> !isnothing(tree[id].data), killed)
+end
+
+@testset "Forward records single lineages" begin
+    K = 6
+    chem = Chemostat(make_population(K); save_mode = :full)
+    Chemostats.simulate!(chem, 3.0, Chemostats.Forward(K))
+    tree = chem.tree
+
+    @test up_to_date(tree)
+    @test length(tree) == chem.snaps[end].nsim
+    @test all(id -> length(Chemostats.children(tree, id)) <= 1, eachindex(tree))
+    @test count(iszero, tree.nodes.parent) == length(Chemostats.living(tree)) == K
+end
+
+@testset "Continuing a simulation" begin
+    chem = Chemostat(make_population(5); save_mode = :full)
+    Chemostats.simulate!(chem, 1.5, Chemostats.Direct())
+    Chemostats.simulate!(chem, 3.0, Chemostats.Direct())
+
+    @test up_to_date(chem.tree)
+    @test all(cell -> node_of(chem.tree, cell).t_end == 3.0, chem.pop)
+    @test length(chem.tree) == chem.snaps[end].nsim
+end
+
+@testset "Copied populations are recorded" begin
+    cells = make_population(5)
+    chem = Chemostat(cells; copy = true, save_mode = :ancestors)
+    @test all(c -> !haskey(chem.tree.living, c), cells)
+
+    Chemostats.simulate!(chem, 2.0, Chemostats.Direct())
+    @test up_to_date(chem.tree)
+    @test all(c -> haskey(chem.tree.living, c), chem.pop)
+end
+
+@testset "Tree is up to date after early termination" begin
+    @testset "Nmax" begin
+        chem = Chemostat(make_population(5); save_mode = :ancestors)
+        Chemostats.simulate!(chem, 10.0, Chemostats.Direct(); Nmax = 20)
+        @test chem.status == SciMLBase.ReturnCode.MaxIters
+        @test up_to_date(chem.tree)
+    end
+
+    @testset "Exception ($ensalg)" for ensalg in ENSALGS
+        chem = Chemostat(make_throwing_population(5); save_mode = :ancestors)
+        @test_throws Exception Chemostats.simulate!(chem, 10.0, Chemostats.Direct(), ensalg; throw_on_error = true)
+        @test up_to_date(chem.tree)
+        @test !isempty(chem.tree.living)
     end
 end
 
-@testset "end-to-end (via simulate!)" begin
-    @testset "pruning doesn't affect simulation" begin
-        function run_sim(; disable_pruning)
-            Random.seed!(20240521)
-            chem = Chemostat(make_stochastic_population(10); save_ancestors = true)
-            disable_pruning && (chem.tree.last_sweep_size = typemax(Int) ÷ 2)
-            Chemostats.simulate!(chem, 5.0, Chemostats.Direct(), EnsembleSerial())
-            chem
-        end
-
-        chem_pruned = run_sim(; disable_pruning = false)
-        chem_full = run_sim(; disable_pruning = true)
-
-        @test chem_pruned.snaps[end].N == chem_full.snaps[end].N
-        @test chem_pruned.snaps[end].nsim == chem_full.snaps[end].nsim
-
-        # Pruning must actually have discarded something...
-        @test length(chem_pruned.tree.parents) < length(chem_full.tree.parents)
-
-        # ...without breaking any live cell's ancestry: every surviving cell
-        # must trace back exactly as far in both trees.
-        for (c1, c2) in zip(chem_pruned.pop, chem_full.pop)
-            d1 = length(collect(Chemostats.ancestors(chem_pruned.tree, c1)))
-            d2 = length(collect(Chemostats.ancestors(chem_full.tree, c2)))
-            @test d1 == d2
-        end
+@testset "Cells dropped after errors leave the tree ($ensalg)" for ensalg in ENSALGS
+    chem = Chemostat(make_throwing_population(5); save_mode = :ancestors)
+    redirect_stderr(devnull) do
+        Chemostats.simulate!(chem, 10.0, Chemostats.Direct(), ensalg)
     end
 
-    @testset "pruning shrinks tree size (clone=$clone)" for clone in (true, false)
-        Random.seed!(7)
-        L = 100
-        chem = Chemostat(make_population(L); save_ancestors = true)
-        Chemostats.simulate!(chem, 20.0, Chemostats.Strict(L, clone), EnsembleSerial())
-        snap = chem.snaps[end]
+    @test isempty(chem.pop)
+    @test isempty(chem.tree.living)
+    @test length(chem.tree) == 5
+end
 
-        @test snap.N == L
-        @test snap.nsim > 20 * L   # make sure plenty of turnover actually happened
+@testset "Extinct populations are not pruned" begin
+    # Large enough for a lazy sweep, which would otherwise remove every node
+    chem = Chemostat(make_dying_population(2000); save_mode = :ancestors)
+    Chemostats.simulate!(chem, 20.0, Chemostats.Direct())
 
-        # Without pruning, tree.parents would hold one entry per division
-        # ever (≈ nsim); with it, it should stay close to the population size L
-        @test length(chem.tree.parents) < snap.nsim ÷ 3
-        @test length(chem.tree.parents) < 30 * L
+    @test isempty(chem.pop)
+    @test length(chem.tree) == 2000
+end
+
+@testset "Strict cannot record clones" begin
+    chem = Chemostat(make_dying_population(5); save_mode = :ancestors)
+    @test_throws ArgumentError Chemostats.simulate!(chem, 10.0, Chemostats.Strict(5))
+    @test up_to_date(chem.tree)
+
+    # Fine without cloning
+    chem = Chemostat(make_dying_population(5); save_mode = :ancestors)
+    Chemostats.simulate!(chem, 10.0, Chemostats.Strict(5, false))
+    @test up_to_date(chem.tree)
+end
+
+@testset "Pruning" begin
+    L, tmax = 50, 60.0   # long enough for lazy pruning to sweep several times
+
+    function run_lax(; save_mode)
+        Random.seed!(20240521)
+        chem = Chemostat(make_population(L); save_mode)
+        Chemostats.simulate!(chem, tmax, Chemostats.Lax(L, 0.5), EnsembleSerial(); saveat)
+        chem
     end
+
+    saveat = [ 0., 15., 30., 45., 60. ]
+
+    pruned, full = run_lax(; save_mode = :ancestors), run_lax(; save_mode = :full)
+    snap = pruned.snaps[end]
+
+    @test [ (s.N, s.nsim) for s in pruned.snaps ] == [ (s.N, s.nsim) for s in full.snaps ]
+    @test length(full.tree) == snap.nsim
+    @test length(pruned.tree) < snap.nsim ÷ 3
+    @test up_to_date(pruned.tree)
+
+    # Populations at `saveat` are marked, so they survive pruning
+    for t in saveat
+        @test length(Chemostats.alive_at(pruned.tree, t)) == Chemostats._get_snapshot(pruned.snaps, t).N
+    end
+
+    # Living lineages are unaffected
+    lineage(chem, cell) = [ (node.t_birth, node.t_end) for node in Chemostats.ancestors(chem.tree, cell) ]
+    @test all(((c1, c2),) -> lineage(pruned, c1) == lineage(full, c2), zip(pruned.pop, full.pop))
+end
+
+@testset "Tree is identical across ensemble algorithms" begin
+    function run_thin(ensalg)
+        chem = Chemostat([ RNGCell(1000 + i) for i in 1:20 ]; save_mode = :ancestors)
+        Chemostats.simulate!(chem, 3.0, Chemostats.Thin(0.3), ensalg; saveat = 0.5:0.5:3.0)
+        (; parent, generation, t_birth, t_end, alive) = chem.tree.nodes
+        (parent, generation, t_birth, t_end, alive)
+    end
+
+    @test run_thin(EnsembleSerial()) == run_thin(EnsembleThreads())
 end
 
 @testset "Coalescence" begin
     Λ_gt = 1.0
-    N = 100
-    tmax = 10 * N / Λ_gt
 
+    # No deaths, so Strict never clones
     @testset "Strict (clone=$clone)" for clone in (true, false)
+        N = 100
         Random.seed!(42)
-        chem = Chemostat(make_population(N); save_ancestors = true)
-        Chemostats.simulate!(chem, tmax, Chemostats.Strict(N, clone))
+        chem = Chemostat(make_population(N); save_mode = :ancestors)
+        Chemostats.simulate!(chem, 10 * N / Λ_gt, Chemostats.Strict(N, clone))
 
         @test length(chem.pop) == N
-        roots = [ find_root(chem.tree, cell) for cell in chem.pop ]
-        @test all(r -> r === roots[1], roots)
+        roots = [ last(collect(keys(Chemostats.ancestors(chem.tree, c; self = true)))) for c in chem.pop ]
+        @test allequal(roots)
     end
 
-    @testset "Lax with $ensalg" for ensalg in (EnsembleSerial(), EnsembleThreads())
+    @testset "Lax with $ensalg" for ensalg in ENSALGS
+        N = 100
         Random.seed!(43)
-        chem = Chemostat(make_population(N); save_ancestors = true)
-        Chemostats.simulate!(chem, tmax, Chemostats.Lax(N, 0.5), ensalg)
+        chem = Chemostat(make_population(N); save_mode = :ancestors)
+        Chemostats.simulate!(chem, 10 * N / Λ_gt, Chemostats.Lax(N, 0.5), ensalg)
 
-        @test !isempty(chem.pop)   # didn't go extinct
-        roots = [ find_root(chem.tree, cell) for cell in chem.pop ]
-        @test all(r -> r === roots[1], roots)
+        @test !isempty(chem.pop)
+        roots = [ last(collect(keys(Chemostats.ancestors(chem.tree, c; self = true)))) for c in chem.pop ]
+        @test allequal(roots)
     end
 
     @testset "ancestral ID distribution (clone=$clone)" for clone in (true, false)
@@ -313,7 +246,7 @@ end
         end
 
         @test all(coalesced)
-        
+
         μ = (N + 1) / 2
         σ2 = (N^2 - 1) / 12
         se_mean = sqrt(σ2 / nreps)
@@ -366,10 +299,9 @@ end
         depths = Vector{Float64}(undef, nreps)
         Threads.@threads for i in 1:nreps
             Random.seed!(13000 + i)
-            chem = Chemostat(make_population(N); save_ancestors = true)
+            chem = Chemostat(make_population(N); save_mode = :ancestors)
             Chemostats.simulate!(chem, tmax, Chemostats.Strict(N, clone))
-            mrca = population_mrca(chem.tree, chem.pop)
-            depths[i] = tmax - Chemostats.get_curr_t(mrca)
+            depths[i] = tmax - chem.tree[mrca(chem.tree, chem.pop)].t_end
         end
 
         μ = (N^2 - 1) / (N * Λ_gt)

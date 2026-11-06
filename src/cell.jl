@@ -83,4 +83,11 @@ function clone_cell end
 
 Returns the random number generator owned by `cell`.
 """
-get_cell_rng(cell) = Random.default_rng() 
+get_cell_rng(cell) = Random.default_rng()
+
+"""
+    get_data(cell)
+
+Returns the data saved for `cell` in the population tree. Defaults to `nothing`.
+"""
+get_data(cell) = nothing 
