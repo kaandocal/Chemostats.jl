@@ -42,8 +42,6 @@ end
 
 get_cell_rng(cell::DECell) = cell.rng
 get_data(cell::DECell) = cell.int.sol
-# For `divide` functions, which only see the integrator
-get_rng(int::SciMLBase.DEIntegrator) = SciMLBase.get_rng(int)
 
 # Independent stream of the same type for a new cell, derived deterministically from `rng`
 spawn_rng(rng) = Random.seed!(copy(rng), rand(rng, UInt64))

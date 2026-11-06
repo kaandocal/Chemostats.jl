@@ -6,7 +6,7 @@ include("exponential.jl")
 # Exponential lifetimes; dies with probability `p_die`, otherwise divides into two.
 # All randomness comes from the cell's RNG.
 function divide_rng(int)
-    rng = Chemostats.get_cell_rng(int)
+    rng = SciMLBase.get_rng(int)
     rand(rng) < int.p.p_die && return nothing
     map(_ -> (u0 = randexp(rng), p = int.p), 1:2)
 end
