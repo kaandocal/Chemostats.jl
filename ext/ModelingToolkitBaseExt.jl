@@ -9,6 +9,14 @@ const MTK = ModelingToolkitBase
 # MTK compilation of getu does not seem to be threadsafe, use global lock for now
 const _GETU_LOCK = ReentrantLock()
 
+# Accessor shared by all copies of a callback. Avoid deepcopy when callbacks 
+# are copied upon division
+mutable struct SharedGetter
+    @atomic getter::Any
+end
+
+Base.deepcopy_internal(g::SharedGetter, ::IdDict) = g
+
 function affect_terminate!(x, obs, ctx, int)
     terminate!(int)
     x
@@ -38,12 +46,16 @@ function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK
     exprs = [eq.lhs - eq.rhs for eq in eqs]
     expr = length(exprs) == 1 ? only(exprs) : exprs
 
-    getter = Ref{Any}(nothing)
+    getter = SharedGetter(nothing)
 
     function condition(u, t, int)
-        g = lock(_GETU_LOCK) do
-            isnothing(getter[]) && (getter[] = MTK.getu(int, expr))
-            getter[]
+        # Lock only while building the accessor, not on every call
+        g = @atomic getter.getter
+        if isnothing(g)
+            g = lock(_GETU_LOCK) do
+                isnothing(@atomic getter.getter) && (@atomic getter.getter = MTK.getu(int, expr))
+                @atomic getter.getter
+            end
         end
         val = g(MTK.ProblemState(; u, p = int.p, t))
         discrete ? all(iszero, val) : val
