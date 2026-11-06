@@ -84,8 +84,11 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v2
+      # Heavy packages (Catalyst, Makie, ...) are only precompiled if the example pages are regenerated
       - name: Install dependencies
         shell: julia --color=yes --project=docs {0}
+        env:
+          JULIA_PKG_PRECOMPILE_AUTO: 0
         run: |
           using Pkg
           Pkg.develop(PackageSpec(path=pwd()))
