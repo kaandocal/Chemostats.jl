@@ -65,7 +65,7 @@ end
     end
 
     # `ancestors` with a cell needs a living cell of the tree
-    @test_throws ArgumentError Chemostats.ancestors(tree, first(founders))
+    @test_throws ArgumentError Chemostats.ancestors(tree, first(c for c in founders if !haskey(tree.living, c)))
     @test_throws ArgumentError Chemostats.ancestors(tree, ExponentialCell((; id = 0)))
 end
 
