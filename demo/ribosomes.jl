@@ -26,16 +26,9 @@ function divide(int)
     rng = SciMLBase.get_rng(int)        # The cell's own RNG, for reproducible simulations
     rand(rng) < 0.1 && return nothing   # Die with probability 1/10
 
-    R = round(Int, int[:R])
-    V = int[:V]
-
     # Create two cells with half the volume and (roughly) half the ribosomes.
     # The model parameters are inherited from the parent cell.
-    R1 = rand(rng, Binomial(R, 0.5))
-    R2 = R - R1
-
-    [ (u0 = [:R => R1, :V => V / 2], p = nothing),
-      (u0 = [:R => R2, :V => V / 2], p = nothing) ]
+    Chemostats.Offspring(:R => Chemostats.BinomialPartition(), :V => Chemostats.ExactPartition())
 end
 
 u0 = [ :R => 0., :V => 1. ]

@@ -16,10 +16,8 @@ u0 = randexp()
 
 prob = ODEProblem(f, u0, (0., Inf); callback=cb_div)
 
-function divide(int)
-    # Return two cells with exponentially distributed times to division
-    [ (u0 = randexp(), p = nothing), (u0 = randexp(), p = nothing) ]
-end
+# Two daughters with exponentially distributed times to division
+divide = Chemostats.Offspring(CartesianIndex() => Exponential())
 
 cells = [ DECell(prob, Tsit5(), divide) ]
 chem = Chemostat(cells)

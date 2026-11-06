@@ -30,16 +30,13 @@ end
 # starts with `N / 2` molecules.
 
 using Chemostats
+using Chemostats: Offspring, ExactPartition
+
+N = 200             # threshold
 
 cb_div = Chemostats.DivideCallback(rn.x ~ rn.N; discrete = true)
 
-function divide_cell(int)
-    V = int[:V]
-    N = int.ps[:N]
-
-    [ (u0 = [:V => V / 2, :x => N / 2], p = nothing),
-      (u0 = [:V => V / 2, :x => N / 2], p = nothing) ]
-end;
+divide_cell = Offspring(:V => ExactPartition(), :x => N / 2);
 
 # We tell Chemostats to record the birth and division size of each cell by overriding
 # [`Chemostats.get_data`](@ref):
@@ -56,8 +53,8 @@ using OrdinaryDiffEqTsit5
 using JumpProcesses
 
 function create_population(rates, L)
-    p = [ :α => 1.0, :ν => rates.ν, :μ => rates.μ, :λ => rates.λ, :N => 200 ]
-    u0 = [ :V => 1.0, :x => 100.0 ]
+    p = [ :α => 1.0, :ν => rates.ν, :μ => rates.μ, :λ => rates.λ, :N => N ]
+    u0 = [ :V => 1.0, :x => N / 2 ]
 
     prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div, vr_aggregator = VR_Direct(),
                          save_positions = (false, false))

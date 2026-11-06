@@ -80,14 +80,7 @@ vr_rn = @reaction_network begin
     k * V, 0 --> P
 end
 
-function divide_vr(int)
-    rng = SciMLBase.get_rng(int)
-    P = round(Int, int[:P])
-    P1 = count(_ -> rand(rng) < 0.5, 1:P)
-
-    [ (u0 = [:P => P1, :V => int[:V] / 2], p = nothing),
-      (u0 = [:P => P - P1, :V => int[:V] / 2], p = nothing) ]
-end
+divide_vr = Chemostats.Offspring(:P => Chemostats.BinomialPartition(), :V => Chemostats.ExactPartition())
 
 @testset "HybridProblem is seed-reproducible across ensemble algorithms" begin
     cb = Chemostats.DivideCallback(vr_rn.V ~ vr_rn.V_d; interp_points=0, save_positions=(true, false))

@@ -203,7 +203,7 @@ end
 
 @testset "Offspring count edge cases" begin
     @testset "one child" begin
-        divide_single(int) = [ (u0 = randexp(), p = int.p) ]
+        divide_single = Chemostats.Offspring(1, CartesianIndex() => Exponential())
         prob = ODEProblem(f_exp, randexp(), (0., 0.), (; id = 1); callback = cb_exp)
         chem = Chemostat([ DECell(prob, Tsit5(), divide_single) ])
 

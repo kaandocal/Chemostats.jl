@@ -5,17 +5,13 @@ using Random
 using OrdinaryDiffEqTsit5
 using SciMLBase
 using Chemostats
+using Distributions: Exponential
 
 f_exp(u, p, t) = -one(u)
 
 cb_exp = Chemostats.DivideCallback((u, t, int) -> u; interp_points=0)
 
-function divide_exp(int)
-    p = int.p
-    map(1:2) do _
-        (u0 = randexp(), p = p)
-    end
-end
+divide_exp = Chemostats.Offspring(CartesianIndex() => Exponential())
 
 function ExponentialCell(p, alg = Tsit5())
     u0 = randexp()
@@ -35,15 +31,12 @@ end
 
 function divide_stochastic(int)
     r = rand()
-    p = int.p
     if r < 0.15
         nothing
     elseif r < 0.30
-        [ (u0 = randexp(), p = p) ]
+        Chemostats.Offspring(1, CartesianIndex() => Exponential())
     else
-        map(1:2) do _
-            (u0 = randexp(), p = p)
-        end
+        Chemostats.Offspring(CartesianIndex() => Exponential())
     end
 end
 

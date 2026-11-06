@@ -67,7 +67,7 @@ Each rule is of the form `var => value`, where `value` can be one of the followi
 * `val`: each offspring gets `val`,
 * `dist::Distribution`: each offspring gets an independent random sample from `dist`
 
-All other variables are copied from the parent. 
+Variables are given as symbols, or a `CartesianIndex`. All other variables are copied from the parent.
 
 An `Offspring` can be used as the `divide` keyword of a [`DECell`](@ref).
 Alternatively, `divide` can be a function `int -> offspring` that returns an `Offspring`
@@ -83,7 +83,9 @@ struct Offspring{R<:Tuple}
             len = rule_length(rule)
             @argcheck isnothing(len) || len == n "Rule for $var has $len entries, but there are $n offspring"
         end
-        @argcheck all(var -> var isa Integer, first.(rules)) || !any(var -> var isa Integer, first.(rules)) "Variables must be all symbols or all indices"
+        vars = first.(rules)
+        @argcheck !any(var -> var isa Integer, vars) "Use `CartesianIndex(i)` to refer to entries of the state"
+        @argcheck all(var -> var isa CartesianIndex, vars) || !any(var -> var isa CartesianIndex, vars) "Variables must be all symbols or all indices"
         new{typeof(rules)}(n, rules)
     end
 end
@@ -127,8 +129,15 @@ function multinomial(rng, N::Integer, f)
     counts
 end
 
-parent_value(int, var::Integer) = int.u[var]
-parent_value(int, var) = int[var]
+is_parameter(int, var) = SymbolicIndexingInterface.is_parameter(int, var)
+
+parent_value(int, var::CartesianIndex) = int.u[var]
+parent_value(int, var) = is_parameter(int, var) ? int.ps[var] : int[var]
+
+# Scalar states are set as a whole, with `CartesianIndex()`
+set_state(u::Number, var::CartesianIndex{0}, x) = x
+set_state(u::Number, var, x) = throw(ArgumentError("Use `CartesianIndex()` to set a scalar state"))
+set_state(u, var, x) = (u[var] = x; u)
 
 # Converts an `Offspring` into a vector of `(u0, p)` daughters, as returned by the `divide` function of a `DECell`
 function offspring_states(offspring::Offspring, int, rng)
@@ -138,16 +147,22 @@ function offspring_states(offspring::Offspring, int, rng)
         var => rule_values(rule, x, n, rng)
     end
 
+    # Symbolic rules can also set parameters
+    indexed = all(rule -> first(rule) isa CartesianIndex, rules)
+    params = indexed ? () : filter(((var, _),) -> is_parameter(int, var), values)
+    states = indexed ? values : filter(((var, _),) -> !is_parameter(int, var), values)
+
     map(1:n) do i
-        u0 = if all(rule -> first(rule) isa Integer, rules)
+        u0 = if indexed
             u = copy(int.u)
-            for (var, vals) in values
-                u[var] = vals[i]
+            for (var, vals) in states
+                u = set_state(u, var, vals[i])
             end
             u
         else
-            [ var => vals[i] for (var, vals) in values ]
+            [ var => vals[i] for (var, vals) in states ]
         end
-        (u0 = u0, p = nothing)
+        p = isempty(params) ? nothing : [ var => vals[i] for (var, vals) in params ]
+        (u0 = u0, p = p)
     end
 end

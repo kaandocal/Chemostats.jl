@@ -5,12 +5,7 @@ f_det(u, p, t) = u * p.Λ * log(2)
 
 cb_det = Chemostats.DivideCallback((u, t, int) -> u - int.p.Vd; interp_points=0)
 
-function divide_det(int)
-    map(1:2) do _
-        u0 = int.u / 2
-        (; u0, p=nothing)
-    end
-end 
+divide_det = Chemostats.Offspring(CartesianIndex() => Chemostats.ExactPartition()) 
 
 function Deterministic(Λ = log(2); Vd = 2.)
     p = (; Vd, Λ)

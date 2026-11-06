@@ -43,17 +43,11 @@ cycle = Gamma(5, 1.0);                    # cell cycle duration in the absence o
 # proteins are partitioned binomially between the two daughters.
 
 using Chemostats
+using Chemostats: Offspring, BinomialPartition
 
 cb_div = Chemostats.DivideCallback(rn.R ~ 0)
 
-function divide_cell(int)
-    P = round(Int, int[:P])
-    P1 = rand(Binomial(P, 0.5))
-
-    ## All other variables are inherited from the parent
-    [ (u0 = [:P => P1, :R => rand(cycle)], p = nothing),
-      (u0 = [:P => P - P1, :R => rand(cycle)], p = nothing) ]
-end;
+divide_cell = Offspring(:P => BinomialPartition(), :R => cycle);
 
 # We tell Chemostats to record the average protein content by overriding 
 # [`Chemostats.get_data`](@ref):
