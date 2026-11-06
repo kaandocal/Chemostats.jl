@@ -40,11 +40,10 @@ sort!(tree)
 
 Most analysis functions take arbitrary node collections, which can be:
 - a tree, using `values(tree)`
-- a subtree `view(tree, ids)`
+- a subtree `view(tree, ids)`[@ref Base.view(::Tree, ::Any)]
 - cells satisfying certain conditions, using [`filter(f, nodes)`](@ref Base.filter(::Any, ::NodeCollection))
 - ancestors of a cell using [`ancestors(tree, id)`](@ref ancestors)
 - descendants of a cell using [`descendants(tree, id)`](@ref descendants)
-- root cells, living cells or the children of a cell, using [`roots(tree)`](@ref roots), [`living(tree)`](@ref living) and [`children(tree, id)`](@ref children)
 
 For these collections, `keys` returns the cell ids, `values` the nodes, and `pairs` returns `id => node`.
 

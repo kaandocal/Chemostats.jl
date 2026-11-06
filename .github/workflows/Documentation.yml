@@ -34,7 +34,7 @@ jobs:
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
       # The example pages are normally generated nightly by Examples.yml
-      - name: Generate missing example pages
+      - name: Generate example pages
         run: |
           missing=$(for name in ribosomes growth_protein threshold_division; do [ -f docs/src/examples/$name.md ] || echo $name; done)
           [ -z "$missing" ] || julia --color=yes --threads=auto --project=docs docs/make_examples.jl $missing
