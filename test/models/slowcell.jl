@@ -15,6 +15,7 @@ Chemostats.get_state(c::SlowCell) = c.state
 Chemostats.init_cell!(c::SlowCell) = (c.state = Chemostats.CellState.Alive)
 Chemostats.die!(c::SlowCell) = (c.state = Chemostats.CellState.Dead)
 Chemostats.divide!(c::SlowCell) = (c.state = Chemostats.CellState.Divided)
+Chemostats.kill!(c::SlowCell, t = c.t) = (c.t = t; c.state = Chemostats.CellState.Killed)
 Chemostats.get_children(::SlowCell, p=nothing) = [ SlowCell(), SlowCell() ]
 
 function Chemostats.step!(c::SlowCell, dt, p)
