@@ -16,7 +16,7 @@ end
 
 cb_flip = Chemostats.DivideCallback(flip_rn.X ~ 1.0; discrete=true)
 
-divide_flipcell = Chemostats.Offspring(:X => 0, :V => 1.0)
+divide_flipcell = Chemostats.Offspring(2, :X => 0, :V => 1.0)
 
 function FlipCell(; k = 1.0)
     prob = HybridProblem(flip_rn, [:X => 0, :V => 1.0], (0., Inf), [:k => k]; callback = cb_flip)

@@ -1,4 +1,4 @@
-# Analysis
+# Lineage analysis
 
 ```@meta
 CurrentModule = Chemostats.Trees

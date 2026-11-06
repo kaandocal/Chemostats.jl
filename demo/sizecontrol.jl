@@ -32,8 +32,7 @@ function divide(int)
 end
 
 cells = [ DECell(prob, Tsit5(), divide) ]
-chem = Chemostat(cells)
 
 # The true growth rate equals the physical growth rate of each cell, Λ = 1.
-Chemostats.simulate!(chem, 1000., Chemostats.Strict(10))
+chem = Chemostats.simulate(cells, 1000., Chemostats.Strict(10))
 println("Estimated growth rate: ", Chemostats.est_Λ(chem))

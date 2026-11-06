@@ -36,7 +36,7 @@ N = 200             # threshold
 
 cb_div = Chemostats.DivideCallback(rn.x ~ rn.N; discrete = true)
 
-divide_cell = Offspring(:V => ExactPartition(), :x => N / 2);
+divide_cell = Offspring(2, :V => ExactPartition(), :x => N / 2);
 
 # We tell Chemostats to record the birth and division size of each cell by overriding
 # [`Chemostats.get_data`](@ref):

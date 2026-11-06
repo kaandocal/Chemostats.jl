@@ -10,7 +10,7 @@ using Distributions: Exponential
 function divide_rng(int)
     rng = Chemostats.get_cell_rng(int)
     rand(rng) < int.p.p_die && return nothing
-    Chemostats.Offspring(CartesianIndex() => Exponential())
+    Chemostats.Offspring(2, CartesianIndex() => Exponential())
 end
 
 function RNGCell(seed; p_die = 0.2)

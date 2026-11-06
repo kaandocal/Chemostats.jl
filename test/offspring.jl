@@ -15,7 +15,7 @@ const iV, iP, iR = CartesianIndex(1), CartesianIndex(2), CartesianIndex(3)
 daughters(offspring, int = test_integrator(); rng = Xoshiro(1)) = Chemostats.offspring_states(offspring, int, rng)
 
 @testset "Number of offspring" begin
-    @test Offspring(iV => ExactPartition()).n == 2
+    @test_throws ArgumentError Offspring(iV => ExactPartition())     # no default number of offspring
     @test Offspring(3, iV => ExactPartition()).n == 3
     @test Offspring(iV => ExactPartition([0.2, 0.3, 0.5])).n == 3
     @test Offspring(iR => [1., 2., 3., 4.]).n == 4
@@ -37,7 +37,7 @@ end
     int = test_integrator()
 
     # Unlisted variables are inherited
-    ds = daughters(Offspring(iV => ExactPartition()), int)
+    ds = daughters(Offspring(2, iV => ExactPartition()), int)
     @test [ d.u0 for d in ds ] == [ [2., 100., 1.], [2., 100., 1.] ]
     @test all(d -> isnothing(d.p), ds)
 
@@ -48,14 +48,14 @@ end
     @test [ d.u0[2] for d in ds ] == [5., 6., 7.]
     @test all(d -> d.u0[3] == 0.5, ds)
 
-    ds = daughters(Offspring(iR => Uniform(2, 3)), int)
+    ds = daughters(Offspring(2, iR => Uniform(2, 3)), int)
     @test all(d -> 2 <= d.u0[3] <= 3, ds)
     @test ds[1].u0[3] != ds[2].u0[3]
 
     # Scalar states are set with `CartesianIndex()`
     scalar = init(ODEProblem((u, p, t) -> zero(u), 4.0, (0., 1.)), Tsit5())
-    @test [ d.u0 for d in daughters(Offspring(CartesianIndex() => ExactPartition()), scalar) ] == [2., 2.]
-    @test_throws ArgumentError daughters(Offspring(iV => 1.0), scalar)
+    @test [ d.u0 for d in daughters(Offspring(2, CartesianIndex() => ExactPartition()), scalar) ] == [2., 2.]
+    @test_throws ArgumentError daughters(Offspring(2, iV => 1.0), scalar)
 
     # Symbols give pairs, which `DECell` applies to the integrator
     ds = daughters(Offspring(:V => 1.0, :P => [3, 4]), int)
@@ -69,7 +69,7 @@ end
     @test ds[1].u0 == [ :V => 2.0 ] && ds[1].p == [ :V_d => 1.0 ]
     @test ds[2].u0 == [ :V => 2.0 ] && ds[2].p == [ :V_d => 1.5 ]
 
-    ds = daughters(Offspring(:V_d => ExactPartition()), pint)
+    ds = daughters(Offspring(2, :V_d => ExactPartition()), pint)
     @test all(d -> isempty(d.u0) && d.p == [ :V_d => 1.0 ], ds)
 end
 
@@ -111,7 +111,7 @@ end
     end
     volume(cell) = cell.int.u[1]
 
-    kids = children(Offspring(iV => ExactPartition()))
+    kids = children(Offspring(2, iV => ExactPartition()))
     @test length(kids) == 2
     @test all(k -> isapprox(volume(k), 1; atol = 1e-6), kids)
 
@@ -120,7 +120,7 @@ end
     @test isempty(children(Offspring(0)))
 
     # Random rules use the RNG of the dividing cell
-    sample(seed) = volume.(children(Offspring(iV => Uniform(0.5, 1.5)); seed))
+    sample(seed) = volume.(children(Offspring(2, iV => Uniform(0.5, 1.5)); seed))
     @test sample(1) == sample(1)
     @test sample(1) != sample(2)
 end

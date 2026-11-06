@@ -4,7 +4,7 @@
 
 using Literate
 
-names = isempty(ARGS) ? [ "growth_protein", "threshold_division" ] : ARGS
+names = isempty(ARGS) ? [ "ribosomes", "growth_protein", "threshold_division" ] : ARGS
 
 for name in names
     Literate.markdown(joinpath(@__DIR__, "..", "demo", "$name.jl"), joinpath(@__DIR__, "src", "examples");

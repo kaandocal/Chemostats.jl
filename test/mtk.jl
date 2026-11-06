@@ -80,7 +80,7 @@ vr_rn = @reaction_network begin
     k * V, 0 --> P
 end
 
-divide_vr = Chemostats.Offspring(:P => Chemostats.BinomialPartition(), :V => Chemostats.ExactPartition())
+divide_vr = Chemostats.Offspring(2, :P => Chemostats.BinomialPartition(), :V => Chemostats.ExactPartition())
 
 @testset "HybridProblem is seed-reproducible across ensemble algorithms" begin
     cb = Chemostats.DivideCallback(vr_rn.V ~ vr_rn.V_d; interp_points=0, save_positions=(true, false))

@@ -10,7 +10,7 @@ include("models/multitypemarkov.jl")
 # Linear birth-death process: at each Exponential(1) event a cell either
 # divides (probability p_divide) or dies without offspring. Growth rate is
 # Λ = 2*p_divide - 1. Reuses f_exp/cb_exp from models/exponential.jl.
-divide_bd(p_divide) = int -> rand() < p_divide ? Chemostats.Offspring(CartesianIndex() => Exponential()) : nothing
+divide_bd(p_divide) = int -> rand() < p_divide ? Chemostats.Offspring(2, CartesianIndex() => Exponential()) : nothing
 
 function BirthDeathCell(p_divide; alg = Tsit5())
     prob = ODEProblem(f_exp, randexp(), (0., 0.), (; p_divide); callback = cb_exp)

@@ -47,7 +47,7 @@ using Chemostats: Offspring, BinomialPartition
 
 cb_div = Chemostats.DivideCallback(rn.R ~ 0)
 
-divide_cell = Offspring(:P => BinomialPartition(), :R => cycle);
+divide_cell = Offspring(2, :P => BinomialPartition(), :R => cycle);
 
 # We tell Chemostats to record the average protein content by overriding 
 # [`Chemostats.get_data`](@ref):

@@ -92,7 +92,8 @@ end
 
 function Offspring(rules::Pair...)
     lengths = filter(!isnothing, [ rule_length(last(rule)) for rule in rules ])
-    Offspring(isempty(lengths) ? 2 : first(lengths), rules...)
+    @argcheck !isempty(lengths) "Specify the number of offspring, e.g. `Offspring(2, rules...)`"
+    Offspring(first(lengths), rules...)
 end
 
 # Returns itself, so that an `Offspring` can be used as the `divide` function of a cell

@@ -11,7 +11,7 @@ f_exp(u, p, t) = -one(u)
 
 cb_exp = Chemostats.DivideCallback((u, t, int) -> u; interp_points=0)
 
-divide_exp = Chemostats.Offspring(CartesianIndex() => Exponential())
+divide_exp = Chemostats.Offspring(2, CartesianIndex() => Exponential())
 
 function ExponentialCell(p, alg = Tsit5())
     u0 = randexp()
@@ -36,7 +36,7 @@ function divide_stochastic(int)
     elseif r < 0.30
         Chemostats.Offspring(1, CartesianIndex() => Exponential())
     else
-        Chemostats.Offspring(CartesianIndex() => Exponential())
+        Chemostats.Offspring(2, CartesianIndex() => Exponential())
     end
 end
 

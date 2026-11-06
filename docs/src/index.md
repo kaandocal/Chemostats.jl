@@ -12,21 +12,13 @@ Chemostats.jl is a package to simulate branching populations in Julia, with a fo
 
 This package is somewhat experimental - any feedback is appreciated (either by email or by opening an issue on GitHub).
 
+To get started, have a look at the [Usage](@ref) section or browse the examples!
+
 ## Features
 
 - Efficient parallel simulation of branching processes
 - Directly compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](@extref DifferentialEquations :doc:`index`), [ModelingToolkit.jl](@extref ModelingToolkit :doc:`index`) and [Catalyst.jl](@extref Catalyst :doc:`index`)
 - Support for basic cell lineage analysis
-
-
-## Example
-
-A simple model of cell division, featuring volume growth coupled to ribosome production (the full, runnable script lives at `demo/ribosomes.jl`):
-
-```@eval
-using Markdown
-Markdown.parse("```julia\n" * read(joinpath(@__DIR__, "..", "..", "demo", "ribosomes.jl"), String) * "\n```")
-```
 
 ### See also
 

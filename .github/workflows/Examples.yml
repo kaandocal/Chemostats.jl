@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        example: [ growth_protein, threshold_division ]
+        example: [ ribosomes, growth_protein, threshold_division ]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,12 +80,6 @@ jobs:
           pattern: example-*
           merge-multiple: true
           path: docs/src/examples
-      - name: Commit example pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A docs/src/examples
-          git diff --cached --quiet || (git commit -m "Regenerate example pages" && git push)
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1'
@@ -96,6 +90,14 @@ jobs:
           using Pkg
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
+      - name: Update README
+        run: julia --color=yes --project=docs demo/update_readme.jl
+      - name: Commit example pages and README
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs/src/examples README.md
+          git diff --cached --quiet || (git commit -m "Regenerate example pages" && git push)
       # Pushes made with GITHUB_TOKEN do not trigger other workflows, so the docs are rebuilt here
       - name: Build and deploy docs
         run: julia --color=yes --project=docs docs/make.jl

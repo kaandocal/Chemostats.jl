@@ -17,12 +17,11 @@ u0 = randexp()
 prob = ODEProblem(f, u0, (0., Inf); callback=cb_div)
 
 # Two daughters with exponentially distributed times to division
-divide = Chemostats.Offspring(CartesianIndex() => Exponential())
+divide = Chemostats.Offspring(2, CartesianIndex() => Exponential())
 
 cells = [ DECell(prob, Tsit5(), divide) ]
-chem = Chemostat(cells)
 
 # Estimate the growth rate from a single lineage. The true growth rate is
 # exactly 1, but tracking only one lineage systematically underestimates it.
-Chemostats.simulate!(chem, 1_000_000, Chemostats.Strict(1))
+chem = Chemostats.simulate(cells, 1_000_000, Chemostats.Strict(1))
 println("Estimated growth rate: ", Chemostats.est_Λ(chem))
