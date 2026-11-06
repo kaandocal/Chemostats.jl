@@ -108,27 +108,19 @@ fractions(f, n) = isnothing(f) ? fill(1 / n, n) : f
 
 # Values of a variable with value `x` in the parent for each of the `n` offspring
 rule_values(rule::ExactPartition, x, n, rng) = fractions(rule.f, n) .* x
-rule_values(rule::BinomialPartition, x, n, rng) = multinomial(rng, round(Int, x), fractions(rule.f, n))
+function rule_values(rule::BinomialPartition, x, n, rng)
+    N = round(Int, x)
+    @argcheck N >= 0 "Cannot partition a negative count"
+    rand(rng, Multinomial(N, fractions(rule.f, n)))
+end
 
 function rule_values(rule::AllOrNothingPartition, x, n, rng)
-    winner = findfirst(==(1), multinomial(rng, 1, fractions(rule.f, n)))
+    winner = rand(rng, Categorical(fractions(rule.f, n)))
     [ i == winner ? x : zero(x) for i in 1:n ]
 end
 rule_values(rule::AbstractVector, x, n, rng) = rule
 rule_values(rule::Number, x, n, rng) = fill(rule, n)
 rule_values(rule, x, n, rng) = [ rand(rng, rule) for _ in 1:n ]
-
-# Assigns each of `N` items to one of the categories with probabilities `f`
-function multinomial(rng, N::Integer, f)
-    @argcheck N >= 0 "Cannot partition a negative count"
-    counts = zeros(Int, length(f))
-    cdf = cumsum(f)
-    for _ in 1:N
-        i = min(searchsortedfirst(cdf, rand(rng) * cdf[end]), length(f))
-        counts[i] += 1
-    end
-    counts
-end
 
 is_parameter(int, var) = SymbolicIndexingInterface.is_parameter(int, var)
 

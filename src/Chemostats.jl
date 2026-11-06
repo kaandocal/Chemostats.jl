@@ -2,6 +2,7 @@ module Chemostats
 
 using Random
 using DataStructures
+using Distributions: Multinomial, Categorical
 using ArgCheck
 using EnumX
 

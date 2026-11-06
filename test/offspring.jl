@@ -88,6 +88,11 @@ end
 
     counts = [ d.u0[2] for d in daughters(Offspring(4, iP => BinomialPartition()), int; rng) ]
     @test length(counts) == 4 && sum(counts) == 100
+
+    # A single draw, so large counts are cheap; empty categories stay empty
+    counts = [ d.u0[2] for d in daughters(Offspring(iP => BinomialPartition([0.25, 0., 0.75])), (; u = [0., 1e9, 0.]); rng) ]
+    @test sum(counts) == 10^9 && counts[2] == 0
+    @test counts[1] / 10^9 ≈ 0.25 atol = 1e-3
 end
 
 @testset "All-or-nothing partition" begin
