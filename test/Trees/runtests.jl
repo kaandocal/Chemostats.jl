@@ -1,6 +1,5 @@
-using Trees
-using Trees: cell_init!, cell_divide!, cell_die!, cell_update!, newick
-using Aqua
+using Chemostats.Trees
+using Chemostats.Trees: cell_init!, cell_divide!, cell_die!, cell_update!, newick
 using Random
 using StatsBase: mean, var, mean_and_var, pweights
 using Test
@@ -414,9 +413,5 @@ end
 end
 
 include("random_trees.jl")
-
-@testset "Aqua" begin
-    Aqua.test_all(Trees)
-end
 
 end

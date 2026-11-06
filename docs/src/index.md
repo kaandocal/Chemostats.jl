@@ -16,7 +16,7 @@ This package is somewhat experimental - any feedback is appreciated (either by e
 
 - Efficient parallel simulation of branching processes
 - Directly compatible with the [SciML](https://sciml.ai) ecosystem, including [DifferentialEquations.jl](@extref DifferentialEquations :doc:`index`), [ModelingToolkit.jl](@extref ModelingToolkit :doc:`index`) and [Catalyst.jl](@extref Catalyst :doc:`index`)
-- Implements state-of-the-art algorithms (thinning, strict and lax cloning)
+- Support for basic cell lineage analysis
 
 
 ## Example
@@ -39,4 +39,4 @@ Chemostats.jl is designed for efficient estimation of growth rates in cell popul
 * Lecomte & Tailleur. "A numerical approach to large deviations in continuous time," J. Stat. Mech.: Theory Exp. 2007(3), 2007
 
 ### Acknowledgments
-* Thanks to [Chris Rackaukas](https://www.chrisrackauckas.com), [Aayush Sabharwal](https://github.com/AayushSabharwal), [Sam Isaacson](https://www.samisaacson.com), and the SciML community for their help and support (and their work on the SciML ecosystem!).
+* Thanks to [Chris Rackauckas](https://www.chrisrackauckas.com), [Aayush Sabharwal](https://github.com/AayushSabharwal), [Sam Isaacson](https://www.samisaacson.com), and the SciML community for their help and support (and their work on the SciML ecosystem!).

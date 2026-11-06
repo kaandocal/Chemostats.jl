@@ -1,10 +1,10 @@
-# Trees.jl
+# Lineage trees
 
 ```@meta
-CurrentModule = Trees
+CurrentModule = Chemostats.Trees
 ```
 
-Trees.jl is a utility package for manipulating cell lineages and populations. The goal is to provide a simple, flexible API for basic lineage analysis tasks, while being lightweight enough for large-scale simulations with millions of cells. 
+`Chemostats.Trees` is a submodule for manipulating cell lineages and populations. The goal is to provide a simple, lightweight and flexible API for basic lineage analysis. 
 
 ## Features
 - Can store cells with any data format
@@ -17,8 +17,8 @@ Trees.jl is a utility package for manipulating cell lineages and populations. Th
 The following example constructs a small tree by hand, where each cell stores its birth volume. A cell divides once it has doubled in size, and its daughters inherit fractions `f` and `1 - f` of its volume.
 
 ```@example index
-using Trees
-using Trees: cell_init!, cell_divide!, cell_die!, cell_update!
+using Chemostats.Trees
+using Chemostats.Trees: cell_init!, cell_divide!, cell_die!, cell_update!
 using Statistics
 
 mutable struct Cell
@@ -67,6 +67,10 @@ We can also compute population statistics such as time or per-cell averages, ove
 mean(time_average(volume), tree, time_weights)                        # 1.489
 mean(time_average(volume), descendants(tree, 3; self=true), time_weights)  # 2.300 (b, b1, b2)
 mean(node -> node.data, ancestors(tree, id; self=true))              # 0.667 (a1, a, r)
+```
+
+```@docs
+Trees
 ```
 
 ## See also

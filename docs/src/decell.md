@@ -1,6 +1,6 @@
 # [Using Chemostats.jl with DifferentialEquations.jl](@id decell-page)
 
-The class [`DECell`](@ref) provides a convenient way to use models defined using [DifferentialEquations.jl](@extref DifferentialEquations :doc:`index`). This is includes models defined using the wider SciML ecosystem, e.g. using [ModelingToolkit.jl](@extref ModelingToolkit :doc:`index`) and [Catalyst.jl](@extref Catalyst :doc:`index`).
+The class [`DECell`](@ref) provides a convenient way to use models defined using [DifferentialEquations.jl](@extref DifferentialEquations :doc:`index`). This includes models defined using the wider SciML ecosystem, e.g. using [ModelingToolkit.jl](@extref ModelingToolkit :doc:`index`) and [Catalyst.jl](@extref Catalyst :doc:`index`).
 
 ## The [`DECell`](@ref) interface
 To use this functionality we require:

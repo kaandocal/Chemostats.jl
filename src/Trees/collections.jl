@@ -47,7 +47,7 @@ function Base.filter(f, nodes::NodeCollection)
 end
 
 """
-    alive_during(nodes, tspan)
+    alive_at(nodes, t)
 
 Returns nodes alive at time `t`.
 """

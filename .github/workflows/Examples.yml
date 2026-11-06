@@ -33,9 +33,11 @@ jobs:
     if: needs.check.outputs.run == 'true'
     permissions:
       actions: write
-      contents: write
-      statuses: write
+      contents: read
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        example: [ growth_protein, threshold_division ]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,14 +52,50 @@ jobs:
           using Pkg
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
-      - name: Generate example pages
-        run: julia --color=yes --threads=auto --project=docs docs/make_examples.jl
+      - name: Generate example page
+        run: julia --color=yes --threads=auto --project=docs docs/make_examples.jl ${{ matrix.example }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: example-${{ matrix.example }}
+          path: docs/src/examples/${{ matrix.example }}*
+          if-no-files-found: error
+
+  # The only job that pushes, so the example jobs can't race to commit
+  deploy:
+    needs: examples
+    permissions:
+      actions: write
+      contents: write
+      statuses: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      # Replace the old pages, so images that are no longer generated get deleted
+      - name: Remove old example pages
+        run: rm -rf docs/src/examples
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: example-*
+          merge-multiple: true
+          path: docs/src/examples
       - name: Commit example pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/src/examples
+          git add -A docs/src/examples
           git diff --cached --quiet || (git commit -m "Regenerate example pages" && git push)
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v2
+      - name: Install dependencies
+        shell: julia --color=yes --project=docs {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
       # Pushes made with GITHUB_TOKEN do not trigger other workflows, so the docs are rebuilt here
       - name: Build and deploy docs
         run: julia --color=yes --project=docs docs/make.jl

@@ -17,12 +17,12 @@ concurrency:
 
 jobs:
   test:
-    name: "${{ matrix.group }} - Julia ${{ matrix.version }} - ${{ matrix.os }}"
+    name: "Julia ${{ matrix.version }} - ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     env:
-      GROUP: ${{ matrix.group }}
-      # Precompile packages only when loaded, so Core skips MTK/Catalyst/Makie.
+      # Precompile packages only when loaded, so Trees and Core skip MTK/Catalyst/Makie.
       JULIA_PKG_PRECOMPILE_AUTO: 0
+      JULIA_NUM_THREADS: auto
     strategy:
       fail-fast: false
       matrix:
@@ -30,9 +30,6 @@ jobs:
           - '1'
         os:
           - ubuntu-latest
-        group:
-          - Core
-          - Extensions
     steps:
       - uses: actions/checkout@v7
 
@@ -44,9 +41,21 @@ jobs:
 
       - uses: julia-actions/julia-buildpkg@v1
 
-      - uses: julia-actions/julia-runtest@v1
+      # Each group runs only if the previous one passed
+      - name: "Trees tests"
+        uses: julia-actions/julia-runtest@v1
         env:
-          JULIA_NUM_THREADS: auto
+          GROUP: Trees
+
+      - name: "Core tests"
+        uses: julia-actions/julia-runtest@v1
+        env:
+          GROUP: Core
+
+      - name: "Extension tests"
+        uses: julia-actions/julia-runtest@v1
+        env:
+          GROUP: Extensions
 
       - uses: julia-actions/julia-processcoverage@v1
         with:
