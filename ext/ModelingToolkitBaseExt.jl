@@ -3,19 +3,23 @@ module ModelingToolkitBaseExt
 using Chemostats
 using ModelingToolkitBase
 using SciMLBase
+using SymbolicIndexingInterface: variable_symbols, parameter_symbols
 
 const MTK = ModelingToolkitBase
 
 # MTK compilation of getu does not seem to be threadsafe, use global lock for now
 const _GETU_LOCK = ReentrantLock()
 
-# Accessor shared by all copies of a callback. Avoid deepcopy when callbacks 
+# Accessor shared by all copies of a callback. Avoid deepcopy when callbacks
 # are copied upon division
 mutable struct SharedGetter
-    @atomic getter::Any
+    @atomic getter::Any     # (accessor, layout hash) once built
 end
 
 Base.deepcopy_internal(g::SharedGetter, ::IdDict) = g
+
+# Variable/parameter layout an accessor is compiled for; unchanged by deepcopy
+layout_hash(int) = hash(variable_symbols(int), hash(parameter_symbols(int)))
 
 function affect_terminate!(x, obs, ctx, int)
     terminate!(int)
@@ -48,15 +52,21 @@ function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK
     expr = length(exprs) == 1 ? only(exprs) : exprs
 
     getter = SharedGetter(nothing)
+    checked = Ref(false)    # Copied with the callback, so each copy checks once
 
     function condition(u, t, int)
         # Lock only while building the accessor, not on every call
-        g = @atomic getter.getter
-        if isnothing(g)
-            g = lock(_GETU_LOCK) do
-                isnothing(@atomic getter.getter) && (@atomic getter.getter = MTK.getu(int, expr))
+        entry = @atomic getter.getter
+        if isnothing(entry)
+            entry = lock(_GETU_LOCK) do
+                isnothing(@atomic getter.getter) && (@atomic getter.getter = (MTK.getu(int, expr), layout_hash(int)))
                 @atomic getter.getter
             end
+        end
+        g, h = entry
+        if !checked[]
+            h == layout_hash(int) || error("DivideCallback cannot be shared between different systems")
+            checked[] = true
         end
         g(MTK.ProblemState(; u, p = int.p, t))
     end

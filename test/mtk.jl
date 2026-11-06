@@ -131,3 +131,26 @@ end
     cb = Chemostats.DivideCallback(vr_rn.V ~ vr_rn.V_d)
     @test deepcopy(cb).condition.getter === cb.condition.getter
 end
+
+# The shared accessor is compiled for the first system it sees
+@testset "DivideCallback cannot be shared between systems" begin
+    other_rn = @reaction_network begin
+        @species Q(t) = 0 P(t) = 0
+        @variables V(t) = 1.
+
+        @parameters k V_d
+
+        @equations begin
+            D(V) ~ V
+        end
+
+        k, 0 --> P
+        k, 0 --> Q
+    end
+
+    cb = Chemostats.DivideCallback(jump_rn.V ~ jump_rn.V_d; interp_points=0, save_positions=(true, false))
+    @test Chemostats.get_state(run_to_division(hybrid_prob(cb))) == Chemostats.CellState.EndOfLife
+
+    other = HybridProblem(other_rn, [:P => 0, :Q => 0, :V => 1.0], (0., Inf), [:k => 1.0, :V_d => 2.0]; callback = cb)
+    @test_throws ErrorException run_to_division(other)
+end
