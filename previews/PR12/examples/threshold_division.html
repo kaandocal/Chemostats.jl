@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="referrer" content="no-referrer"/><title>Threshold-triggered division · Chemostats.jl</title><meta name="title" content="Threshold-triggered division · Chemostats.jl"/><meta property="og:title" content="Threshold-triggered division · Chemostats.jl"/><meta property="twitter:title" content="Threshold-triggered division · Chemostats.jl"/><meta name="description" content="Documentation for Chemostats.jl."/><meta property="og:description" content="Documentation for Chemostats.jl."/><meta property="twitter:description" content="Documentation for Chemostats.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../index.html"><img src="../assets/logo.svg" alt="Chemostats.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">Chemostats.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><a class="tocitem" href="ribosomes.html">Usage</a></li><li><a class="tocitem" href="../alg.html">Algorithms</a></li><li><span class="tocitem">API</span><ul><li><a class="tocitem" href="../api/chemostats.html">Chemostats</a></li><li><a class="tocitem" href="../api/cells.html">Cells</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="growth_protein.html">Protein-dependent growth</a></li><li class="is-active"><a class="tocitem" href="threshold_division.html">Threshold-triggered division</a><ul class="internal"><li><a class="tocitem" href="#The-model"><span>The model</span></a></li><li><a class="tocitem" href="#Division"><span>Division</span></a></li><li><a class="tocitem" href="#Simulation"><span>Simulation</span></a></li><li><a class="tocitem" href="#Results"><span>Results</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../theory.html">Theory</a></li><li><span class="tocitem">Tree API</span><ul><li><a class="tocitem" href="../trees/index.html">Lineage trees</a></li><li><a class="tocitem" href="../trees/trees.html">Tree API</a></li><li><a class="tocitem" href="../trees/analysis.html">Lineage analysis</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="threshold_division.html">Threshold-triggered division</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="threshold_division.html">Threshold-triggered division</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/kaandocal/Chemostats.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/kaandocal/Chemostats.jl/blob/main/docs/src/examples/threshold_division.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Threshold-Triggered-Division"><a class="docs-heading-anchor" href="#Threshold-Triggered-Division">Threshold-Triggered Division</a><a id="Threshold-Triggered-Division-1"></a><a class="docs-heading-anchor-permalink" href="#Threshold-Triggered-Division" title="Permalink"></a></h1><p>This model is based on ElGamel &amp; Mugler, &quot;Effects of molecular noise on cell size control&quot;, Phys. Rev. Lett. (2024).</p><p>Cells grow exponentially and divide once a molecule <code>x</code> reaches a threshold. The molecule is produced at rate <code>ν + μV</code>, where <code>V</code> is the cell volume, and degraded at rate <code>λ</code>. Depending on these rates, this can result in cells that behave like timers, adders or sizers.</p><h2 id="The-model"><a class="docs-heading-anchor" href="#The-model">The model</a><a id="The-model-1"></a><a class="docs-heading-anchor-permalink" href="#The-model" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Catalyst
+
+rn = @reaction_network begin
+    @species x(t)
+    @variables V(t)
+    @parameters α ν μ λ N
+
+    ν + μ * V, 0 --&gt; x
+    λ, x --&gt; 0
+
+    @equations begin
+        D(V) ~ α * V
+    end
+end</code></pre><pre><code class="nohighlight hljs">Model ##ReactionSystem#313:
+Unknowns (2): see unknowns(##ReactionSystem#313)
+  x(t)
+  V(t)
+Parameters (5): see parameters(##ReactionSystem#313)
+  α
+  ν
+  μ
+  λ
+  N</code></pre><h2 id="Division"><a class="docs-heading-anchor" href="#Division">Division</a><a id="Division-1"></a><a class="docs-heading-anchor-permalink" href="#Division" title="Permalink"></a></h2><p>The cell divides once <code>x</code> reaches the threshold <code>N</code>. At division, the volume is halved and each daughter starts with <code>N / 2</code> molecules.</p><pre><code class="language-julia hljs">using Chemostats
+
+cb_div = Chemostats.DivideCallback(rn.x ~ rn.N; discrete = true)
+
+function divide_cell(int)
+    V = int[:V]
+    N = int.ps[:N]
+
+    [ (u0 = [:V =&gt; V / 2, :x =&gt; N / 2], p = nothing),
+      (u0 = [:V =&gt; V / 2, :x =&gt; N / 2], p = nothing) ]
+end;</code></pre><p>We tell Chemostats to record the birth and division size of each cell by overriding <code>Chemostats.get_data</code>:</p><pre><code class="language-julia hljs">function Chemostats.get_data(cell::DECell{I,typeof(divide_cell)}) where {I}
+    V = cell.int.sol[:V]
+    (V_b = V[1], V_d = V[end])
+end;</code></pre><p>We create a HybridProblem to simulate the cells. The volume <code>V</code> follows an ODE, and <code>x</code> changes by jumps. <code>VR_Direct</code> assumes that time starts at 0, so each cell runs on its own clock (<code>reset_t = true</code>).</p><pre><code class="language-julia hljs">using OrdinaryDiffEqTsit5
+using JumpProcesses
+
+function create_population(rates, L)
+    p = [ :α =&gt; 1.0, :ν =&gt; rates.ν, :μ =&gt; rates.μ, :λ =&gt; rates.λ, :N =&gt; 200 ]
+    u0 = [ :V =&gt; 1.0, :x =&gt; 100.0 ]
+
+    prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div, vr_aggregator = VR_Direct(),
+                         save_positions = (false, false))
+
+    [ DECell(prob, Tsit5(), divide_cell; reset_t = true) for _ in 1:L ]
+end;</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><p>We simulate <code>L</code> lineages using <code>Chemostats.Forward</code> for three choices of rates, and compute the noise in the birth size.</p><pre><code class="language-julia hljs">using Statistics
+
+regimes = [ &quot;timer-like&quot; =&gt; (ν = 80.0, μ = 44.0, λ = 0.01),
+            &quot;adder-like&quot; =&gt; (ν = 2.0, μ = 98.0, λ = 0.01),
+            &quot;sizer-like&quot; =&gt; (ν = 2.0, μ = 1000.0, λ = 10.0) ]
+
+L = 50
+tmax = 100.0
+t_burn = 20.0
+
+# Birth and division sizes of the cells that divided after the burn-in
+function cell_sizes(rates)
+    chem = Chemostats.simulate(create_population(rates, L), tmax, Chemostats.Forward(L);
+                               save_mode = :full)
+
+    [ node.data for node in values(chem.tree) if node.t_birth &gt;= t_burn &amp;&amp; !node.alive ]
+end
+
+sizes = [ cell_sizes(rates) for (name, rates) in regimes ]
+births = [ [ s.V_b for s in sz ] for sz in sizes ]
+noise = [ name =&gt; var(b) / mean(b)^2 for ((name, rates), b) in zip(regimes, births) ]</code></pre><pre><code class="nohighlight hljs">3-element Vector{Pair{String, Float64}}:
+ &quot;timer-like&quot; =&gt; 0.007589634056944953
+ &quot;adder-like&quot; =&gt; 0.003336576894614688
+ &quot;sizer-like&quot; =&gt; 0.004118653927780263</code></pre><h2 id="Results"><a class="docs-heading-anchor" href="#Results">Results</a><a id="Results-1"></a><a class="docs-heading-anchor-permalink" href="#Results" title="Permalink"></a></h2><details><summary>Plotting code</summary><pre><code class="language-julia hljs">using CairoMakie
+set_theme!(theme_minimal())
+
+colors = [ colorant&quot;#85b5fb&quot;, :gray, colorant&quot;#e07700&quot; ]
+
+fig = Figure(size = (800, 350))
+ax = Axis(fig[1, 1]; xlabel = &quot;Birth size&quot;, ylabel = &quot;Added size&quot;)
+ax2 = Axis(fig[1, 2]; xlabel = &quot;Birth size&quot;, ylabel = &quot;Density&quot;)
+
+for ((name, rates), sz, color) in zip(regimes, sizes, colors)
+    V_b = [ s.V_b for s in sz ]
+    ΔV = [ s.V_d - s.V_b for s in sz ]
+    slope = cov(V_b, ΔV) / var(V_b)
+    xs = collect(extrema(V_b))
+
+    scatter!(ax, V_b, ΔV; color = (color, 0.2), markersize = 3, label = name =&gt; (; markersize = 8, color))
+    lines!(ax, xs, mean(ΔV) .+ slope .* (xs .- mean(V_b)); color, linewidth = 2)
+    stephist!(ax2, V_b; bins = 50, normalization = :pdf, color, linewidth = 2)
+end
+axislegend(ax; position = :rt);</code></pre></details><p><img src="threshold_division-15.png" alt/></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="growth_protein.html">« Protein-dependent growth</a><a class="docs-footer-nextpage" href="../theory.html">Theory »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Saturday 7 November 2026 12:14">Saturday 7 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
