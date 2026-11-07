@@ -21,6 +21,25 @@ Base.deepcopy_internal(g::SharedGetter, ::IdDict) = g
 # Variable/parameter layout an accessor is compiled for; unchanged by deepcopy
 layout_hash(int) = hash(variable_symbols(int), hash(parameter_symbols(int)))
 
+# Function barriers keep the hot path in `condition` small and type-stable
+@noinline function build_getter!(getter, expr, int)
+    lock(_GETU_LOCK) do
+        if isnothing(@atomic getter.getter)
+            g = MTK.getu(int, expr)
+            g(MTK.ProblemState(; u = int.u, p = int.p, t = int.t))    # compile under the lock
+            @atomic getter.getter = (g, layout_hash(int))
+        end
+        @atomic getter.getter
+    end
+end
+
+@noinline function check_layout!(checked, entry, int)
+    last(entry) == layout_hash(int) || error("DivideCallback cannot be shared between different systems")
+    checked[] = true
+end
+
+@noinline eval_getter(g, u, p, t) = g(MTK.ProblemState(; u, p, t))
+
 function affect_terminate!(x, obs, ctx, int)
     terminate!(int)
     x
@@ -55,20 +74,10 @@ function Chemostats.DivideCallback(eqs::Union{MTK.Equation, AbstractVector{<:MTK
     checked = Ref(false)    # Copied with the callback, so each copy checks once
 
     function condition(u, t, int)
-        # Lock only while building the accessor, not on every call
         entry = @atomic getter.getter
-        if isnothing(entry)
-            entry = lock(_GETU_LOCK) do
-                isnothing(@atomic getter.getter) && (@atomic getter.getter = (MTK.getu(int, expr), layout_hash(int)))
-                @atomic getter.getter
-            end
-        end
-        g, h = entry
-        if !checked[]
-            h == layout_hash(int) || error("DivideCallback cannot be shared between different systems")
-            checked[] = true
-        end
-        g(MTK.ProblemState(; u, p = int.p, t))
+        isnothing(entry) && (entry = build_getter!(getter, expr, int))
+        checked[] || check_layout!(checked, entry, int)
+        eval_getter(first(entry), u, int.p, t)
     end
 
     if discrete
