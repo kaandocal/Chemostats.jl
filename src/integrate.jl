@@ -137,6 +137,7 @@ end
 
 function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7), δ=0., throw_on_error::Bool=false, kwargs...)
     t_start = get_curr_t(cell)
+    processed = false
     try
         if int.retcode != ReturnCode.Default
             push!(int.queue, cell)
@@ -165,6 +166,7 @@ function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7)
         elseif get_state(cell) == CellState.EndOfLife
             process_eol!(int, cell; kwargs...)
         end
+        processed = true
 
         # We assume this is threadsafe (`Strict` does not support multithreading)
         update_queue!(int, int.alg, get_curr_t(cell))
@@ -176,6 +178,10 @@ function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7)
         end
 
         if throw_on_error || !(e isa CellException)
+            # Return the popped cell to the population, unless it was passed on or removed (e.g. killed above)
+            !processed && get_state(cell) in (CellState.Newborn, CellState.Alive, CellState.EndOfLife) &&
+                push!(int.queue, cell)
+
             @atomicreplace int.retcode ReturnCode.Default => ReturnCode.Failure
             rethrow()
         else
