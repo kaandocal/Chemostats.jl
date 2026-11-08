@@ -207,10 +207,20 @@ end
 
 function clone_cell(cell::DECell{I,DF,FT,P,Remake,R}, t) where {I,DF,FT,P,Remake,R}
     tshift = isnothing(cell.tshift) ? zero(t) : cell.tshift
-    @check cell.int.sol.t[1] <= t - tshift <= get_curr_t(cell)
+    t_local = t - tshift
+    sol = cell.int.sol
+    @check sol.t[1] <= t_local <= cell.int.t
+
+    u0 = if t_local == cell.int.t
+        copy(cell.int.u)
+    else
+        # Past the last saved state, `sol` returns a stale state
+        t_local <= last(sol.t) || @warn "Cloned cell state may be stale: save the solution (e.g. `save_everystep=true`) for accurate clones" maxlog=1
+        sol(t_local)
+    end
 
     rng = spawn_rng(cell.rng)
-    int = reinit_dispatch(Remake, cell.int, cell.prob; t0=t - tshift, rng, u0=cell.int.sol(t - tshift), p=cell.int.p)
+    int = reinit_dispatch(Remake, cell.int, cell.prob; t0=t_local, rng, u0, p=cell.int.p)
     DECell{typeof(int), DF, FT, P, Remake, R}(int, cell.prob, cell.divide, CellState.Newborn, cell.tshift, rng)
 end
 
