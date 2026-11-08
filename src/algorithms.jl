@@ -89,7 +89,10 @@ end
 Strict(L::Int) = Strict(L, true)
 
 get_δ(int, ::Strict) = 0.
-init!(alg::Strict, int) = update_queue!(int, alg, int.t)
+function init!(alg::Strict, int)
+    alg.clone && !isnothing(int.chem.tree) && @warn "Population trees are not currently supported with cloning. Use Strict(L, false) to disable cloning" maxlog=1
+    update_queue!(int, alg, int.t)
+end
 is_parallel(alg::Strict) = false
 filter_offspring(cells, ::Strict, rng) = (cells, 0)
 update_algorithm!(::Strict, int) = nothing
