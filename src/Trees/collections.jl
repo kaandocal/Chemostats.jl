@@ -66,3 +66,4 @@ end
 
 # Marks the nodes of a node collection, e.g. `mark!(tree, alive_at(tree, t))`
 mark!(tree::Tree, nodes::Union{TreeView,Lineage}) = mark!(tree, keys(nodes))
+unmark!(tree::Tree, nodes::Union{TreeView,Lineage}) = unmark!(tree, keys(nodes))

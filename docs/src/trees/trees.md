@@ -48,6 +48,7 @@ For large trees, [`prune!(tree)`](@ref prune!) performs garbage collection by re
 
 ```@docs
 mark!
+unmark!
 prune!
 ```
 

@@ -16,6 +16,30 @@ function mark!(tree::Tree, ids)
 end
 
 """
+    unmark!(tree)
+    unmark!(tree, ids)
+    unmark!(tree, nodes)
+
+Removes the marks of the supplied nodes, see [`mark!`](@ref). `unmark!(tree)` removes all marks (not only all living cells, in contrast to [`mark!`](@ref)).
+"""
+function unmark!(tree::Tree)
+    (; marked) = tree.nodes
+    any(view(marked, 1:n_frozen(tree))) && (tree.shears.n_frozen = 0)
+    fill!(marked, false)
+    tree
+end
+
+function unmark!(tree::Tree, ids)
+    for id in ids
+        tree.nodes.marked[id] = false
+        # Frozen nodes are never pruned, so the next sweep has to cover the whole tree
+        id <= n_frozen(tree) && (tree.shears.n_frozen = 0)
+    end
+
+    tree
+end
+
+"""
     prune!(tree::Tree; lazy=false)
 
 Removes all "dead" nodes, i.e. nodes that are not ancestors of living cells or of marked nodes (see [`mark!`](@ref)). If `lazy=true`, only prunes if the tree has doubled in size since the last pruning.

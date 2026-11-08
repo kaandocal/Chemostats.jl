@@ -16,7 +16,7 @@ export Tree
 public cell_init!, cell_divide!, cell_die!, cell_update!
 
 # Pruning
-export mark!, prune!
+export mark!, unmark!, prune!
 
 # Queries
 export roots, living, children, alive_at, alive_during, ancestors, descendants
