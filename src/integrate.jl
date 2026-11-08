@@ -241,6 +241,8 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
     try
         step!(cell, tmax - tb, int.chem.p)
     catch e
+        # Interrupts stop the simulation instead of removing the cell
+        e isa InterruptException && rethrow()
         throw(CellException(e))
     end
     t = get_curr_t(cell)
@@ -276,6 +278,7 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
     children = try
         get_children(cell, int.chem.p)
     catch e
+        e isa InterruptException && rethrow()
         throw(CellException(e))
     end
 
