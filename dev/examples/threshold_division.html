@@ -12,40 +12,37 @@ rn = @reaction_network begin
     @equations begin
         D(V) ~ α * V
     end
-end</code></pre><pre><code class="nohighlight hljs">Model ##ReactionSystem#313:
-Unknowns (2): see unknowns(##ReactionSystem#313)
+end</code></pre><pre><code class="nohighlight hljs">Model ##ReactionSystem#152:
+Unknowns (2): see unknowns(##ReactionSystem#152)
   x(t)
   V(t)
-Parameters (5): see parameters(##ReactionSystem#313)
+Parameters (5): see parameters(##ReactionSystem#152)
   α
   ν
   μ
   λ
   N</code></pre><h2 id="Division"><a class="docs-heading-anchor" href="#Division">Division</a><a id="Division-1"></a><a class="docs-heading-anchor-permalink" href="#Division" title="Permalink"></a></h2><p>The cell divides once <code>x</code> reaches the threshold <code>N</code>. At division, the volume is halved and each daughter starts with <code>N / 2</code> molecules.</p><pre><code class="language-julia hljs">using Chemostats
+using Chemostats: Offspring, ExactPartition
+
+N = 200             # threshold
 
 cb_div = Chemostats.DivideCallback(rn.x ~ rn.N; discrete = true)
 
-function divide_cell(int)
-    V = int[:V]
-    N = int.ps[:N]
-
-    [ (u0 = [:V =&gt; V / 2, :x =&gt; N / 2], p = nothing),
-      (u0 = [:V =&gt; V / 2, :x =&gt; N / 2], p = nothing) ]
-end;</code></pre><p>We tell Chemostats to record the birth and division size of each cell by overriding <code>Chemostats.get_data</code>:</p><pre><code class="language-julia hljs">function Chemostats.get_data(cell::DECell{I,typeof(divide_cell)}) where {I}
+divide_cell = Offspring(2, :V =&gt; ExactPartition(), :x =&gt; N / 2);</code></pre><p>We tell Chemostats to record the birth and division size of each cell by overriding <code>Chemostats.get_data</code>:</p><pre><code class="language-julia hljs">function Chemostats.get_data(cell::DECell{I,typeof(divide_cell)}) where {I}
     V = cell.int.sol[:V]
     (V_b = V[1], V_d = V[end])
 end;</code></pre><p>We create a HybridProblem to simulate the cells. The volume <code>V</code> follows an ODE, and <code>x</code> changes by jumps. <code>VR_Direct</code> assumes that time starts at 0, so each cell runs on its own clock (<code>reset_t = true</code>).</p><pre><code class="language-julia hljs">using OrdinaryDiffEqTsit5
 using JumpProcesses
 
 function create_population(rates, L)
-    p = [ :α =&gt; 1.0, :ν =&gt; rates.ν, :μ =&gt; rates.μ, :λ =&gt; rates.λ, :N =&gt; 200 ]
-    u0 = [ :V =&gt; 1.0, :x =&gt; 100.0 ]
+    p = [ :α =&gt; 1.0, :ν =&gt; rates.ν, :μ =&gt; rates.μ, :λ =&gt; rates.λ, :N =&gt; N ]
+    u0 = [ :V =&gt; 1.0, :x =&gt; N / 2 ]
 
     prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div, vr_aggregator = VR_Direct(),
                          save_positions = (false, false))
 
     [ DECell(prob, Tsit5(), divide_cell; reset_t = true) for _ in 1:L ]
-end;</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><p>We simulate <code>L</code> lineages using <code>Chemostats.Forward</code> for three choices of rates, and compute the noise in the birth size.</p><pre><code class="language-julia hljs">using Statistics
+end;</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><p>We simulate <code>L</code> lineages using <code>Chemostats.Forward</code> for three choices of rates, and compute the noise in the birth size.</p><pre><code class="language-julia hljs">using StatsBase
 
 regimes = [ &quot;timer-like&quot; =&gt; (ν = 80.0, μ = 44.0, λ = 0.01),
             &quot;adder-like&quot; =&gt; (ν = 2.0, μ = 98.0, λ = 0.01),
@@ -66,9 +63,9 @@ end
 sizes = [ cell_sizes(rates) for (name, rates) in regimes ]
 births = [ [ s.V_b for s in sz ] for sz in sizes ]
 noise = [ name =&gt; var(b) / mean(b)^2 for ((name, rates), b) in zip(regimes, births) ]</code></pre><pre><code class="nohighlight hljs">3-element Vector{Pair{String, Float64}}:
- &quot;timer-like&quot; =&gt; 0.007589634056944953
- &quot;adder-like&quot; =&gt; 0.003336576894614688
- &quot;sizer-like&quot; =&gt; 0.004118653927780263</code></pre><h2 id="Results"><a class="docs-heading-anchor" href="#Results">Results</a><a id="Results-1"></a><a class="docs-heading-anchor-permalink" href="#Results" title="Permalink"></a></h2><details><summary>Plotting code</summary><pre><code class="language-julia hljs">using CairoMakie
+ &quot;timer-like&quot; =&gt; 0.007455275408670122
+ &quot;adder-like&quot; =&gt; 0.0033849408482365946
+ &quot;sizer-like&quot; =&gt; 0.0041918366683019685</code></pre><h2 id="Results"><a class="docs-heading-anchor" href="#Results">Results</a><a id="Results-1"></a><a class="docs-heading-anchor-permalink" href="#Results" title="Permalink"></a></h2><details><summary>Plotting code</summary><pre><code class="language-julia hljs">using CairoMakie
 set_theme!(theme_minimal())
 
 colors = [ colorant&quot;#85b5fb&quot;, :gray, colorant&quot;#e07700&quot; ]
@@ -87,4 +84,4 @@ for ((name, rates), sz, color) in zip(regimes, sizes, colors)
     lines!(ax, xs, mean(ΔV) .+ slope .* (xs .- mean(V_b)); color, linewidth = 2)
     stephist!(ax2, V_b; bins = 50, normalization = :pdf, color, linewidth = 2)
 end
-axislegend(ax; position = :rt);</code></pre></details><p><img src="threshold_division-15.png" alt/></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="growth_protein.html">« Protein-dependent growth</a><a class="docs-footer-nextpage" href="../theory.html">Theory »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Saturday 7 November 2026 12:45">Saturday 7 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+axislegend(ax; position = :rt);</code></pre></details><p><img src="threshold_division-15.png" alt/></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="growth_protein.html">« Protein-dependent growth</a><a class="docs-footer-nextpage" href="../theory.html">Theory »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Sunday 8 November 2026 05:38">Sunday 8 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
