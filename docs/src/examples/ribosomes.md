@@ -25,13 +25,6 @@ rn = @reaction_network begin
 end;
 ````
 
-````
-Precompiling packages...
-   7372.6 ms  ✓ Chemostats → ModelingToolkitBaseExt
-  1 dependency successfully precompiled in 8 seconds. 270 already precompiled.
-
-````
-
 ## Division
 
 To enable division, we have to specify when a cell should divide. We can do this with a `DivideCallback`
@@ -48,8 +41,8 @@ the cell dies; otherwise, each daughter gets half of the volume, and the ribosom
 function divide(int)
     rand() < 0.1 && return nothing
 
-    Chemostats.Offspring(:R => Chemostats.BinomialPartition(),
-                         :V => Chemostats.ExactPartition())
+    Chemostats.Offspring(2, :R => Chemostats.BinomialPartition(),
+                            :V => Chemostats.ExactPartition())
 end;
 ````
 
@@ -63,7 +56,7 @@ u0 = [ :R => 0., :V => 1. ]
 p = [ :σ => 10., :λ => 1., :V_d => 2. ]
 prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div)
 
-cells = DECell[ DECell(prob, Tsit5(), divide) ];
+cells = [ DECell(prob, Tsit5(), divide) ];
 ````
 
 We simulate the full population in a `Chemostat` until time 2, using the `Direct` algorithm. Since
@@ -80,7 +73,7 @@ length(chem.pop)
 ````
 
 ````
-68
+108
 ````
 
 ````julia
@@ -89,11 +82,11 @@ length(chem.pop)
 
 ````
 5-element Vector{Float64}:
- 1.0261520808373523
- 1.615670396253286
- 1.0748962374239912
- 1.0279296444532837
- 1.0566449754475842
+ 1.0423164542929497
+ 1.016818323022799
+ 1.0084091615113993
+ 1.0300651269626537
+ 1.1075921756578564
 ````
 
 We can also estimate the growth rate of the population using `Chemostats.est_Λ`:
@@ -103,7 +96,7 @@ Chemostats.est_Λ(chem)
 ````
 
 ````
-2.1097538525880535
+2.34106561356211
 ````
 
 Note that our population grows exponentially, which makes long-term simulations difficult. To avoid this, we can
@@ -116,7 +109,7 @@ length(chem.pop), Chemostats.est_Λ(chem)
 ````
 
 ````
-(20, 2.618568920650967)
+(20, 2.5697787564815346)
 ````
 
 This allows us to compute much better estimates of population quantities like the growth rate. See

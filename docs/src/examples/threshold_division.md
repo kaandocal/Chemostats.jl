@@ -27,11 +27,11 @@ end
 ````
 
 ````
-Model ##ReactionSystem#313:
-Unknowns (2): see unknowns(##ReactionSystem#313)
+Model ##ReactionSystem#152:
+Unknowns (2): see unknowns(##ReactionSystem#152)
   x(t)
   V(t)
-Parameters (5): see parameters(##ReactionSystem#313)
+Parameters (5): see parameters(##ReactionSystem#152)
   α
   ν
   μ
@@ -46,16 +46,13 @@ starts with `N / 2` molecules.
 
 ````julia
 using Chemostats
+using Chemostats: Offspring, ExactPartition
+
+N = 200             # threshold
 
 cb_div = Chemostats.DivideCallback(rn.x ~ rn.N; discrete = true)
 
-function divide_cell(int)
-    V = int[:V]
-    N = int.ps[:N]
-
-    [ (u0 = [:V => V / 2, :x => N / 2], p = nothing),
-      (u0 = [:V => V / 2, :x => N / 2], p = nothing) ]
-end;
+divide_cell = Offspring(2, :V => ExactPartition(), :x => N / 2);
 ````
 
 We tell Chemostats to record the birth and division size of each cell by overriding
@@ -76,8 +73,8 @@ using OrdinaryDiffEqTsit5
 using JumpProcesses
 
 function create_population(rates, L)
-    p = [ :α => 1.0, :ν => rates.ν, :μ => rates.μ, :λ => rates.λ, :N => 200 ]
-    u0 = [ :V => 1.0, :x => 100.0 ]
+    p = [ :α => 1.0, :ν => rates.ν, :μ => rates.μ, :λ => rates.λ, :N => N ]
+    u0 = [ :V => 1.0, :x => N / 2 ]
 
     prob = HybridProblem(rn, u0, (0., Inf), p; callback = cb_div, vr_aggregator = VR_Direct(),
                          save_positions = (false, false))
@@ -92,7 +89,7 @@ We simulate `L` lineages using `Chemostats.Forward` for three choices of rates, 
 noise in the birth size.
 
 ````julia
-using Statistics
+using StatsBase
 
 regimes = [ "timer-like" => (ν = 80.0, μ = 44.0, λ = 0.01),
             "adder-like" => (ν = 2.0, μ = 98.0, λ = 0.01),
@@ -117,9 +114,9 @@ noise = [ name => var(b) / mean(b)^2 for ((name, rates), b) in zip(regimes, birt
 
 ````
 3-element Vector{Pair{String, Float64}}:
- "timer-like" => 0.007589634056944953
- "adder-like" => 0.003336576894614688
- "sizer-like" => 0.004118653927780263
+ "timer-like" => 0.007455275408670122
+ "adder-like" => 0.0033849408482365946
+ "sizer-like" => 0.0041918366683019685
 ````
 
 ## Results

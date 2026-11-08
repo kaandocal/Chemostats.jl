@@ -50,7 +50,7 @@ using Chemostats: Offspring, BinomialPartition
 
 cb_div = Chemostats.DivideCallback(rn.R ~ 0)
 
-divide_cell = Offspring(:P => BinomialPartition(), :R => cycle);
+divide_cell = Offspring(2, :P => BinomialPartition(), :R => cycle);
 ````
 
 We tell Chemostats to record the average protein content by overriding
@@ -104,7 +104,7 @@ means_bwd = [ node.data for node in Chemostats.ancestors(chem.tree, first(chem.p
 ````
 
 ````
-(forward = 92.32836593884392, population = 104.72937121293651, backward = 118.58956495410501)
+(forward = 94.13107324560731, population = 108.84294479127614, backward = 126.42998522092203)
 ````
 
 We see that forward, population and backward statistics are all different. Cells that produce
@@ -147,13 +147,6 @@ ax2 = Axis(fig[1, 2]; xlabel = "Average protein content", ylabel = "Lifetime", t
 scatter!(ax2, means_div, lifetimes; color = (blue, 0.3), markersize = 4);
 ````
 
-````
-Precompiling packages...
-   6309.5 ms  ✓ Chemostats → MakieExt
-  1 dependency successfully precompiled in 8 seconds. 332 already precompiled.
-
-````
-
 ```@raw html
 </details>
 ```
@@ -176,7 +169,7 @@ first_cells = Chemostats.Trees.alive_during(tree, tspan)
 ````
 
 ````
-TreeView(21 nodes)
+TreeView(27 nodes)
 ````
 
 ```@raw html
