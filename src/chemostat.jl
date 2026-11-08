@@ -45,7 +45,12 @@ end
     
 Estimates the true log-population size from a snapshot.
 """
-est_logN(snap::Snapshot) = log(snap.N) + snap.log_f
+function est_logN(snap::Snapshot)
+    isnan(snap.log_f) && @warn "Population size cannot be estimated from this simulation (e.g. when using `Chemostats.Forward`)" maxlog=1
+    _est_logN(snap)
+end
+
+_est_logN(snap::Snapshot) = log(snap.N) + snap.log_f
 
 """
     est_N(snap::Snapshot)
@@ -70,7 +75,8 @@ end
 
 function snapshot_str(snap::Snapshot)
     (; t, N, nsim) = snap
-    N_est = round(est_N(snap); sigdigits=3)
+    # Not `est_N`, which warns for NaN estimates
+    N_est = round(exp(_est_logN(snap)); sigdigits=3)
 
     return "t=$t, N=$N/$N_est, nsim=$nsim"
 end 
