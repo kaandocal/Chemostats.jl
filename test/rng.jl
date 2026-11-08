@@ -35,13 +35,20 @@ Chemostats.clone_cell(c::KeyCell, t) = KeyCell(t, c.id, Xoshiro(rand(c.rng, UInt
 # All at the same time, as at a tstop, so heap order alone can't break ties
 key_cells(order) = [ KeyCell(1.0, i, Xoshiro(i)) for i in order ]
 
-@testset "Random selection doesn't depend on heap layout" begin
+@testset "Key-based selection doesn't depend on heap layout" begin
     q1 = Chemostats.ThreadedQueue(key_cells(1:10))
     q2 = Chemostats.ThreadedQueue(key_cells(10:-1:1))
     @test [ v.id for v in Chemostats.iter_unsafe(q1) ] != [ v.id for v in Chemostats.iter_unsafe(q2) ]
 
-    @test [ v.id for v in Chemostats._pop_random!(q1, 3) ] == [ v.id for v in Chemostats._pop_random!(q2, 3) ]
-    @test first(Chemostats._clone_random!(q1, 2.0)).id == first(Chemostats._clone_random!(q2, 2.0)).id
+    @test [ v.id for v in Chemostats._pop_by_keys!(q1, 3) ] == [ v.id for v in Chemostats._pop_by_keys!(q2, 3) ]
+end
+
+@testset "RNG-based selection is reproducible for a given RNG" begin
+    q1 = Chemostats.ThreadedQueue(key_cells(1:10))
+    q2 = Chemostats.ThreadedQueue(key_cells(1:10))
+
+    @test [ v.id for v in Chemostats._pop_random!(q1, 3, Xoshiro(1)) ] == [ v.id for v in Chemostats._pop_random!(q2, 3, Xoshiro(1)) ]
+    @test first(Chemostats._clone_random!(q1, 2.0, Xoshiro(2))).id == first(Chemostats._clone_random!(q2, 2.0, Xoshiro(2))).id
 end
 
 # Population up to cell order, plus the full snapshot history
@@ -51,11 +58,11 @@ function fingerprint(chem)
     cells, snaps
 end
 
-# The global RNG is scrambled first: results must depend only on `seed`
+# The global RNG is scrambled first: results must depend only on `seed`, via the cells and the simulator's RNG
 function run_population(ctor, K, alg, ensalg, tmax; seed = 1000)
     chem = Chemostat([ ctor(seed + i) for i in 1:K ])
     Random.seed!(rand(RandomDevice(), UInt64))
-    Chemostats.simulate!(chem, tmax, alg, ensalg; saveat = 0.5:0.5:tmax)
+    Chemostats.simulate!(chem, tmax, alg, ensalg; saveat = 0.5:0.5:tmax, rng = Xoshiro(seed))
     @test chem.status == SciMLBase.ReturnCode.Success
     fingerprint(chem)
 end

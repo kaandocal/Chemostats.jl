@@ -1,7 +1,8 @@
-mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: ThreadedQueue}
+mutable struct PopIntegrator{CT <: Chemostat, A <: AbstractAlgorithm, QT <: ThreadedQueue, R <: AbstractRNG}
     chem::CT
     alg::A
     queue::QT
+    rng::R                      # population-level random choices (e.g. by `Strict`)
     tstops::Vector{Float64}
     saveat::Vector{Float64}     # populations are marked in the tree at these times
     t0::Float64
@@ -21,7 +22,8 @@ function default_ensalg(alg::AbstractAlgorithm)
     end 
 end
 
-function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm; tstops = Float64[])
+function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm; tstops = Float64[],
+                       rng::AbstractRNG = Xoshiro(rand(UInt64)))
     t0 = get_curr_t(chem)
 
     tstops = filter(t -> t0 < t, tstops)
@@ -29,7 +31,7 @@ function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::Ensemble
 
     queue = ThreadedQueue(chem.pop) 
     
-    PopIntegrator(chem, alg, queue, Float64.(tstops), Float64.(tstops), t0, t0, t0,
+    PopIntegrator(chem, alg, queue, rng, Float64.(tstops), Float64.(tstops), t0, t0, t0,
                   chem.snaps[end].nsim, chem.snaps[end].log_f,
                   SciMLBase.ReturnCode.Default, ReentrantLock())
 end 
@@ -81,8 +83,9 @@ If `throw_on_error` is `true`, exceptions that occur while simulating a cell wil
 If it is `false`, the exception will be caught and the cell will be removed from the population.
 """
 function simulate!(chem::Chemostat, tmax, alg::AbstractAlgorithm,
-                   ensalg::EnsembleAlgorithm = default_ensalg(alg); saveat=[ tmax ], throw_on_error::Bool=false, kwargs...)
-    int = PopIntegrator(chem, alg, ensalg; tstops=saveat)
+                   ensalg::EnsembleAlgorithm = default_ensalg(alg); saveat=[ tmax ], throw_on_error::Bool=false,
+                   rng::AbstractRNG = Xoshiro(rand(UInt64)), kwargs...)
+    int = PopIntegrator(chem, alg, ensalg; tstops=saveat, rng)
     try
         init!(int.alg, int)
         int.t0 in saveat && mark_tree!(chem)

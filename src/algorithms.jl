@@ -98,7 +98,8 @@ filter_offspring(cells, ::Strict, rng) = (cells, 0)
 update_algorithm!(::Strict, int) = nothing
 
 function update_queue!(int, alg::Strict, t)
-    _shrink_pop_unsafe!(int, alg.L, t)
+    # Strict is serial, so the heap layout is reproducible
+    _shrink_pop_unsafe!((queue, n) -> _pop_random!(queue, n, int.rng), int, alg.L, t)
     alg.clone && _clone_pop_unsafe!(int, alg.L, t)
     nothing
 end
@@ -207,7 +208,8 @@ end
 
 function update_algorithm!(alg::Lax, int)
     if length(int.queue) > alg.L * alg.tol
-        _shrink_pop_unsafe!(int, alg.L, int.t)
+        # After a multithreaded step, the heap layout depends on scheduling
+        _shrink_pop_unsafe!(_pop_by_keys!, int, alg.L, int.t)
     end
 
     add_tstop!(int, int.t + alg.τ)
@@ -221,11 +223,12 @@ update_queue!(int, ::Lax, t) = nothing
 
 # Population control, used by `Strict` and `Lax`
 
-function _shrink_pop_unsafe!(int, L::Int, t)
+# `pop_random!(queue, n)` removes `n` cells chosen at random
+function _shrink_pop_unsafe!(pop_random!, int, L::Int, t)
     N_start = length(int.queue)
     N_start > L || return
 
-    for cell in _pop_random!(int.queue, N_start - L)
+    for cell in pop_random!(int.queue, N_start - L)
         data = get_data(cell)
         kill!(cell, t)
         @lock int.tree_lock record_end!(int.chem.tree, cell, t, data)
@@ -244,7 +247,7 @@ function _clone_pop_unsafe!(int, L::Int, t)
         "Cannot record a population tree when cloning cells, use `Strict(L, false)`, `Lax` or `save_mode=:none`"))
 
     while length(int.queue) < L
-        _clone_random!(int.queue, t)
+        _clone_random!(int.queue, t, int.rng)
     end
 
     int.log_f += log(N_start) - log(length(int.queue))
