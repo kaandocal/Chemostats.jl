@@ -60,7 +60,7 @@ Estimates the true population size from a snapshot.
 est_N(snap::Snapshot) = exp(est_logN(snap))
 
 """
-    est_Λ(snap1::Snapshot, snap2::Snapshot)
+    est_growth_rate(snap1::Snapshot, snap2::Snapshot)
 
 Estimates the growth rates from two snapshots at times ``t_1`` and ``t_2`` via 
 
@@ -68,7 +68,7 @@ Estimates the growth rates from two snapshots at times ``t_1`` and ``t_2`` via
 
 Here ``\\hat N(t_1)`` and ``\\hat N(t_2)`` are estimated via [`est_N`](@ref).
 """
-function est_Λ(before::Snapshot, after::Snapshot) 
+function est_growth_rate(before::Snapshot, after::Snapshot) 
     before.t >= after.t && return NaN
     (est_logN(after) - est_logN(before)) / (after.t - before.t)
 end
@@ -154,10 +154,10 @@ est_logN(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_logN(_get_snapshot(sna
 est_N(snaps::SnapshotVec, t = get_curr_t(snaps)) = exp(est_logN(snaps, t))
 
 """
-    est_Λ(snaps::AbstractVector{Snapshot}, t1 = first(snaps).t, t2)
+    est_growth_rate(snaps::AbstractVector{Snapshot}, t1 = first(snaps).t, t2)
 
 Estimates the growth rate of a population between times t1 and t2 from the snapshots saved at these times,
-see [`est_Λ`](@ref). Errors if no snapshots were saved at these times. `snaps` can alternatively be a `Chemostat` instance.
+see [`est_growth_rate`](@ref). Errors if no snapshots were saved at these times. `snaps` can alternatively be a `Chemostat` instance.
 """
-est_Λ(snaps::SnapshotVec, t0, t) = est_Λ(_get_snapshot(snaps, t0), _get_snapshot(snaps, t))
-est_Λ(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_Λ(snaps, get_start_t(snaps), t)
+est_growth_rate(snaps::SnapshotVec, t0, t) = est_growth_rate(_get_snapshot(snaps, t0), _get_snapshot(snaps, t))
+est_growth_rate(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_growth_rate(snaps, get_start_t(snaps), t)

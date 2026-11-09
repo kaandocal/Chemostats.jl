@@ -64,17 +64,17 @@ length(chem.pop) #md
 
 [ cell.int[:V] for cell in first(chem.pop, 5) ]     # volumes of the first five cells
 
-# We can also estimate the growth rate of the population using [`Chemostats.est_Λ`](@ref):
+# We can also estimate the growth rate of the population using [`Chemostats.est_growth_rate`](@ref):
 
-Chemostats.est_Λ(chem) #md
-Chemostats.est_Λ(chem)                              # growth rate estimate #jl
+Chemostats.est_growth_rate(chem) #md
+Chemostats.est_growth_rate(chem)                              # naive estimate #jl
 
 # Note that our population grows exponentially, which makes long-term simulations difficult. To avoid this, we can
 # use the [`Strict`](@ref) or [`Lax`](@ref) simulation algorithms, which maintain a (roughly) constant population
 # size. For example, we can simulate a population consisting of at most 20 cells for ~100 generations:
 
 chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true) #md
-length(chem.pop), Chemostats.est_Λ(chem) #md
+length(chem.pop), Chemostats.est_growth_rate(chem) #md
 
 #-
 
@@ -83,7 +83,7 @@ length(chem.pop), Chemostats.est_Λ(chem) #md
 cells = [ DECell(prob, Tsit5(), divide) for _ in 1:20 ]; #jl
 chem = Chemostats.simulate(cells, 100., Chemostats.Strict(20)) #jl
 
-Chemostats.est_Λ(chem)                              # much better growth rate estimate #jl
+Chemostats.est_growth_rate(chem)                              # much better estimate #jl
 
 # This allows us to compute much better estimates of population quantities like the growth rate. See
 # [Simulation Algorithms](@ref) for the available algorithms.

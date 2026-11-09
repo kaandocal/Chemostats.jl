@@ -32,7 +32,7 @@ using RecipesBase
             subplot := 3
             xlabel := δ_panel ? "" : "Time"
             ylabel := "growth rate Λ"
-            tt, [ Chemostats.est_Λ(snaps, t1, t) for t in tt ]
+            tt, [ Chemostats.est_growth_rate(snaps, t1, t) for t in tt ]
         end
     end
 

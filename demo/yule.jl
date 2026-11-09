@@ -24,4 +24,4 @@ cells = [ DECell(prob, Tsit5(), divide) ]
 # Estimate the growth rate from a single lineage. The true growth rate is
 # exactly 1, but tracking only one lineage systematically underestimates it.
 chem = Chemostats.simulate(cells, 1_000_000, Chemostats.Strict(1))
-println("Estimated growth rate: ", Chemostats.est_Λ(chem))
+println("Estimated growth rate: ", Chemostats.est_growth_rate(chem))

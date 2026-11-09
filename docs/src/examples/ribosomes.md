@@ -89,10 +89,10 @@ length(chem.pop)
  1.1075921756578564
 ````
 
-We can also estimate the growth rate of the population using `Chemostats.est_Λ`:
+We can also estimate the growth rate of the population using `Chemostats.est_growth_rate`:
 
 ````julia
-Chemostats.est_Λ(chem)
+Chemostats.est_growth_rate(chem)
 ````
 
 ````
@@ -105,7 +105,7 @@ size. For example, we can simulate a population consisting of at most 20 cells f
 
 ````julia
 chem = Chemostats.simulate(cells, 20., Chemostats.Strict(20, false); copy = true)
-length(chem.pop), Chemostats.est_Λ(chem)
+length(chem.pop), Chemostats.est_growth_rate(chem)
 ````
 
 ````

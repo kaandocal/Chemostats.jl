@@ -30,7 +30,7 @@ include("integrate.jl")
 include("offspring.jl")
 include("decell.jl")
 
-export Chemostat, DECell, est_Λ, CellException
+export Chemostat, DECell, est_growth_rate, CellException
 public CellState, Snapshot
 public Forward, Thin, Direct, Strict, Lax
 

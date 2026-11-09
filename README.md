@@ -50,14 +50,14 @@ chem = Chemostats.simulate(cells, 2., Chemostats.Direct(); copy = true);
 
 [ cell.int[:V] for cell in first(chem.pop, 5) ]     # volumes of the first five cells
 
-Chemostats.est_Λ(chem)                              # growth rate estimate
+Chemostats.est_growth_rate(chem)                              # naive estimate
 
 # Simulating exponentially growing populations is slow. 
 # We can subsample and simulate 20 cells at one time using `Strict`.
 cells = [ DECell(prob, Tsit5(), divide) for _ in 1:20 ];
 chem = Chemostats.simulate(cells, 100., Chemostats.Strict(20))
 
-Chemostats.est_Λ(chem)                              # much better growth rate estimate      
+Chemostats.est_growth_rate(chem)                              # much better estimate      
 ```
 <!-- END demo/ribosomes.jl -->
 

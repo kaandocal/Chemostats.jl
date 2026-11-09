@@ -34,7 +34,7 @@ function Makie.plot(snaps::AbstractVector{Chemostats.Snapshot};
         t_tgt = tspan[1] + (tspan[2] - tspan[1]) * f
         idx = findmin(t -> abs(t - t_tgt), tt)[2]
         t1 = tt[idx]
-        ΛΛ = [ Chemostats.est_Λ(snaps, t1, t) for t in tt ]
+        ΛΛ = [ Chemostats.est_growth_rate(snaps, t1, t) for t in tt ]
         lines!(ax_Λ, tt, ΛΛ)
     end
 

@@ -16,7 +16,7 @@ Chemostats.CellException
 
 ```@docs
 Chemostats.Snapshot
-Chemostats.est_Λ
+Chemostats.est_growth_rate
 Chemostats.est_N
 Chemostats.est_logN
 ```

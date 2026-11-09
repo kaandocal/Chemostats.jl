@@ -173,7 +173,7 @@ end
     snaps = [ Chemostats.Snapshot(t, round(Int, N0 * exp(Λ_true * t)), 0, 0.0) for t in ts ]
     t = ts[end]
 
-    Λ_direct = Chemostats.est_Λ(snaps[1], snaps[end])
+    Λ_direct = Chemostats.est_growth_rate(snaps[1], snaps[end])
     @test Λ_direct ≈ Λ_true atol = 1e-6
 
     for β in (0.0, 0.3, 0.5, 0.8, 1.0)
@@ -185,13 +185,13 @@ end
     end
 end
 
-@testset "Lax and est_Λ count time from the first snapshot" begin
+@testset "Lax and est_growth_rate count time from the first snapshot" begin
     Λ_true = 0.3
     τ = 0.5
     ts = 5:τ:15
     snaps = [ Chemostats.Snapshot(t, round(Int, 1.0e6 * exp(Λ_true * t)), 0, 0.0) for t in ts ]
 
-    @test Chemostats.est_Λ(snaps) ≈ Λ_true atol = 1e-6
+    @test Chemostats.est_growth_rate(snaps) ≈ Λ_true atol = 1e-6
     @test Chemostats.est_Λ_curr(snaps, ts[end], Chemostats.Lax(50, τ)) ≈ Λ_true atol = 1e-6
     @test Chemostats.get_δ(snaps, ts[1], Chemostats.Lax(50, τ)) == 0          # less than τ after the start
 end

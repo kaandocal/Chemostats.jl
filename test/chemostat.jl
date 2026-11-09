@@ -12,8 +12,8 @@ include("models/exponential.jl")
 
     @test Chemostats.est_logN(s1) == log(10)
     @test Chemostats.est_N(s1) ≈ 10
-    @test Chemostats.est_Λ(s1, s2) ≈ log(2)
-    @test isnan(Chemostats.est_Λ(s2, s1))
+    @test Chemostats.est_growth_rate(s1, s2) ≈ log(2)
+    @test isnan(Chemostats.est_growth_rate(s2, s1))
 
     s3 = Chemostats.Snapshot(0.0, 10, 10, log(2))
     @test Chemostats.est_N(s3) ≈ 20

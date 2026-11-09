@@ -54,7 +54,7 @@ function rmse_Λ(make_chem, alg, Λ_gt, tmax, ensalg = Chemostats.default_ensalg
     Λs = map(1:niter) do _
         chem = make_chem()
         Chemostats.simulate!(chem, tmax, alg, ensalg; kwargs...)
-        est_Λ(chem)
+        est_growth_rate(chem)
     end
     rmse(Λs, Λ_gt)
 end
