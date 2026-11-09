@@ -42,7 +42,7 @@ function Makie.plot(snaps::AbstractVector{Chemostats.Snapshot};
 
     if alg isa Chemostats.Lax
         linkxaxes!([ax_N, ax_δ])
-        δδ = [ Chemostats.get_δ(snaps, t, alg) for t in tt ]
+        δδ = [ Chemostats.get_thinning_rate(snaps, t, alg) for t in tt ]
         lines!(ax_δ, tt, δδ)
         isnothing(Λ_gt) || hlines!(ax_δ, Λ_gt; linestyle=:dash, color=:black)
     end

@@ -201,7 +201,7 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
         throw(ArgumentError("Algorithm $(typeof(int.alg)) does not support parallelisation, use EnsembleSerial()"))
     end
 
-    δ = get_δ(int, int.alg)
+    δ = get_thinning_rate(int, int.alg)
     int.t_next = min(find_next_t(int), tmax)
     t0 = int.t
     int.t_next <= t0 && return int

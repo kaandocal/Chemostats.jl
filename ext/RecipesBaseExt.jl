@@ -53,7 +53,7 @@ using RecipesBase
             subplot := 4
             xlabel := "Time"
             ylabel := "thinning rate δ"
-            tt, [ Chemostats.get_δ(snaps, t, alg) for t in tt ]
+            tt, [ Chemostats.get_thinning_rate(snaps, t, alg) for t in tt ]
         end
         if !isnothing(Λ_gt)
             @series begin

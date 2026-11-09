@@ -13,7 +13,7 @@ struct Forward <: AbstractAlgorithm
     L::Int
 end 
 
-get_δ(int, ::Forward) = 0.
+get_thinning_rate(int, ::Forward) = 0.
 function init!(alg::Forward, int)
     length(int.queue) == alg.L || throw(DimensionMismatch("Using Chemostats.Forward($(alg.L)) on a population of size $(length(int.queue))"))
 end 
@@ -26,25 +26,25 @@ update_queue!(queue, ::Forward, t) = nothing
 ### 
 
 """ 
-    Thin(δ::Float64)
+    Thin(rate::Float64)
 
-Simulates a population where each cell is subject to a constant death rate ``δ > 0``. 
+Simulates a population where each cell is subject to a constant death rate ``δ \geq 0`` (equal to `rate`). 
 If the original population grows with rate ``Λ``, the simulated population grows with rate ``Λ - δ``, 
 from which ``Λ`` can be estimated. 
 
 Faster than [`Direct`](@ref), but still slow. 
 
-**Note:** This algorithm increases the chances that the population will die out. 
+**Note:** This algorithm increases the probability that the population will die out. 
 To reduce the chances of this happening, increase the starting size of the population.
 
 This algorithm requires ``δ < Λ`` to be stable, otherwise the population will eventually die out. 
 This approach has exponential complexity with rate ``0 < Λ - δ < Λ``. 
 """
 struct Thin <: AbstractAlgorithm
-    δ::Float64 
+    rate::Float64 
 end 
 
-get_δ(int, alg::Thin) = alg.δ
+get_thinning_rate(int, alg::Thin) = alg.rate
 init!(::Thin, int) = nothing
 is_parallel(::Thin) = true
 filter_offspring(cells, ::Thin, rng) = (cells, 0)
@@ -88,7 +88,7 @@ end
 
 Strict(L::Int) = Strict(L, true)
 
-get_δ(int, ::Strict) = 0.
+get_thinning_rate(int, ::Strict) = 0.
 function init!(alg::Strict, int)
     alg.clone && !isnothing(int.chem.tree) && @warn "Population trees are not currently supported with cloning. Use Strict(L, false) to disable cloning" maxlog=1
     update_queue!(int, alg, int.t)
@@ -108,17 +108,17 @@ end
 ###
 
 """
-    Lax(L::Int, τ::Float64; tol = 2, β = 0.5, L_min = 25)
+    Lax(L::Int, t_adapt::Float64; tol = 2, smoothing = 0.5, L_min = 25)
 
 Implements the relaxed chemostat algorithm, combining [`Thin`](@ref) and [`Strict`](@ref).
 The population is kept around ``L`` by introducing a time-varying death rate ``δ`` that
-is adapted to the current growth rate. The death rate is updated at intervals of length ``τ``.
+is adapted to the current growth rate. The death rate is updated at intervals of length `t_adapt`.
 
 This algorithm trades the strict population size guarantees of [`Strict`](@ref) for better parallelisation.
 As the population size is only approximately ``L``, runtimes may be somewhat less stable than [`Strict`](@ref).
-In particular, if the population size hits ``0`` within an interval ``τ``, the population dies out.
+In particular, if the population size hits ``0`` within an interval `t_adapt`, the population dies out.
 For this reason, the algorithm sets ``δ = 0`` when the population drops below ``L_{min}``.
-To reduce the chances of this happening, increase ``L`` or decrease ``τ``. We recommend ``L \\geq 50-100``.
+To reduce the chances of this happening, increase ``L`` or decrease `t_adapt`. We recommend ``L \\geq 50-100``.
 
 This algorithm determines ``δ`` on the fly by estimating the instantaneous growth rate of the population as 
 
@@ -128,81 +128,81 @@ and requiring the expected population size after the next interval to equal ``L`
 
 ``\\hat \\Lambda(t_{n-i-1}, t_{n-i}) = \\frac{\\log \\hat N(t_{n-i}) - \\log \\hat N(t_{n-i-1})}{\\tau}``
 
-is the growth rate in the `n-i`th interval. The parameter ``0 \\leq β \\leq 1`` controls smoothing:
-Larger ``β`` produces more stable estimates, but does not capture sudden variations in growth rate,
-whereas smaller ``β`` produces less stable estimates that can better adapt to fast fluctuations.
-If ``β = 0``, only the growth rate in the last interval is used. The default is ``\\beta = 0.5``.
+is the growth rate in the `n-i`th interval. The parameter `smoothing` (``β`` above, ``0 \\leq β \\leq 1``) controls smoothing:
+Larger `smoothing` produces more stable estimates, but does not capture sudden variations in growth rate,
+whereas smaller `smoothing` produces less stable estimates that can better adapt to fast fluctuations.
+If `smoothing = 0`, only the growth rate in the last interval is used. The default is `smoothing = 0.5`.
 """
 struct Lax <: AbstractAlgorithm
     L::Int
-    τ::Float64
+    t_adapt::Float64
     tol::Float64
-    β::Float64
+    smoothing::Float64
     L_min::Int
 
-    function Lax(L::Int, τ; tol=2., β=0.5, L_min=25)
+    function Lax(L::Int, t_adapt; tol=2., smoothing=0.5, L_min=25)
         @argcheck tol >= 1
-        @argcheck τ > 0
-        @argcheck 0 <= β <= 1
+        @argcheck t_adapt > 0
+        @argcheck 0 <= smoothing <= 1
         @argcheck L_min >= 1
 
-        new(L, τ, tol, β, L_min)
+        new(L, t_adapt, tol, smoothing, L_min)
     end
 end
 
-# Snapshot closest to `t` if within `τ/2`, searching back from index `i`. Also returns
+# Snapshot closest to `t` if within `t_adapt/2`, searching back from index `i`. Also returns
 # the index to continue from, so decreasing times take a single pass
-function get_snapshot_near(snaps::AbstractVector{Snapshot}, t, τ, i = lastindex(snaps))
+function get_snapshot_near(snaps::AbstractVector{Snapshot}, t, t_adapt, i = lastindex(snaps))
     # Last snapshot before `t`, then the closer of it and the next one
     while i > firstindex(snaps) && snaps[i].t > t
         i -= 1
     end
     j = i < lastindex(snaps) && snaps[i + 1].t - t < t - snaps[i].t ? i + 1 : i
-    (abs(snaps[j].t - t) <= τ / 2 ? snaps[j] : nothing), i
+    (abs(snaps[j].t - t) <= t_adapt / 2 ? snaps[j] : nothing), i
 end
 
 function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
-    rnd = floor(Int, (t - get_start_t(snaps)) / alg.τ + 1e-6)
+    rnd = floor(Int, (t - get_start_t(snaps)) / alg.t_adapt + 1e-6)
     rnd <= 0 && return NaN
 
-    # Snapshots at t - kτ for k = 1, …, rnd; a missing one makes the estimate undefined
+    # Snapshots at t - k * t_adapt for k = 1, …, rnd; a missing one makes the estimate undefined
     snap_2 = _get_snapshot(snaps, t)
     i = lastindex(snaps)
     ret = 0.0
     for d in 0:rnd-1
-        snap_1, i = get_snapshot_near(snaps, t - (d + 1) * alg.τ, alg.τ, i)
+        snap_1, i = get_snapshot_near(snaps, t - (d + 1) * alg.t_adapt, alg.t_adapt, i)
         isnothing(snap_1) && return NaN
-        ret += (d > 0 ? alg.β^d : one(alg.β)) * est_growth_rate(snap_1, snap_2)
+        ret += (d > 0 ? alg.smoothing^d : one(alg.smoothing)) * est_growth_rate(snap_1, snap_2)
         snap_2 = snap_1
     end
 
-    norm = alg.β < 1 ? ((1 - alg.β^rnd) / (1 - alg.β)) : rnd * alg.β
+    norm = alg.smoothing < 1 ? ((1 - alg.smoothing^rnd) / (1 - alg.smoothing)) : rnd * alg.smoothing
     ret / norm
 end
 
 init!(alg::Lax, int) = update_algorithm!(alg, int)
 
-get_δ(int, alg::Lax) = get_δ(int.chem, int.t, alg)
-get_δ(chem::Chemostat, t, alg::Lax) = get_δ(chem.snaps, t, alg)
+get_thinning_rate(int, alg::Lax) = get_thinning_rate(int.chem, int.t, alg)
+get_thinning_rate(chem::Chemostat, t, alg::Lax) = get_thinning_rate(chem.snaps, t, alg)
 
-function get_δ(snaps::AbstractVector{Snapshot}, t, alg::Lax)
+function get_thinning_rate(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     snap = _get_snapshot(snaps, t)
 
     N = snap.N > alg.L * alg.tol ? alg.L : snap.N
 
     # Small population
     N < alg.L_min && return 0.
-    t - get_start_t(snaps) < alg.τ && return 0.
+    t - get_start_t(snaps) < alg.t_adapt && return 0.
 
     # Estimate current growth rate
     Λ̂ = est_Λ_curr(snaps, t, alg)
     isfinite(Λ̂) || return 0.
 
-    # Expected population size after time τ is
-    #   `length(queue) * exp((Λ - δ) * τ)`
+    # Expected population size after time t_adapt is
+    #   `length(queue) * exp((Λ - δ) * t_adapt)`
     # Choose δ to make this equal to L
     ΔlogN = log(alg.L) - log(N)
-    ret = Λ̂ - ΔlogN / alg.τ
+    ret = Λ̂ - ΔlogN / alg.t_adapt
     max(0, ret)
 end
 
@@ -212,7 +212,7 @@ function update_algorithm!(alg::Lax, int)
         _shrink_pop_unsafe!(_pop_by_keys!, int, alg.L, int.t)
     end
 
-    add_tstop!(int, int.t + alg.τ)
+    add_tstop!(int, int.t + alg.t_adapt)
 end 
 
 is_parallel(::Lax) = true

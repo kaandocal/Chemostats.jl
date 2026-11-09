@@ -158,8 +158,8 @@ end
 
 @testset "Lax constructor" begin
     @test_throws ArgumentError Chemostats.Lax(10, 1.0; tol = 0.5)
-    @test_throws ArgumentError Chemostats.Lax(10, 1.0; β = 1.5)
-    @test_throws ArgumentError Chemostats.Lax(10, 1.0; β = -0.1)
+    @test_throws ArgumentError Chemostats.Lax(10, 1.0; smoothing = 1.5)
+    @test_throws ArgumentError Chemostats.Lax(10, 1.0; smoothing = -0.1)
     @test_throws ArgumentError Chemostats.Lax(10, -1.0)
     @test Chemostats.Lax(10, 1.0) isa Chemostats.Lax
 end
@@ -177,7 +177,7 @@ end
     @test Λ_direct ≈ Λ_true atol = 1e-6
 
     for β in (0.0, 0.3, 0.5, 0.8, 1.0)
-        alg = Chemostats.Lax(50, τ; β)
+        alg = Chemostats.Lax(50, τ; smoothing = β)
         Λ_curr = Chemostats.est_Λ_curr(snaps, t, alg)
 
         @test Λ_curr ≈ Λ_true atol = 1e-6
@@ -193,7 +193,7 @@ end
 
     @test Chemostats.est_growth_rate(snaps) ≈ Λ_true atol = 1e-6
     @test Chemostats.est_Λ_curr(snaps, ts[end], Chemostats.Lax(50, τ)) ≈ Λ_true atol = 1e-6
-    @test Chemostats.get_δ(snaps, ts[1], Chemostats.Lax(50, τ)) == 0          # less than τ after the start
+    @test Chemostats.get_thinning_rate(snaps, ts[1], Chemostats.Lax(50, τ)) == 0          # less than τ after the start
 end
 
 @testset "Lax falls back to nearby snapshots or sets δ = 0" begin
@@ -214,7 +214,7 @@ end
     # No snapshot within τ/2 of t - τ: estimate undefined, δ = 0
     snaps = [ mksnap(s) for s in ts if s != t - τ ]
     @test isnan(Chemostats.est_Λ_curr(snaps, t, alg))
-    @test Chemostats.get_δ(snaps, t, alg) == 0
+    @test Chemostats.get_thinning_rate(snaps, t, alg) == 0
 end
 
 @testset "Lax snapshot lookup matches a brute-force search" begin
