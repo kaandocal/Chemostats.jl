@@ -28,7 +28,7 @@ update_queue!(queue, ::Forward, t) = nothing
 """ 
     Thin(rate::Float64)
 
-Simulates a population where each cell is subject to a constant death rate ``δ \geq 0`` (equal to `rate`). 
+Simulates a population where each cell is subject to a constant death rate ``δ \\geq 0`` (equal to `rate`). 
 If the original population grows with rate ``Λ``, the simulated population grows with rate ``Λ - δ``, 
 from which ``Λ`` can be estimated. 
 
