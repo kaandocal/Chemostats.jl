@@ -33,6 +33,7 @@ makedocs(
     plugins = [ links ],
     linkcheck = true,
     linkcheck_ignore = [ r"^https://www\.biorxiv\.org/" ],  # bioRxiv blocks automated requests
+    linkcheck_timeout = 30,     # github.com sometimes takes longer than the default 10 s from CI
     checkdocs = :public,
 )
 
