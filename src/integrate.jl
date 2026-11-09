@@ -22,8 +22,16 @@ function default_ensalg(alg::AbstractAlgorithm)
     end 
 end
 
+function check_ensalg(alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm)
+    ensalg isa EnsembleThreads && !is_parallel(alg) &&
+        throw(ArgumentError("Algorithm $(typeof(alg)) does not support parallelisation, use EnsembleSerial()"))
+    nothing
+end
+
 function PopIntegrator(chem::Chemostat, alg::AbstractAlgorithm, ensalg::EnsembleAlgorithm; tstops = Float64[],
                        rng::AbstractRNG = Xoshiro(rand(UInt64)))
+    # Before `init!`, which may already change the population
+    check_ensalg(alg, ensalg)
     t0 = get_curr_t(chem)
 
     tstops = filter(t -> t0 < t, tstops)
@@ -197,9 +205,7 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
     (; chem, queue) = int
     out = ThreadedQueue(empty(chem.pop))
 
-    if ensalg isa EnsembleThreads && !is_parallel(int.alg)
-        throw(ArgumentError("Algorithm $(typeof(int.alg)) does not support parallelisation, use EnsembleSerial()"))
-    end
+    check_ensalg(int.alg, ensalg)
 
     δ = get_thinning_rate(int, int.alg)
     int.t_next = min(find_next_t(int), tmax)
