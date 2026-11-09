@@ -114,9 +114,9 @@ noise = [ name => var(b) / mean(b)^2 for ((name, rates), b) in zip(regimes, birt
 
 ````
 3-element Vector{Pair{String, Float64}}:
- "timer-like" => 0.007455275408670122
- "adder-like" => 0.0033849408482365946
- "sizer-like" => 0.0041918366683019685
+ "timer-like" => 0.0075209936314706355
+ "adder-like" => 0.0035145129874554135
+ "sizer-like" => 0.00427353414203684
 ````
 
 ## Results

@@ -92,6 +92,12 @@ chem_fwd = Chemostats.simulate(create_population(L), tmax, Chemostats.Forward(L)
 chem = Chemostats.simulate(create_population(L), tmax, Chemostats.Strict(L); save_mode = :full);
 ````
 
+````
+┌ Warning: Population trees are not currently supported with cloning. Use Strict(L, false) to disable cloning
+└ @ Chemostats ~/work/Chemostats.jl/Chemostats.jl/src/algorithms.jl:93
+
+````
+
 The data we stored for each node is the average protein content of the cell.
 We obtain a backward lineage by tracing the ancestors of a living cell.
 
@@ -104,7 +110,7 @@ means_bwd = [ node.data for node in Chemostats.ancestors(chem.tree, first(chem.p
 ````
 
 ````
-(forward = 94.13107324560731, population = 108.84294479127614, backward = 126.42998522092203)
+(forward = 92.48834655172125, population = 107.8253592971131, backward = 119.60431628582907)
 ````
 
 We see that forward, population and backward statistics are all different. Cells that produce
@@ -169,7 +175,7 @@ first_cells = Chemostats.Trees.alive_during(tree, tspan)
 ````
 
 ````
-TreeView(27 nodes)
+TreeView(23 nodes)
 ````
 
 ```@raw html

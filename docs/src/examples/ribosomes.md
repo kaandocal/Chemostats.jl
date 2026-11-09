@@ -73,7 +73,7 @@ length(chem.pop)
 ````
 
 ````
-108
+77
 ````
 
 ````julia
@@ -82,11 +82,11 @@ length(chem.pop)
 
 ````
 5-element Vector{Float64}:
- 1.0423164542929497
- 1.016818323022799
- 1.0084091615113993
- 1.0300651269626537
- 1.1075921756578564
+ 1.042836398675771
+ 1.031478018343969
+ 1.0125912073375876
+ 1.0446429228803396
+ 1.0267857537282035
 ````
 
 We can also estimate the growth rate of the population using `Chemostats.est_growth_rate`:
@@ -96,7 +96,7 @@ Chemostats.est_growth_rate(chem)
 ````
 
 ````
-2.34106561356211
+2.171902710926842
 ````
 
 Note that our population grows exponentially, which makes long-term simulations difficult. To avoid this, we can
@@ -109,7 +109,7 @@ length(chem.pop), Chemostats.est_growth_rate(chem)
 ````
 
 ````
-(20, 2.5697787564815346)
+(19, 2.5476980260943844)
 ````
 
 This allows us to compute much better estimates of population quantities like the growth rate. See
