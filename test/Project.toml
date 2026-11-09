@@ -24,6 +24,8 @@ Chemostats = {path = ".."}
 [compat]
 Aqua = "0.8"
 ArgCheck = "2.5.0"
+CairoMakie = "0.15.17"
+Catalyst = "17.0.1"
 Chemostats = "0.1"
 Distributions = "0.25"
 JumpProcesses = "10"
