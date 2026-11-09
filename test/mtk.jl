@@ -152,5 +152,11 @@ end
     @test Chemostats.get_state(run_to_division(hybrid_prob(cb))) == Chemostats.CellState.EndOfLife
 
     other = HybridProblem(other_rn, [:P => 0, :Q => 0, :V => 1.0], (0., Inf), [:k => 1.0, :V_d => 2.0]; callback = cb)
-    @test_throws ErrorException run_to_division(other)
+    @test_throws Chemostats.NonShareableError run_to_division(other)
+
+    # Stops simulations instead of removing the cell
+    @test_throws Chemostats.NonShareableError begin
+        cells = [ DECell(hybrid_prob(cb), Tsit5(), divide_jumpcell), DECell(other, Tsit5(), divide_jumpcell) ]
+        Chemostats.simulate!(Chemostat(cells), 5.0, Chemostats.Direct(), EnsembleSerial())
+    end
 end

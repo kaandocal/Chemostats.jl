@@ -34,7 +34,8 @@ layout_hash(int) = hash(variable_symbols(int), hash(parameter_symbols(int)))
 end
 
 @noinline function check_layout!(checked, entry, int)
-    last(entry) == layout_hash(int) || error("DivideCallback cannot be shared between different systems")
+    last(entry) == layout_hash(int) || throw(Chemostats.NonShareableError(
+        "DivideCallback cannot be shared between different systems, create a separate DivideCallback for each system"))
     checked[] = true
 end
 

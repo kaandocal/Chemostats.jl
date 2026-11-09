@@ -25,6 +25,17 @@ end
 Base.showerror(io::IO, e::CellException) = (print(io, "CellException: "); showerror(io, e.exc))
 
 """
+    struct NonShareableError <: Exception
+
+Thrown when an object that cannot be shared is used by more than one model. Not caught during simulations.
+"""
+struct NonShareableError <: Exception
+    msg::String
+end
+
+Base.showerror(io::IO, e::NonShareableError) = print(io, "NonShareableError: ", e.msg)
+
+"""
     divide!(cell)
 
 Called after a cell divides, as determined by [`Chemostats.get_children`](@ref).

@@ -132,7 +132,7 @@ function find_next_t(int::PopIntegrator, t=int.t)
 end 
 
 function step!(int::PopIntegrator, tmax, ensalg::EnsembleAlgorithm; kwargs...)
-    error("Ensemble algorithm $ensalg not supported")
+    throw(ArgumentError("Ensemble algorithm $ensalg not supported, use EnsembleSerial() or EnsembleThreads()"))
 end 
 
 function worker_task(int::PopIntegrator, cell, out::ThreadedQueue; Nmax=Int(1e7), δ=0., throw_on_error::Bool=false, kwargs...)
@@ -198,7 +198,7 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
     out = ThreadedQueue(empty(chem.pop))
 
     if ensalg isa EnsembleThreads && !is_parallel(int.alg)
-        error("Algorithm $(typeof(int.alg)) does not support parallelisation")
+        throw(ArgumentError("Algorithm $(typeof(int.alg)) does not support parallelisation, use EnsembleSerial()"))
     end
 
     δ = get_δ(int, int.alg)
@@ -243,6 +243,9 @@ function step!(int::PopIntegrator, tmax, ensalg::Union{EnsembleSerial,EnsembleTh
     int
 end
 
+# Interrupts and setup errors stop the simulation instead of removing the cell
+stops_simulation(e) = e isa InterruptException || e isa NonShareableError
+
 function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
     @argcheck get_state(cell) == CellState.Alive 
 
@@ -250,8 +253,7 @@ function process_cell!(int::PopIntegrator, cell, tmax; δ=0., kwargs...)
     try
         step!(cell, tmax - tb, int.chem.p)
     catch e
-        # Interrupts stop the simulation instead of removing the cell
-        e isa InterruptException && rethrow()
+        stops_simulation(e) && rethrow()
         throw(CellException(e))
     end
     t = get_curr_t(cell)
@@ -287,7 +289,7 @@ function process_eol!(int::PopIntegrator, cell; kwargs...)
     children = try
         get_children(cell, int.chem.p)
     catch e
-        e isa InterruptException && rethrow()
+        stops_simulation(e) && rethrow()
         throw(CellException(e))
     end
 
