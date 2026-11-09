@@ -57,7 +57,7 @@ _est_logN(snap::Snapshot) = log(snap.N) + snap.log_f
     
 Estimates the true population size from a snapshot.
 """
-const est_N = exp ∘ est_logN
+est_N(snap::Snapshot) = exp(est_logN(snap))
 
 """
     est_Λ(snap1::Snapshot, snap2::Snapshot)
@@ -151,6 +151,7 @@ Errors if no snapshot was saved at time `t` (see `saveat` in [`simulate!`](@ref)
 `snaps` can alternatively be a `Chemostat` instance.
 """
 est_logN(snaps::SnapshotVec, t = get_curr_t(snaps)) = est_logN(_get_snapshot(snaps, t))
+est_N(snaps::SnapshotVec, t = get_curr_t(snaps)) = exp(est_logN(snaps, t))
 
 """
     est_Λ(snaps::AbstractVector{Snapshot}, t1 = first(snaps).t, t2)
