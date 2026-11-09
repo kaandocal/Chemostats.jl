@@ -172,7 +172,7 @@ function est_Λ_curr(snaps::AbstractVector{Snapshot}, t, alg::Lax)
     for d in 0:rnd-1
         snap_1, i = get_snapshot_near(snaps, t - (d + 1) * alg.t_adapt, alg.t_adapt, i)
         isnothing(snap_1) && return NaN
-        ret += (d > 0 ? alg.smoothing^d : one(alg.smoothing)) * est_growth_rate(snap_1, snap_2)
+        ret += alg.smoothing^d * est_growth_rate(snap_1, snap_2)
         snap_2 = snap_1
     end
 
